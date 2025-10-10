@@ -1,0 +1,29 @@
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* WORKSPACE NAVIGATOR STYLES                                                   */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Status Bar                                                                   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.workspace-navigator-status {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	padding: 0 8px;
+	transition: background-color 0.2s;
+}
+
+.workspace-navigator-status:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.workspace-navigator-icon {
+	display: flex;
+	align-items: center;
+}
+
+.workspace-navigator-text {
+	font-size: var(--font-ui-smaller);
+}
