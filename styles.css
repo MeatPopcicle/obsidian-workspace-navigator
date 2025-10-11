@@ -27,3 +27,54 @@
 .workspace-navigator-text {
 	font-size: var(--font-ui-smaller);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Workspace Modal                                                              */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.workspace-suggestion-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	position: relative;
+}
+
+.workspace-rename-btn {
+	display: none;
+	opacity: 0.6;
+	cursor: pointer;
+	padding: 2px;
+	border-radius: 4px;
+	flex-shrink: 0;
+}
+
+.workspace-rename-btn svg {
+	display: block;
+	width: 16px;
+	height: 16px;
+}
+
+.workspace-suggestion-item:hover .workspace-rename-btn {
+	display: flex;
+}
+
+.workspace-rename-btn:hover {
+	opacity: 1;
+	background-color: var(--background-modifier-hover);
+}
+
+.workspace-suggestion-item.is-renaming {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+	border-radius: 4px;
+}
+
+.workspace-suggestion-item[contenteditable="true"] {
+	cursor: text;
+}
+
+.workspace-suggestion-item[contenteditable="true"]:focus {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 2px;
+}

@@ -16,6 +16,7 @@ interface WorkspacePluginInstance {
 	saveWorkspace(name: string): void;
 	loadWorkspace(name: string): void;
 	setActiveWorkspace(name: string): void;
+	saveData(): void;
 }
 
 interface NavigationLayoutState {
