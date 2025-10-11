@@ -2,7 +2,7 @@
 // SETTINGS CONFIGURATION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { App, PluginSettingTab, Setting } from 'obsidian';
+import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import WorkspaceNavigator from './main';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -23,6 +23,9 @@ export interface WorkspaceNavigatorSettings {
 
 	// Sorting preferences
 	sortWorkspacesAlphabetically:    boolean;
+
+	// Debug mode
+	debugMode:                       boolean;
 }
 
 export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
@@ -32,6 +35,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showInstructions:                true,
 	autoSaveOnSwitch:                false,
 	sortWorkspacesAlphabetically:    true,
+	debugMode:                       false,
 };
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -121,6 +125,25 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.autoSaveOnSwitch = value;
 					await this.plugin.saveSettings();
+				}));
+
+		// ─────────────────────────────────────────────────────────────────
+		// Debug Settings
+		// ─────────────────────────────────────────────────────────────────
+
+		containerEl.createEl('h2', { text: 'Debug Settings' });
+
+		new Setting(containerEl)
+			.setName('Enable debug mode')
+			.setDesc('Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view)')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.debugMode)
+				.onChange(async (value) => {
+					this.plugin.settings.debugMode = value;
+					await this.plugin.saveSettings();
+					if (value) {
+						new Notice('Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.');
+					}
 				}));
 	}
 }
