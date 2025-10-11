@@ -25,3 +25,6 @@ Thumbs.db
 
 # Distribution files
 *.zip
+
+# Reference plugin (not part of this project)
+obsidian-workspaces-plus/
