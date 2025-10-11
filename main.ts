@@ -26,7 +26,7 @@ interface NavigationLayoutState {
 	rightSidebarTab:    string | null;
 	leftSidebarWidth:   number | null;
 	rightSidebarWidth:  number | null;
-	folderExpandState:  string | null;  // File explorer folder expansion state
+	// Note: folderExpandState is stored directly in workspace data, not here
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -148,17 +148,55 @@ export default class WorkspaceNavigator extends Plugin {
 			})
 		);
 
-		// Monitor workspace loading via the core plugin
+		// Hook into workspace save/load to inject folder expansion state
 		const workspacePlugin = this.getWorkspacePlugin();
 		if (workspacePlugin) {
-			// Store the original loadWorkspace method
+			// Store the original methods
+			const originalSave = workspacePlugin.saveWorkspace.bind(workspacePlugin);
 			const originalLoad = workspacePlugin.loadWorkspace.bind(workspacePlugin);
 
-			// Wrap it to add our navigation layout handling
-			workspacePlugin.loadWorkspace = (name: string) => {
+			// Wrap saveWorkspace to inject folder expansion state into workspace data
+			workspacePlugin.saveWorkspace = async (name: string) => {
+				if (!name) return;
+
+				// Save the workspace first
+				const result = originalSave(name);
+
+				// Then inject our folder expansion state into the workspace data
+				if (this.settings.rememberNavigationLayout) {
+					const folderState = await this.app.loadLocalStorage('file-explorer-unfold');
+					if (folderState && workspacePlugin.workspaces[name]) {
+						// Store in workspace data using a custom property
+						if (!workspacePlugin.workspaces[name]['workspace-navigator:data']) {
+							workspacePlugin.workspaces[name]['workspace-navigator:data'] = {};
+						}
+						workspacePlugin.workspaces[name]['workspace-navigator:data'].folderExpandState = folderState;
+						workspacePlugin.saveData();
+					}
+				}
+
+				return result;
+			};
+
+			// Wrap loadWorkspace to restore folder expansion state from workspace data
+			workspacePlugin.loadWorkspace = async (name: string) => {
+				if (!name) return;
+
 				this.beforeWorkspaceLoad(name);
 				const result = originalLoad(name);
-				this.afterWorkspaceLoad(name);
+
+				// Restore folder state from workspace data
+				setTimeout(async () => {
+					if (this.settings.rememberNavigationLayout && !this.settings.maintainLayoutAcrossWorkspaces) {
+						const workspace = workspacePlugin.workspaces[name];
+						if (workspace && workspace['workspace-navigator:data']?.folderExpandState) {
+							await this.app.saveLocalStorage('file-explorer-unfold', workspace['workspace-navigator:data'].folderExpandState);
+						}
+					}
+
+					this.afterWorkspaceLoad(name);
+				}, 300);
+
 				return result;
 			};
 		}
@@ -169,15 +207,13 @@ export default class WorkspaceNavigator extends Plugin {
 	// ─────────────────────────────────────────────────────────────────
 
 	/**
-	 * Capture current navigation layout state
+	 * Capture current navigation layout state (sidebar state only)
+	 * Note: Folder expansion state is handled via workspace data injection
 	 */
 	async getCurrentNavigationLayout(): Promise<NavigationLayoutState> {
 		const workspace = this.app.workspace;
 		const leftSplit  = workspace.leftSplit;
 		const rightSplit = workspace.rightSplit;
-
-		// Capture folder expansion state using Obsidian API
-		const folderExpandState = await this.app.loadLocalStorage('file-explorer-unfold');
 
 		return {
 			leftSidebarOpen:   leftSplit?.collapsed === false,
@@ -186,7 +222,6 @@ export default class WorkspaceNavigator extends Plugin {
 			rightSidebarTab:   (rightSplit as any)?.getActiveLeaf?.()?.getViewState?.()?.type || null,
 			leftSidebarWidth:  leftSplit ? (leftSplit as any).containerEl?.offsetWidth : null,
 			rightSidebarWidth: rightSplit ? (rightSplit as any).containerEl?.offsetWidth : null,
-			folderExpandState: folderExpandState,
 		};
 	}
 
@@ -209,7 +244,8 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	/**
-	 * Restore navigation layout for a workspace
+	 * Restore navigation layout for a workspace (sidebar state only)
+	 * Note: Folder expansion state is handled via workspace data injection
 	 */
 	async restoreNavigationLayout(workspaceName: string) {
 		if (!this.settings.rememberNavigationLayout || this.settings.maintainLayoutAcrossWorkspaces) {
@@ -224,12 +260,6 @@ export default class WorkspaceNavigator extends Plugin {
 		const workspace = this.app.workspace;
 		const leftSplit  = workspace.leftSplit;
 		const rightSplit = workspace.rightSplit;
-
-		// Restore folder expansion state FIRST (before sidebars)
-		// This ensures the file explorer has the correct state before being shown
-		if (layout.folderExpandState) {
-			await this.app.saveLocalStorage('file-explorer-unfold', layout.folderExpandState);
-		}
 
 		// Restore sidebar states
 		if (leftSplit) {
@@ -255,22 +285,13 @@ export default class WorkspaceNavigator extends Plugin {
 
 	async beforeWorkspaceLoad(name: string) {
 		this.isLoadingWorkspace = true;
-
-		// Save current workspace's navigation layout
-		const workspacePlugin = this.getWorkspacePlugin();
-		if (workspacePlugin?.activeWorkspace && this.settings.rememberNavigationLayout) {
-			await this.saveNavigationLayout(workspacePlugin.activeWorkspace);
-		}
 	}
 
 	async afterWorkspaceLoad(name: string) {
-		// Wait for workspace layout to fully load
-		// The core workspace plugin loads its layout data, we need to restore AFTER that
-		setTimeout(async () => {
-			await this.restoreNavigationLayout(name);
-			this.isLoadingWorkspace = false;
-			this.updateStatusBar();
-		}, 250);
+		// Restore sidebar states (folder state is handled via workspace data injection)
+		await this.restoreNavigationLayout(name);
+		this.isLoadingWorkspace = false;
+		this.updateStatusBar();
 	}
 
 	/**
