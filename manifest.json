@@ -1,7 +1,7 @@
 {
   "id": "workspace-navigator",
   "name": "Workspace Navigator",
-  "version": "1.0.0",
+  "version": "1.0.6",
   "minAppVersion": "1.8.0",
   "description": "Enhanced workspace management with navigation layout memory, alphabetical sorting, and quick switching",
   "author": "",

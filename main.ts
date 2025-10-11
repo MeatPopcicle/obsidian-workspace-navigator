@@ -314,32 +314,36 @@ export default class WorkspaceNavigator extends Plugin {
 				this.debug(`  Settings: rememberLayout=${this.settings.rememberNavigationLayout}, maintainLayout=${this.settings.maintainLayoutAcrossWorkspaces}`);
 
 				this.beforeWorkspaceLoad(name);
+
+				// CRITICAL: Update localStorage BEFORE calling originalLoad
+				// The file explorer reads from localStorage when changeLayout rebuilds it
+				if (this.settings.rememberNavigationLayout && !this.settings.maintainLayoutAcrossWorkspaces) {
+					const workspace = workspacePlugin.workspaces[name];
+					const storedState = workspace?.['workspace-navigator:data']?.folderExpandState;
+
+					this.debug(`  📂 Stored folder state:`, storedState);
+
+					if (workspace && storedState) {
+						const currentState = await this.app.loadLocalStorage('file-explorer-unfold');
+						this.debug(`  📂 Current folder state (before restore):`, currentState);
+
+						await this.app.saveLocalStorage('file-explorer-unfold', storedState);
+
+						const afterState = await this.app.loadLocalStorage('file-explorer-unfold');
+						this.debug(`  📂 Folder state (after restore):`, afterState);
+						this.debug(`  ✅ Folder state restored BEFORE loading workspace`);
+					} else {
+						this.debug(`  ⚠️ No stored folder state found in workspace data`);
+					}
+				} else {
+					this.debug(`  ⏭️ Skip restore: rememberLayout=${this.settings.rememberNavigationLayout}, maintainLayout=${this.settings.maintainLayoutAcrossWorkspaces}`);
+				}
+
+				// Now call originalLoad - it will rebuild the file explorer and read from the updated localStorage
 				const result = originalLoad(name);
 
-				// Restore folder state from workspace data
-				setTimeout(async () => {
-					if (this.settings.rememberNavigationLayout && !this.settings.maintainLayoutAcrossWorkspaces) {
-						const workspace = workspacePlugin.workspaces[name];
-						const storedState = workspace?.['workspace-navigator:data']?.folderExpandState;
-
-						this.debug(`  📂 Stored folder state:`, storedState);
-
-						if (workspace && storedState) {
-							const currentState = await this.app.loadLocalStorage('file-explorer-unfold');
-							this.debug(`  📂 Current folder state (before restore):`, currentState);
-
-							await this.app.saveLocalStorage('file-explorer-unfold', storedState);
-
-							const afterState = await this.app.loadLocalStorage('file-explorer-unfold');
-							this.debug(`  📂 Folder state (after restore):`, afterState);
-							this.debug(`  ✅ Folder state restored from workspace data`);
-						} else {
-							this.debug(`  ⚠️ No stored folder state found in workspace data`);
-						}
-					} else {
-						this.debug(`  ⏭️ Skip restore: rememberLayout=${this.settings.rememberNavigationLayout}, maintainLayout=${this.settings.maintainLayoutAcrossWorkspaces}`);
-					}
-
+				// Call afterWorkspaceLoad after a delay to ensure layout has changed
+				setTimeout(() => {
 					this.afterWorkspaceLoad(name);
 				}, 300);
 
