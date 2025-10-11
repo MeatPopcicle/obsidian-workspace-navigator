@@ -176,6 +176,83 @@ export default class WorkspaceNavigator extends Plugin {
 				new Notice(`Workspace data dumped to console (Ctrl+Shift+I)`);
 			}
 		});
+
+		// Debug: Export diagnostics to file
+		this.addCommand({
+			id: 'debug-export-diagnostics',
+			name: 'Debug: Export diagnostics to file',
+			callback: async () => {
+				const workspacePlugin = this.getWorkspacePlugin();
+				if (!workspacePlugin) {
+					new Notice('Workspaces core plugin is not enabled');
+					return;
+				}
+
+				const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+				const fileName = `workspace-navigator-debug-${timestamp}.md`;
+
+				// Gather all diagnostic info
+				const currentWorkspace = workspacePlugin.activeWorkspace || 'None';
+				const folderState = await this.app.loadLocalStorage('file-explorer-unfold');
+				const allWorkspaces = Object.keys(workspacePlugin.workspaces);
+
+				// Build diagnostic report
+				let report = `# Workspace Navigator Debug Report\n\n`;
+				report += `**Generated:** ${new Date().toLocaleString()}\n\n`;
+				report += `---\n\n`;
+
+				// Settings
+				report += `## Settings\n\n`;
+				report += `- **Remember navigation layout:** ${this.settings.rememberNavigationLayout}\n`;
+				report += `- **Maintain layout across workspaces:** ${this.settings.maintainLayoutAcrossWorkspaces}\n`;
+				report += `- **Auto-save on switch:** ${this.settings.autoSaveOnSwitch}\n`;
+				report += `- **Sort alphabetically:** ${this.settings.sortWorkspacesAlphabetically}\n`;
+				report += `- **Debug mode:** ${this.settings.debugMode}\n\n`;
+
+				// Current state
+				report += `## Current State\n\n`;
+				report += `- **Active workspace:** ${currentWorkspace}\n`;
+				report += `- **Current folder state (localStorage):**\n\`\`\`json\n${JSON.stringify(folderState, null, 2)}\n\`\`\`\n\n`;
+
+				// All workspaces
+				report += `## All Workspaces\n\n`;
+				report += `Total: ${allWorkspaces.length}\n\n`;
+
+				for (const wsName of allWorkspaces) {
+					const ws = workspacePlugin.workspaces[wsName];
+					const navData = ws?.['workspace-navigator:data'];
+
+					report += `### ${wsName}\n\n`;
+
+					if (navData?.folderExpandState) {
+						report += `**Stored folder state:**\n\`\`\`json\n${JSON.stringify(navData.folderExpandState, null, 2)}\n\`\`\`\n\n`;
+					} else {
+						report += `**Stored folder state:** None\n\n`;
+					}
+
+					report += `**Full workspace-navigator:data:**\n\`\`\`json\n${JSON.stringify(navData, null, 2)}\n\`\`\`\n\n`;
+					report += `---\n\n`;
+				}
+
+				// Navigation layouts
+				report += `## Navigation Layouts (Sidebar State)\n\n`;
+				if (this.navigationLayouts.size > 0) {
+					for (const [wsName, layout] of this.navigationLayouts.entries()) {
+						report += `### ${wsName}\n\`\`\`json\n${JSON.stringify(layout, null, 2)}\n\`\`\`\n\n`;
+					}
+				} else {
+					report += `No navigation layouts stored.\n\n`;
+				}
+
+				// Save to vault root
+				await this.app.vault.create(fileName, report);
+				new Notice(`Debug report saved to ${fileName}`);
+
+				// Also copy to clipboard
+				await navigator.clipboard.writeText(report);
+				new Notice('Also copied to clipboard!');
+			}
+		});
 	}
 
 	// ─────────────────────────────────────────────────────────────────
