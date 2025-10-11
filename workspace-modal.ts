@@ -66,7 +66,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// Handle workspace selection
 	// ─────────────────────────────────────────────────────────────────
 
-	onChooseItem(workspace: string, evt: MouseEvent | KeyboardEvent): void {
+	async onChooseItem(workspace: string, evt: MouseEvent | KeyboardEvent): Promise<void> {
 		const workspacePlugin = this.plugin.getWorkspacePlugin();
 		if (!workspacePlugin) {
 			new Notice('Workspaces core plugin is not enabled');
@@ -77,7 +77,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (this.plugin.settings.autoSaveOnSwitch) {
 			const currentWorkspace = workspacePlugin.activeWorkspace;
 			if (currentWorkspace) {
-				this.plugin.saveNavigationLayout(currentWorkspace);
+				await this.plugin.saveNavigationLayout(currentWorkspace);
 				workspacePlugin.saveWorkspace(currentWorkspace);
 			}
 		}

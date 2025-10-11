@@ -120,7 +120,7 @@ export default class WorkspaceNavigator extends Plugin {
 		this.addCommand({
 			id: 'save-current-workspace',
 			name: 'Save current workspace',
-			callback: () => {
+			callback: async () => {
 				const workspacePlugin = this.getWorkspacePlugin();
 				if (!workspacePlugin || !workspacePlugin.activeWorkspace) {
 					new Notice('No active workspace');
@@ -128,7 +128,7 @@ export default class WorkspaceNavigator extends Plugin {
 				}
 
 				const workspaceName = workspacePlugin.activeWorkspace;
-				this.saveNavigationLayout(workspaceName);
+				await this.saveNavigationLayout(workspaceName);
 				workspacePlugin.saveWorkspace(workspaceName);
 				new Notice(`Saved workspace: ${workspaceName}`);
 			}
@@ -170,13 +170,13 @@ export default class WorkspaceNavigator extends Plugin {
 	/**
 	 * Capture current navigation layout state
 	 */
-	getCurrentNavigationLayout(): NavigationLayoutState {
+	async getCurrentNavigationLayout(): Promise<NavigationLayoutState> {
 		const workspace = this.app.workspace;
 		const leftSplit  = workspace.leftSplit;
 		const rightSplit = workspace.rightSplit;
 
-		// Capture folder expansion state from localStorage
-		const folderExpandState = localStorage.getItem('file-explorer-unfold');
+		// Capture folder expansion state using Obsidian API
+		const folderExpandState = await this.app.loadLocalStorage('file-explorer-unfold');
 
 		return {
 			leftSidebarOpen:   leftSplit?.collapsed === false,
@@ -192,16 +192,16 @@ export default class WorkspaceNavigator extends Plugin {
 	/**
 	 * Save navigation layout for a workspace
 	 */
-	saveNavigationLayout(workspaceName: string) {
+	async saveNavigationLayout(workspaceName: string) {
 		if (!this.settings.rememberNavigationLayout) {
 			return;
 		}
 
-		const layout = this.getCurrentNavigationLayout();
+		const layout = await this.getCurrentNavigationLayout();
 		this.navigationLayouts.set(workspaceName, layout);
 
 		// Persist to plugin data
-		this.saveData({
+		await this.saveData({
 			...this.settings,
 			navigationLayouts: Object.fromEntries(this.navigationLayouts)
 		});
@@ -224,6 +224,12 @@ export default class WorkspaceNavigator extends Plugin {
 		const leftSplit  = workspace.leftSplit;
 		const rightSplit = workspace.rightSplit;
 
+		// Restore folder expansion state FIRST (before sidebars)
+		// This ensures the file explorer has the correct state before being shown
+		if (layout.folderExpandState) {
+			await this.app.saveLocalStorage('file-explorer-unfold', layout.folderExpandState);
+		}
+
 		// Restore sidebar states
 		if (leftSplit) {
 			if (layout.leftSidebarOpen && leftSplit.collapsed) {
@@ -240,44 +246,30 @@ export default class WorkspaceNavigator extends Plugin {
 				workspace.rightSplit.collapse();
 			}
 		}
-
-		// Restore folder expansion state
-		if (layout.folderExpandState) {
-			localStorage.setItem('file-explorer-unfold', layout.folderExpandState);
-
-			// Trigger file explorer to update its view
-			this.app.workspace.trigger('file-explorer-unfold-update');
-
-			// Force refresh the file explorer leaf if available
-			const fileExplorerLeaf = workspace.getLeavesOfType('file-explorer')[0];
-			if (fileExplorerLeaf && fileExplorerLeaf.view) {
-				// Trigger view refresh by collapsing/expanding
-				await (fileExplorerLeaf.view as any).refresh?.();
-			}
-		}
 	}
 
 	// ─────────────────────────────────────────────────────────────────
 	// Workspace Loading Hooks
 	// ─────────────────────────────────────────────────────────────────
 
-	beforeWorkspaceLoad(name: string) {
+	async beforeWorkspaceLoad(name: string) {
 		this.isLoadingWorkspace = true;
 
 		// Save current workspace's navigation layout
 		const workspacePlugin = this.getWorkspacePlugin();
 		if (workspacePlugin?.activeWorkspace && this.settings.rememberNavigationLayout) {
-			this.saveNavigationLayout(workspacePlugin.activeWorkspace);
+			await this.saveNavigationLayout(workspacePlugin.activeWorkspace);
 		}
 	}
 
-	afterWorkspaceLoad(name: string) {
-		// Small delay to ensure workspace is fully loaded
-		setTimeout(() => {
-			this.restoreNavigationLayout(name);
+	async afterWorkspaceLoad(name: string) {
+		// Wait for workspace layout to fully load
+		// The core workspace plugin loads its layout data, we need to restore AFTER that
+		setTimeout(async () => {
+			await this.restoreNavigationLayout(name);
 			this.isLoadingWorkspace = false;
 			this.updateStatusBar();
-		}, 100);
+		}, 250);
 	}
 
 	/**
