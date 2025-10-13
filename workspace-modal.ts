@@ -4,6 +4,7 @@
 
 import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope } from 'obsidian';
 import WorkspaceNavigator from './main';
+import { createConfirmationDialog } from './confirm-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Workspace Modal Class
@@ -26,8 +27,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Add instructions if enabled
 		if (plugin.settings.showInstructions) {
 			this.setInstructions([
-				{ command: '↵', purpose: 'switch to workspace' },
+				{ command: '↵', purpose: 'switch' },
+				{ command: 'shift ↵', purpose: 'save & switch' },
+				{ command: 'alt ↵', purpose: 'save & switch' },
 				{ command: 'ctrl ↵', purpose: 'rename' },
+				{ command: 'shift ⌫', purpose: 'delete' },
 				{ command: 'esc', purpose: 'cancel' }
 			]);
 		}
@@ -43,6 +47,20 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			evt.preventDefault();
 			this.onRenameClick(evt);
 			return false;
+		});
+
+		// Shift+Delete to delete workspace
+		this.scope.register(['Shift'], 'Delete', (evt) => {
+			evt.preventDefault();
+			this.deleteWorkspace();
+			return false;
+		});
+
+		// Alt+Enter to save current and switch
+		this.scope.register(['Alt'], 'Enter', (evt) => {
+			evt.preventDefault();
+			// This will be handled by onChooseItem with evt.altKey check
+			return true; // Allow default behavior
 		});
 	}
 
@@ -105,6 +123,25 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Add data attribute for rename functionality
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
+
+		// Add active workspace indicator (checkmark)
+		const workspacePlugin = this.plugin.getWorkspacePlugin();
+		if (workspacePlugin && workspaceName === workspacePlugin.activeWorkspace) {
+			const activeIndicator = el.createSpan('workspace-active-indicator');
+			activeIndicator.setAttribute('aria-label', 'Active workspace');
+			activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
+			el.addClass('is-active');
+		}
+
+		// Create delete button
+		const deleteBtn = el.createSpan('workspace-delete-btn');
+		deleteBtn.setAttribute('aria-label', 'Delete workspace');
+		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+
+		deleteBtn.addEventListener('click', (evt) => {
+			evt.stopPropagation();
+			this.deleteWorkspace(workspaceName);
+		});
 
 		// Create rename button
 		const renameBtn = el.createSpan('workspace-rename-btn');
@@ -246,6 +283,115 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	}
 
 	// ─────────────────────────────────────────────────────────────────
+	// Handle workspace deletion
+	// ─────────────────────────────────────────────────────────────────
+
+	deleteWorkspace(workspaceName?: string): void {
+		const workspacePlugin = this.plugin.getWorkspacePlugin();
+		if (!workspacePlugin) {
+			new Notice('Workspaces core plugin is not enabled');
+			return;
+		}
+
+		// If no workspace name provided, use the currently selected one
+		if (!workspaceName) {
+			const selectedItem = (this as any).chooser.selectedItem;
+			const suggestions = (this as any).chooser.values;
+			if (selectedItem >= 0 && selectedItem < suggestions.length) {
+				workspaceName = suggestions[selectedItem].item;
+			}
+		}
+
+		if (!workspaceName) return;
+
+		const doDelete = () => {
+			// Delete the workspace
+			workspacePlugin.deleteWorkspace(workspaceName);
+
+			// Delete navigation layout data
+			this.plugin.navigationLayouts.delete(workspaceName);
+			this.plugin.saveSettings();
+
+			// Trigger delete event
+			this.app.workspace.trigger('workspace-delete', workspaceName);
+
+			// Update the suggestions list
+			(this as any).updateSuggestions();
+
+			new Notice(`Deleted workspace: ${workspaceName}`);
+		};
+
+		// Show confirmation dialog if enabled
+		if (this.plugin.settings.showDeleteConfirmation) {
+			createConfirmationDialog(this.app, {
+				title:    'Delete Workspace',
+				text:     `Are you sure you want to delete the workspace "${workspaceName}"?`,
+				cta:      'Delete',
+				onAccept: doDelete
+			});
+		} else {
+			doDelete();
+		}
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Handle empty state (no matches found)
+	// ─────────────────────────────────────────────────────────────────
+
+	onNoSuggestion(): void {
+		// Clear suggestions
+		(this as any).chooser.setSuggestions(null);
+		(this as any).chooser.addMessage('No matching workspace found.');
+
+		// Add "Create new workspace" button
+		const el = (this as any).chooser.containerEl.querySelector('.suggestion-empty');
+		if (el) {
+			el.createEl('button', {
+				text: 'Create new workspace',
+				cls:  'mod-cta'
+			}).addEventListener('click', () => {
+				this.createNewWorkspace();
+			});
+		}
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Create new workspace
+	// ─────────────────────────────────────────────────────────────────
+
+	createNewWorkspace(): void {
+		const workspacePlugin = this.plugin.getWorkspacePlugin();
+		if (!workspacePlugin) {
+			new Notice('Workspaces core plugin is not enabled');
+			return;
+		}
+
+		// Get workspace name from input
+		const inputEl = (this as any).inputEl as HTMLInputElement;
+		const workspaceName = inputEl?.value?.trim();
+
+		if (!workspaceName) {
+			new Notice('Please enter a workspace name');
+			return;
+		}
+
+		// Check if workspace already exists
+		if (workspacePlugin.workspaces[workspaceName]) {
+			new Notice(`Workspace "${workspaceName}" already exists`);
+			return;
+		}
+
+		// Create the new workspace from current layout
+		workspacePlugin.saveWorkspace(workspaceName);
+		workspacePlugin.setActiveWorkspace(workspaceName);
+
+		new Notice(`Created workspace: ${workspaceName}`);
+
+		// Close the modal
+		this.close();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
 	// Handle workspace selection
 	// ─────────────────────────────────────────────────────────────────
 
@@ -256,7 +402,43 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			return;
 		}
 
-		// Auto-save current workspace if enabled
+		// Check for modifier keys
+		const shiftKey = evt.shiftKey && !evt.altKey;
+		const altKey = evt.altKey && !evt.shiftKey;
+
+		// Handle Shift+Enter: Save current, switch to selected, and close
+		if (shiftKey) {
+			const currentWorkspace = workspacePlugin.activeWorkspace;
+			if (currentWorkspace) {
+				await this.plugin.saveNavigationLayout(currentWorkspace);
+				workspacePlugin.saveWorkspace(currentWorkspace);
+				new Notice(`Saved workspace: ${currentWorkspace}`);
+			}
+
+			// Switch to selected workspace
+			workspacePlugin.setActiveWorkspace(workspace);
+			this.plugin.loadWorkspace(workspace);
+			new Notice(`Switched to workspace: ${workspace}`);
+			this.close();
+			return;
+		}
+
+		// Handle Alt+Enter: Save current AND switch
+		if (altKey) {
+			const currentWorkspace = workspacePlugin.activeWorkspace;
+			if (currentWorkspace) {
+				await this.plugin.saveNavigationLayout(currentWorkspace);
+				workspacePlugin.saveWorkspace(currentWorkspace);
+				new Notice(`Saved workspace: ${currentWorkspace}`);
+			}
+
+			// Switch to selected workspace
+			this.plugin.loadWorkspace(workspace);
+			new Notice(`Switched to workspace: ${workspace}`);
+			return;
+		}
+
+		// Handle regular Enter: Just switch (with auto-save if enabled)
 		if (this.plugin.settings.autoSaveOnSwitch) {
 			const currentWorkspace = workspacePlugin.activeWorkspace;
 			if (currentWorkspace) {

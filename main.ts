@@ -15,6 +15,7 @@ interface WorkspacePluginInstance {
 	activeWorkspace: string | null;
 	saveWorkspace(name: string): void;
 	loadWorkspace(name: string): void;
+	deleteWorkspace(name: string): void;
 	setActiveWorkspace(name: string): void;
 	saveData(): void;
 }
@@ -482,7 +483,20 @@ export default class WorkspaceNavigator extends Plugin {
 			this.statusBarItem.createSpan('workspace-navigator-text');
 
 			// Add click handler
-			this.statusBarItem.addEventListener('click', () => {
+			this.statusBarItem.addEventListener('click', async (evt: MouseEvent) => {
+				// Shift+Click to save current workspace
+				if (evt.shiftKey) {
+					const workspacePlugin = this.getWorkspacePlugin();
+					if (workspacePlugin && workspacePlugin.activeWorkspace) {
+						const workspaceName = workspacePlugin.activeWorkspace;
+						await this.saveNavigationLayout(workspaceName);
+						workspacePlugin.saveWorkspace(workspaceName);
+						new Notice(`Saved workspace: ${workspaceName}`);
+					}
+					return;
+				}
+
+				// Regular click opens modal
 				new WorkspaceSwitcherModal(this.app, this).open();
 			});
 		}
