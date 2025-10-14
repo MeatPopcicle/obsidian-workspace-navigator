@@ -2,7 +2,7 @@
 // WORKSPACE SWITCHER MODAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope } from 'obsidian';
+import { App, FuzzySuggestModal, FuzzyMatch, Notice } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 
@@ -13,16 +13,11 @@ import { createConfirmationDialog } from './confirm-modal';
 export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	plugin:     WorkspaceNavigator;
 	workspaces: string[];
-	scope:      Scope;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
 		this.plugin = plugin;
 		this.setPlaceholder('Type workspace name...');
-
-		// Set up custom key bindings
-		this.scope = new Scope();
-		this.setupScope();
 
 		// Add instructions if enabled
 		if (plugin.settings.showInstructions) {
@@ -37,47 +32,34 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 	}
 
-	// ─────────────────────────────────────────────────────────────────
-	// Set up keyboard shortcuts
-	// ─────────────────────────────────────────────────────────────────
-
-	setupScope(): void {
-		// Ctrl+Enter to rename workspace
-		this.scope.register(['Ctrl'], 'Enter', (evt) => {
-			evt.preventDefault();
-			this.onRenameClick(evt);
-			return false;
-		});
-
-		// Shift+Delete to delete workspace
-		this.scope.register(['Shift'], 'Delete', (evt) => {
-			evt.preventDefault();
-			this.deleteWorkspace();
-			return false;
-		});
-
-		// Alt+Enter to save current and switch
-		// Let default behavior handle it, onChooseItem will check evt.altKey
-		this.scope.register(['Alt'], 'Enter', () => {
-			// Allow default handler to proceed
-		});
-
-		// Shift+Enter to save current and switch
-		// Let default behavior handle it, onChooseItem will check evt.shiftKey
-		this.scope.register(['Shift'], 'Enter', () => {
-			// Allow default handler to proceed
-		});
-	}
-
 	onOpen(): void {
 		super.onOpen();
-		// Push our custom scope
-		(this.app as any).keymap.pushScope(this.scope);
+
+		// Add custom keyboard handlers directly to the input element
+		// This way we don't interfere with the modal's default arrow key handling
+		const inputEl = (this as any).inputEl as HTMLInputElement;
+		if (inputEl) {
+			inputEl.addEventListener('keydown', (evt: KeyboardEvent) => {
+				// Ctrl+Enter to rename
+				if (evt.ctrlKey && evt.key === 'Enter') {
+					evt.preventDefault();
+					evt.stopPropagation();
+					this.onRenameClick(evt);
+					return;
+				}
+
+				// Shift+Delete to delete
+				if (evt.shiftKey && evt.key === 'Delete') {
+					evt.preventDefault();
+					evt.stopPropagation();
+					this.deleteWorkspace();
+					return;
+				}
+			});
+		}
 	}
 
 	onClose(): void {
-		// Pop our custom scope
-		(this.app as any).keymap.popScope(this.scope);
 		super.onClose();
 	}
 
