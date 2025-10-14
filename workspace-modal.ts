@@ -42,6 +42,21 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	setupScope(): void {
+		// Arrow keys for navigation
+		this.scope.register([], 'ArrowUp', (evt) => {
+			if (!evt.isComposing) {
+				(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem - 1, true);
+				return false;
+			}
+		});
+
+		this.scope.register([], 'ArrowDown', (evt) => {
+			if (!evt.isComposing) {
+				(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem + 1, true);
+				return false;
+			}
+		});
+
 		// Ctrl+Enter to rename workspace
 		this.scope.register(['Ctrl'], 'Enter', (evt) => {
 			evt.preventDefault();
