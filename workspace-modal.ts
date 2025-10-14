@@ -42,21 +42,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	setupScope(): void {
-		// Arrow keys for navigation
-		this.scope.register([], 'ArrowUp', (evt) => {
-			if (!evt.isComposing) {
-				(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem - 1, true);
-				return false;
-			}
-		});
-
-		this.scope.register([], 'ArrowDown', (evt) => {
-			if (!evt.isComposing) {
-				(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem + 1, true);
-				return false;
-			}
-		});
-
 		// Ctrl+Enter to rename workspace
 		this.scope.register(['Ctrl'], 'Enter', (evt) => {
 			evt.preventDefault();
@@ -72,10 +57,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		});
 
 		// Alt+Enter to save current and switch
-		this.scope.register(['Alt'], 'Enter', (evt) => {
-			evt.preventDefault();
-			// This will be handled by onChooseItem with evt.altKey check
-			return true; // Allow default behavior
+		// Let default behavior handle it, onChooseItem will check evt.altKey
+		this.scope.register(['Alt'], 'Enter', () => {
+			// Allow default handler to proceed
+		});
+
+		// Shift+Enter to save current and switch
+		// Let default behavior handle it, onChooseItem will check evt.shiftKey
+		this.scope.register(['Shift'], 'Enter', () => {
+			// Allow default handler to proceed
 		});
 	}
 
