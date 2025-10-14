@@ -33,89 +33,48 @@
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 .workspace-suggestion-item {
-	display: flex !important;
-	flex-direction: row !important;
-	align-items: center !important;
-	justify-content: space-between !important;
-	gap: 8px !important;
-	padding: 6px 8px !important;
-}
-
-/* Left side: active indicator + text */
-.workspace-suggestion-left {
-	display: flex !important;
-	flex-direction: row !important;
-	align-items: center !important;
-	gap: 6px !important;
-	flex: 1 !important;
-	min-width: 0 !important;
-}
-
-.workspace-suggestion-text {
-	display: inline-block !important;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	position: relative;
+	padding: 4px 8px !important;
 }
 
 .workspace-active-indicator {
-	display: inline-block !important;
+	display: inline;
 	color: var(--interactive-accent);
-	flex-shrink: 0;
-	width: 16px;
-	height: 16px;
-	line-height: 16px;
+	margin-right: 4px;
 }
 
 .workspace-active-indicator svg {
-	display: block;
-	width: 16px;
-	height: 16px;
-	vertical-align: top;
+	vertical-align: middle;
 }
 
-.workspace-suggestion-item.is-active .workspace-suggestion-text {
+.workspace-suggestion-item.is-active {
 	font-weight: var(--font-weight-semibold);
-}
-
-/* Right side: action buttons */
-.workspace-suggestion-actions {
-	display: flex !important;
-	flex-direction: row !important;
-	align-items: center !important;
-	gap: 4px !important;
-	flex-shrink: 0 !important;
 }
 
 .workspace-delete-btn,
 .workspace-rename-btn {
-	display: inline-flex !important;
-	align-items: center !important;
-	justify-content: center !important;
+	display: inline;
 	cursor: pointer;
-	padding: 4px;
-	border-radius: 4px;
-	width: 24px;
-	height: 24px;
+	padding: 2px 4px;
+	margin-left: 4px;
 	color: var(--text-muted);
-	transition: all 0.15s;
-}
-
-.workspace-delete-btn svg,
-.workspace-rename-btn svg {
-	display: block;
-	width: 16px;
-	height: 16px;
+	opacity: 0.7;
+	transition: opacity 0.15s;
 }
 
 .workspace-delete-btn:hover,
 .workspace-rename-btn:hover {
-	background-color: var(--background-modifier-hover);
+	opacity: 1;
 	color: var(--text-normal);
 }
 
 .workspace-delete-btn:hover {
 	color: var(--text-error);
+}
+
+.workspace-delete-btn svg,
+.workspace-rename-btn svg {
+	vertical-align: middle;
 }
 
 .workspace-suggestion-item.is-renaming {

@@ -111,44 +111,32 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
 
-		// Wrap content in a container for better layout
+		// Get the text content before modifying
 		const textContent = el.textContent || '';
-		el.empty();
 
-		// Create left side with active indicator and text
-		const leftSide = el.createDiv('workspace-suggestion-left');
-
-		// Add active workspace indicator (checkmark)
+		// Add active workspace indicator (checkmark) at the start
 		const workspacePlugin = this.plugin.getWorkspacePlugin();
 		if (workspacePlugin && workspaceName === workspacePlugin.activeWorkspace) {
-			const activeIndicator = leftSide.createSpan('workspace-active-indicator');
+			const activeIndicator = el.createSpan('workspace-active-indicator');
 			activeIndicator.setAttribute('aria-label', 'Active workspace');
-			activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
+			activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
 			el.addClass('is-active');
+			el.insertBefore(activeIndicator, el.firstChild);
 		}
 
-		// Add text
-		const textSpan = leftSide.createSpan('workspace-suggestion-text');
-		textSpan.textContent = textContent;
-
-		// Create right side with action buttons
-		const rightSide = el.createDiv('workspace-suggestion-actions');
-
-		// Create delete button
-		const deleteBtn = rightSide.createSpan('workspace-delete-btn');
+		// Add delete button
+		const deleteBtn = el.createSpan('workspace-delete-btn');
 		deleteBtn.setAttribute('aria-label', 'Delete workspace');
-		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
-
+		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
 		deleteBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.deleteWorkspace(workspaceName);
 		});
 
-		// Create rename button
-		const renameBtn = rightSide.createSpan('workspace-rename-btn');
+		// Add rename button
+		const renameBtn = el.createSpan('workspace-rename-btn');
 		renameBtn.setAttribute('aria-label', 'Rename workspace');
-		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-
+		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
 		renameBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.onRenameClick(evt, el);
@@ -173,53 +161,49 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		evt.stopPropagation();
 
-		// Find the text span within the suggestion item
-		const textSpan = el.querySelector('.workspace-suggestion-text') as HTMLElement;
-		if (!textSpan) return;
-
 		// If already in edit mode, cancel
-		if (textSpan.contentEditable === 'true') {
-			textSpan.textContent = el.dataset.workspaceName || '';
-			textSpan.contentEditable = 'false';
+		if (el.contentEditable === 'true') {
+			el.textContent = el.dataset.workspaceName || '';
+			el.contentEditable = 'false';
 			el.removeClass('is-renaming');
 			return;
 		}
 
 		// Enter edit mode
 		el.addClass('is-renaming');
-		textSpan.contentEditable = 'true';
+		el.contentEditable = 'true';
 
 		// Select all text
 		const selection = window.getSelection();
 		const range = document.createRange();
 		if (selection) {
 			selection.removeAllRanges();
-			range.selectNodeContents(textSpan);
+			range.selectNodeContents(el);
 			range.collapse(false);
 			selection.addRange(range);
 		}
-		textSpan.focus();
+		el.focus();
 
 		// Handle blur (cancel edit)
-		textSpan.onblur = () => {
-			if (textSpan.contentEditable === 'true') {
-				textSpan.textContent = el.dataset.workspaceName || '';
-				textSpan.contentEditable = 'false';
+		el.onblur = () => {
+			if (el.contentEditable === 'true') {
+				el.textContent = el.dataset.workspaceName || '';
+				el.contentEditable = 'false';
 				el.removeClass('is-renaming');
 			}
 		};
 
 		// Handle Enter key (confirm rename)
-		textSpan.onkeydown = (e: KeyboardEvent) => {
+		el.onkeydown = (e: KeyboardEvent) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();
-				this.handleRename(el, textSpan);
+				this.handleRename(el);
 			} else if (e.key === 'Escape') {
 				e.preventDefault();
-				textSpan.textContent = el.dataset.workspaceName || '';
-				textSpan.contentEditable = 'false';
+				el.textContent = el.dataset.workspaceName || '';
+				el.contentEditable = 'false';
 				el.removeClass('is-renaming');
-				textSpan.blur();
+				el.blur();
 			}
 		};
 	}
@@ -228,13 +212,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// Handle workspace rename
 	// ─────────────────────────────────────────────────────────────────
 
-	handleRename(el: HTMLElement, textSpan?: HTMLElement): void {
+	handleRename(el: HTMLElement): void {
 		const oldName = el.dataset.workspaceName;
-		const editEl = textSpan || el;
-		const newName = editEl.textContent?.trim();
+		const newName = el.textContent?.trim();
 
 		if (!oldName || !newName || oldName === newName) {
-			editEl.contentEditable = 'false';
+			el.contentEditable = 'false';
 			el.removeClass('is-renaming');
 			return;
 		}
@@ -248,8 +231,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Check if new name already exists
 		if (workspacePlugin.workspaces[newName]) {
 			new Notice(`Workspace "${newName}" already exists`);
-			editEl.textContent = oldName;
-			editEl.contentEditable = 'false';
+			el.textContent = oldName;
+			el.contentEditable = 'false';
 			el.removeClass('is-renaming');
 			return;
 		}
@@ -278,7 +261,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.app.workspace.trigger('workspace-rename', newName, oldName);
 
 		// Exit edit mode
-		editEl.contentEditable = 'false';
+		el.contentEditable = 'false';
 		el.removeClass('is-renaming');
 		el.dataset.workspaceName = newName;
 
