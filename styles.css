@@ -33,47 +33,45 @@
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 .workspace-suggestion-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
-	position: relative;
-	padding: 4px 8px !important;
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: center !important;
+	justify-content: space-between !important;
+	gap: 8px !important;
+	padding: 6px 8px !important;
 }
 
 /* Left side: active indicator + text */
 .workspace-suggestion-left {
-	display: flex;
-	flex-direction: row;
-	align-items: center;
-	gap: 6px;
-	flex: 1;
-	min-width: 0;
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: center !important;
+	gap: 6px !important;
+	flex: 1 !important;
+	min-width: 0 !important;
 }
 
 .workspace-suggestion-text {
-	flex: 1;
+	display: inline-block !important;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	line-height: 1.5;
 }
 
 .workspace-active-indicator {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
+	display: inline-block !important;
 	color: var(--interactive-accent);
 	flex-shrink: 0;
 	width: 16px;
 	height: 16px;
-	vertical-align: middle;
+	line-height: 16px;
 }
 
 .workspace-active-indicator svg {
 	display: block;
 	width: 16px;
 	height: 16px;
+	vertical-align: top;
 }
 
 .workspace-suggestion-item.is-active .workspace-suggestion-text {
@@ -82,31 +80,23 @@
 
 /* Right side: action buttons */
 .workspace-suggestion-actions {
-	display: flex;
-	align-items: center;
-	gap: 2px;
-	flex-shrink: 0;
-	opacity: 1;
-	transition: opacity 0.15s;
-}
-
-/* Show buttons on hover or keyboard selection */
-.workspace-suggestion-item:hover .workspace-suggestion-actions,
-.workspace-suggestion-item.is-selected .workspace-suggestion-actions,
-.suggestion-item.is-selected .workspace-suggestion-actions {
-	opacity: 1;
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: center !important;
+	gap: 4px !important;
+	flex-shrink: 0 !important;
 }
 
 .workspace-delete-btn,
 .workspace-rename-btn {
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	display: inline-flex !important;
+	align-items: center !important;
+	justify-content: center !important;
 	cursor: pointer;
 	padding: 4px;
 	border-radius: 4px;
-	flex-shrink: 0;
-	opacity: 0.7;
+	width: 24px;
+	height: 24px;
 	color: var(--text-muted);
 	transition: all 0.15s;
 }
@@ -120,7 +110,6 @@
 
 .workspace-delete-btn:hover,
 .workspace-rename-btn:hover {
-	opacity: 1;
 	background-color: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
