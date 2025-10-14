@@ -44,6 +44,7 @@
 /* Left side: active indicator + text */
 .workspace-suggestion-left {
 	display: flex;
+	flex-direction: row;
 	align-items: center;
 	gap: 6px;
 	flex: 1;
@@ -55,16 +56,18 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
+	line-height: 1.5;
 }
 
 .workspace-active-indicator {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
 	justify-content: center;
 	color: var(--interactive-accent);
 	flex-shrink: 0;
 	width: 16px;
 	height: 16px;
+	vertical-align: middle;
 }
 
 .workspace-active-indicator svg {
@@ -83,12 +86,14 @@
 	align-items: center;
 	gap: 2px;
 	flex-shrink: 0;
-	opacity: 0;
+	opacity: 1;
 	transition: opacity 0.15s;
 }
 
+/* Show buttons on hover or keyboard selection */
 .workspace-suggestion-item:hover .workspace-suggestion-actions,
-.workspace-suggestion-item.is-selected .workspace-suggestion-actions {
+.workspace-suggestion-item.is-selected .workspace-suggestion-actions,
+.suggestion-item.is-selected .workspace-suggestion-actions {
 	opacity: 1;
 }
 
