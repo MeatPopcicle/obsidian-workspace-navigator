@@ -38,14 +38,33 @@
 	justify-content: space-between;
 	gap: 8px;
 	position: relative;
+	padding: 4px 8px !important;
+}
+
+/* Left side: active indicator + text */
+.workspace-suggestion-left {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex: 1;
+	min-width: 0;
+}
+
+.workspace-suggestion-text {
+	flex: 1;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 }
 
 .workspace-active-indicator {
 	display: flex;
 	align-items: center;
+	justify-content: center;
 	color: var(--interactive-accent);
-	margin-right: 4px;
 	flex-shrink: 0;
+	width: 16px;
+	height: 16px;
 }
 
 .workspace-active-indicator svg {
@@ -54,18 +73,37 @@
 	height: 16px;
 }
 
-.workspace-suggestion-item.is-active {
+.workspace-suggestion-item.is-active .workspace-suggestion-text {
 	font-weight: var(--font-weight-semibold);
+}
+
+/* Right side: action buttons */
+.workspace-suggestion-actions {
+	display: flex;
+	align-items: center;
+	gap: 2px;
+	flex-shrink: 0;
+	opacity: 0;
+	transition: opacity 0.15s;
+}
+
+.workspace-suggestion-item:hover .workspace-suggestion-actions,
+.workspace-suggestion-item.is-selected .workspace-suggestion-actions {
+	opacity: 1;
 }
 
 .workspace-delete-btn,
 .workspace-rename-btn {
-	display: none;
-	opacity: 0.6;
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	cursor: pointer;
-	padding: 2px;
+	padding: 4px;
 	border-radius: 4px;
 	flex-shrink: 0;
+	opacity: 0.7;
+	color: var(--text-muted);
+	transition: all 0.15s;
 }
 
 .workspace-delete-btn svg,
@@ -75,19 +113,11 @@
 	height: 16px;
 }
 
-.workspace-suggestion-item:hover .workspace-delete-btn,
-.workspace-suggestion-item:hover .workspace-rename-btn {
-	display: flex;
-}
-
 .workspace-delete-btn:hover,
 .workspace-rename-btn:hover {
 	opacity: 1;
 	background-color: var(--background-modifier-hover);
-}
-
-.workspace-delete-btn {
-	margin-right: 4px;
+	color: var(--text-normal);
 }
 
 .workspace-delete-btn:hover {
