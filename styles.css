@@ -32,79 +32,74 @@
 /* Workspace Modal                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-suggestion-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 8px;
+.workspace-results {
+	padding: 0.1em 0.1em;
 	position: relative;
 }
 
-.workspace-active-indicator {
-	display: flex;
-	align-items: center;
-	color: var(--interactive-accent);
-	margin-right: 4px;
-	flex-shrink: 0;
-}
-
-.workspace-active-indicator svg {
-	display: block;
-	width: 16px;
-	height: 16px;
-}
-
-.workspace-suggestion-item.is-active {
-	font-weight: var(--font-weight-semibold);
-}
-
-.workspace-delete-btn,
-.workspace-rename-btn {
-	display: none;
-	opacity: 0.6;
+.workspace-item {
+	display: inline-block;
+	width: 100%;
+	padding: 5px 6rem 5px 2rem;
+	font-size: 16px;
+	position: relative;
 	cursor: pointer;
-	padding: 2px;
-	border-radius: 4px;
-	flex-shrink: 0;
+	white-space: normal;
+	border: 1px solid transparent;
 }
 
-.workspace-delete-btn svg,
-.workspace-rename-btn svg {
-	display: block;
-	width: 16px;
-	height: 16px;
+.workspace-item.is-selected {
+	background-color: var(--background-secondary);
+	border-radius: 0.2em;
 }
 
-.workspace-suggestion-item:hover .workspace-delete-btn,
-.workspace-suggestion-item:hover .workspace-rename-btn {
-	display: flex;
+.active-workspace {
+	display: inline-block;
+	position: absolute;
+	left: 0.5em;
+	margin-top: 0.5em;
+	fill: var(--interactive-accent);
+	z-index: 2;
 }
 
-.workspace-delete-btn:hover,
-.workspace-rename-btn:hover {
+.rename-workspace {
+	display: inline-block;
+	position: absolute;
+	right: 2em;
+	margin-top: 0.5em;
+	fill: var(--text-muted);
+	opacity: 0;
+	cursor: pointer;
+}
+
+.delete-workspace {
+	display: inline-block;
+	position: absolute;
+	right: 0.7em;
+	margin-top: 0.5em;
+	fill: var(--text-muted);
+	opacity: 0;
+	cursor: pointer;
+}
+
+.workspace-item.is-selected ~ .rename-workspace,
+.workspace-item.is-selected ~ .delete-workspace {
 	opacity: 1;
-	background-color: var(--background-modifier-hover);
 }
 
-.workspace-delete-btn {
-	margin-right: 4px;
+.rename-workspace:hover,
+.delete-workspace:hover {
+	fill: var(--text-accent-hover);
 }
 
-.workspace-delete-btn:hover {
-	color: var(--text-error);
-}
-
-.workspace-suggestion-item.is-renaming {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
-	border-radius: 4px;
-}
-
-.workspace-suggestion-item[contenteditable="true"] {
+.workspace-item[contenteditable="true"]:focus {
 	cursor: text;
+	border: 1px solid var(--interactive-accent);
+	background-color: var(--background-modifier-form-field);
+	border-radius: 0.2em;
+	box-shadow: 0 0 0 0.1px rgba(0, 0, 0, 0.1), 0 0 0 3px hsla(var(--accent-hsl), 0.15);
 }
 
-.workspace-suggestion-item[contenteditable="true"]:focus {
-	outline: 2px solid var(--interactive-accent);
-	outline-offset: 2px;
+.workspace-item[contenteditable="true"]:focus ~ div {
+	display: none;
 }
