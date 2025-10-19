@@ -116,40 +116,25 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Add active workspace indicator (checkmark)
 		const workspacePlugin = this.plugin.getWorkspacePlugin();
 		if (workspacePlugin && workspaceName === workspacePlugin.activeWorkspace) {
-			const activeIndicator = el.createSpan('workspace-active-indicator');
+			const activeIndicator = el.createDiv('workspace-active-indicator');
 			activeIndicator.setAttribute('aria-label', 'Active workspace');
-			activeIndicator.style.color = 'var(--interactive-accent)';
-			activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
+			activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
 			el.addClass('is-active');
 		}
 
 		// Create delete button
-		const deleteBtn = el.createSpan('workspace-delete-btn');
+		const deleteBtn = el.createDiv('workspace-delete-btn');
 		deleteBtn.setAttribute('aria-label', 'Delete workspace');
-		deleteBtn.style.color = 'var(--text-muted)';
-		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
-		deleteBtn.addEventListener('mouseenter', () => {
-			deleteBtn.style.color = 'var(--text-error)';
-		});
-		deleteBtn.addEventListener('mouseleave', () => {
-			deleteBtn.style.color = 'var(--text-muted)';
-		});
+		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
 		deleteBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.deleteWorkspace(workspaceName);
 		});
 
 		// Create rename button
-		const renameBtn = el.createSpan('workspace-rename-btn');
+		const renameBtn = el.createDiv('workspace-rename-btn');
 		renameBtn.setAttribute('aria-label', 'Rename workspace');
-		renameBtn.style.color = 'var(--text-muted)';
-		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path fill="currentColor" d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-		renameBtn.addEventListener('mouseenter', () => {
-			renameBtn.style.color = 'var(--text-accent-hover)';
-		});
-		renameBtn.addEventListener('mouseleave', () => {
-			renameBtn.style.color = 'var(--text-muted)';
-		});
+		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
 		renameBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.onRenameClick(evt, el);
