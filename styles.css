@@ -46,7 +46,7 @@
 	left: 0.5em;
 	top: 50%;
 	transform: translateY(-50%);
-	fill: var(--interactive-accent);
+	color: var(--interactive-accent);
 	pointer-events: none;
 }
 
@@ -55,11 +55,11 @@
 	position: absolute;
 	top: 50%;
 	transform: translateY(-50%);
-	fill: var(--text-muted);
-	opacity: 0;
+	color: var(--text-muted);
+	opacity: 1;
 	cursor: pointer;
 	padding: 2px;
-	transition: opacity 0.15s, fill 0.15s;
+	transition: opacity 0.15s, color 0.15s;
 }
 
 .workspace-delete-btn {
@@ -70,16 +70,9 @@
 	right: 2em;
 }
 
-.workspace-suggestion-item:hover .workspace-delete-btn,
-.workspace-suggestion-item:hover .workspace-rename-btn,
-.workspace-suggestion-item.is-selected .workspace-delete-btn,
-.workspace-suggestion-item.is-selected .workspace-rename-btn {
-	opacity: 1;
-}
-
 .workspace-delete-btn:hover,
 .workspace-rename-btn:hover {
-	fill: var(--text-accent-hover);
+	color: var(--text-accent-hover);
 }
 
 .workspace-suggestion-item.is-renaming {
