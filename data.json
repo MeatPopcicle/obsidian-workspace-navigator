@@ -1,0 +1,20 @@
+{
+  "rememberNavigationLayout": true,
+  "maintainLayoutAcrossWorkspaces": false,
+  "showStatusBar": true,
+  "showInstructions": true,
+  "showDeleteConfirmation": true,
+  "autoSaveOnSwitch": false,
+  "sortWorkspacesAlphabetically": true,
+  "debugMode": false,
+  "navigationLayouts": {
+    "a": {
+      "leftSidebarOpen": true,
+      "rightSidebarOpen": false,
+      "leftSidebarTab": null,
+      "rightSidebarTab": null,
+      "leftSidebarWidth": 300,
+      "rightSidebarWidth": 0
+    }
+  }
+}
