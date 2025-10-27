@@ -192,28 +192,35 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		input.focus();
 		input.select();
 
-		// Handle blur (cancel edit)
-		input.onblur = () => {
-			if (input.parentElement) {
-				input.remove();
-				textSpan.style.display = '';
-				el.removeClass('is-renaming');
-			}
-		};
-
 		// Handle Enter key
-		input.onkeydown = (e: KeyboardEvent) => {
+		input.onkeydown = async (e: KeyboardEvent) => {
 			if (e.key === 'Enter') {
 				e.preventDefault();
 				e.stopPropagation();
-				this.handleRename(el, input);
+				// Remove blur handler before calling handleRename
+				input.onblur = null;
+				await this.handleRename(el, input);
 			} else if (e.key === 'Escape') {
 				e.preventDefault();
 				e.stopPropagation();
-				input.remove();
-				textSpan.style.display = '';
-				el.removeClass('is-renaming');
+				input.onblur = null;
+				if (input.parentElement) {
+					input.remove();
+					textSpan.style.display = '';
+					el.removeClass('is-renaming');
+				}
 			}
+		};
+
+		// Handle blur (cancel edit) - with timeout to let Enter execute first
+		input.onblur = () => {
+			setTimeout(() => {
+				if (input.parentElement) {
+					input.remove();
+					textSpan.style.display = '';
+					el.removeClass('is-renaming');
+				}
+			}, 100);
 		};
 	}
 
@@ -230,7 +237,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textSpan = el.querySelector('.workspace-name-text') as HTMLElement;
 
 		if (!oldName || !newName || oldName === newName) {
-			input.remove();
+			if (input.parentElement) input.remove();
 			if (textSpan) textSpan.style.display = '';
 			el.removeClass('is-renaming');
 			return;
@@ -241,9 +248,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Check if new name already exists
 		if (workspaceManager.hasWorkspace(newName)) {
 			new Notice(`Workspace "${newName}" already exists`);
-			input.value = oldName;
-			input.focus();
-			input.select();
+			if (input.parentElement) {
+				input.value = oldName;
+				input.focus();
+				input.select();
+			}
 			return;
 		}
 
@@ -260,8 +269,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Save changes
 		await this.plugin.saveSettings();
 
-		// Exit edit mode
-		input.remove();
+		// Exit edit mode - safely remove input
+		if (input.parentElement) {
+			input.remove();
+		}
 		if (textSpan) {
 			textSpan.textContent = newName;
 			textSpan.style.display = '';
