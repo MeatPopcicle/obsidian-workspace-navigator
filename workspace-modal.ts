@@ -192,17 +192,21 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		input.focus();
 		input.select();
 
-		// Handle Enter key
-		input.onkeydown = async (e: KeyboardEvent) => {
+		// Handle Enter key - use addEventListener with capture to intercept before modal
+		input.addEventListener('keydown', (e: KeyboardEvent) => {
+			console.log('[Input] Key pressed:', e.key, 'target:', e.target);
 			if (e.key === 'Enter') {
+				console.log('[Input] Enter detected - calling handleRename');
 				e.preventDefault();
 				e.stopPropagation();
+				e.stopImmediatePropagation();
 				// Remove blur handler before calling handleRename
 				input.onblur = null;
-				await this.handleRename(el, input);
+				this.handleRename(el, input);
 			} else if (e.key === 'Escape') {
 				e.preventDefault();
 				e.stopPropagation();
+				e.stopImmediatePropagation();
 				input.onblur = null;
 				if (input.parentElement) {
 					input.remove();
@@ -210,7 +214,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					el.removeClass('is-renaming');
 				}
 			}
-		};
+		}, true); // Use capture phase
 
 		// Handle blur (cancel edit) - with timeout to let Enter execute first
 		input.onblur = () => {
