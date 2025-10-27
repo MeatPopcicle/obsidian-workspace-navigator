@@ -5,6 +5,7 @@
 import { App, FuzzySuggestModal, FuzzyMatch, Notice } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
+import { createPopper, Instance as PopperInstance } from '@popperjs/core';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Workspace Modal Class
@@ -13,6 +14,7 @@ import { createConfirmationDialog } from './confirm-modal';
 export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	plugin:     WorkspaceNavigator;
 	workspaces: string[];
+	popper:     PopperInstance | null = null;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -34,6 +36,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	onOpen(): void {
 		super.onOpen();
+
+		// Position modal above status bar using Popper
+		const statusBar = document.body.querySelector('.workspace-navigator-status');
+		if (statusBar) {
+			this.popper = createPopper(statusBar as HTMLElement, this.modalEl, {
+				placement: 'top-start',
+				modifiers: [{ name: 'offset', options: { offset: [0, 10] } }]
+			});
+		}
 
 		// Add custom keyboard handlers directly to the input element
 		// This way we don't interfere with the modal's default arrow key handling
@@ -60,6 +71,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	}
 
 	onClose(): void {
+		// Cleanup popper instance
+		if (this.popper) {
+			this.popper.destroy();
+			this.popper = null;
+		}
 		super.onClose();
 	}
 
@@ -205,9 +221,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// Handle workspace rename
 	// ─────────────────────────────────────────────────────────────────
 
-	handleRename(el: HTMLElement, textSpan: HTMLElement): void {
+	async handleRename(el: HTMLElement, textSpan: HTMLElement): Promise<void> {
 		const oldName = el.dataset.workspaceName;
 		const newName = textSpan.textContent?.trim();
+
+		console.log('[Rename] oldName:', oldName, 'newName:', newName);
 
 		if (!oldName || !newName || oldName === newName) {
 			textSpan.contentEditable = 'false';
@@ -237,7 +255,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 
 		// Save changes
-		this.plugin.saveSettings();
+		await this.plugin.saveSettings();
 
 		// Exit edit mode
 		textSpan.contentEditable = 'false';
