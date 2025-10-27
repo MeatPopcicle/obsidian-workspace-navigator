@@ -82,17 +82,20 @@
 	display: inline-block;
 }
 
-.workspace-suggestion-item.is-renaming .workspace-name-text {
+.workspace-rename-input {
+	background: var(--background-modifier-form-field);
 	border: 1px solid var(--interactive-accent);
-	background-color: var(--background-modifier-form-field);
-	border-radius: 0.2em;
-	padding: 2px 4px;
-	cursor: text;
+	border-radius: 4px;
+	padding: 2px 6px;
+	color: var(--text-normal);
+	font-size: inherit;
+	font-family: inherit;
+	width: calc(100% - 7rem);
+	box-shadow: 0 0 0 3px hsla(var(--accent-hsl), 0.15);
 }
 
-.workspace-suggestion-item.is-renaming .workspace-name-text:focus {
+.workspace-rename-input:focus {
 	outline: none;
-	box-shadow: 0 0 0 0.1px rgba(0, 0, 0, 0.1), 0 0 0 3px hsla(var(--accent-hsl), 0.15);
 }
 
 /* Hide delete/active icons during rename, but keep rename button visible */
