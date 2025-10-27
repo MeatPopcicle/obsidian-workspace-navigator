@@ -95,9 +95,14 @@
 	box-shadow: 0 0 0 0.1px rgba(0, 0, 0, 0.1), 0 0 0 3px hsla(var(--accent-hsl), 0.15);
 }
 
-/* Hide icons during rename */
+/* Hide delete/active icons during rename, but keep rename button visible */
 .workspace-suggestion-item.is-renaming .workspace-delete-btn,
-.workspace-suggestion-item.is-renaming .workspace-rename-btn,
 .workspace-suggestion-item.is-renaming .workspace-active-indicator {
 	display: none;
+}
+
+/* Keep rename button visible and change it to a confirm checkmark */
+.workspace-suggestion-item.is-renaming .workspace-rename-btn {
+	opacity: 1;
+	fill: var(--text-success);
 }

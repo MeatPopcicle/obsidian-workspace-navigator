@@ -66,6 +66,35 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					this.deleteWorkspace();
 					return;
 				}
+
+				// Handle Enter while renaming
+				if (evt.key === 'Enter') {
+					const renamingEl = this.modalEl.querySelector('.workspace-suggestion-item.is-renaming');
+					if (renamingEl) {
+						evt.preventDefault();
+						evt.stopPropagation();
+						const textSpan = renamingEl.querySelector('.workspace-name-text') as HTMLElement;
+						if (textSpan && textSpan.contentEditable === 'true') {
+							this.handleRename(renamingEl as HTMLElement, textSpan);
+						}
+						return;
+					}
+				}
+
+				// Handle Escape while renaming
+				if (evt.key === 'Escape') {
+					const renamingEl = this.modalEl.querySelector('.workspace-suggestion-item.is-renaming');
+					if (renamingEl) {
+						const textSpan = renamingEl.querySelector('.workspace-name-text') as HTMLElement;
+						if (textSpan && textSpan.contentEditable === 'true') {
+							textSpan.textContent = (renamingEl as HTMLElement).dataset.workspaceName || '';
+							textSpan.contentEditable = 'false';
+							renamingEl.removeClass('is-renaming');
+							inputEl.focus();
+							return;
+						}
+					}
+				}
 			});
 		}
 	}
@@ -170,11 +199,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textSpan = el.querySelector('.workspace-name-text') as HTMLElement;
 		if (!textSpan) return;
 
-		// If already in edit mode, cancel
+		// If already in edit mode, finish editing
 		if (textSpan.contentEditable === 'true') {
-			textSpan.textContent = el.dataset.workspaceName || '';
-			textSpan.contentEditable = 'false';
-			el.removeClass('is-renaming');
+			this.handleRename(el, textSpan);
 			return;
 		}
 
@@ -199,20 +226,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				textSpan.textContent = el.dataset.workspaceName || '';
 				textSpan.contentEditable = 'false';
 				el.removeClass('is-renaming');
-			}
-		};
-
-		// Handle Enter key (confirm rename)
-		textSpan.onkeydown = (e: KeyboardEvent) => {
-			if (e.key === 'Enter') {
-				e.preventDefault();
-				this.handleRename(el, textSpan);
-			} else if (e.key === 'Escape') {
-				e.preventDefault();
-				textSpan.textContent = el.dataset.workspaceName || '';
-				textSpan.contentEditable = 'false';
-				el.removeClass('is-renaming');
-				textSpan.blur();
 			}
 		};
 	}
