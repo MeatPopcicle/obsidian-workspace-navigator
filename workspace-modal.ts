@@ -2,7 +2,7 @@
 // WORKSPACE SWITCHER MODAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { App, FuzzySuggestModal, FuzzyMatch, Notice } from 'obsidian';
+import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { createPopper, Instance as PopperInstance } from '@popperjs/core';
@@ -12,9 +12,9 @@ import { createPopper, Instance as PopperInstance } from '@popperjs/core';
 // ───────────────────────────────────────────────────────────────────────────────
 
 export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
-	plugin:     WorkspaceNavigator;
-	workspaces: string[];
-	popper:     PopperInstance | null = null;
+	plugin:        WorkspaceNavigator;
+	workspaces:    string[];
+	popper:        PopperInstance | null = null;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -32,6 +32,74 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				{ command: 'esc', purpose: 'cancel' }
 			]);
 		}
+
+		// ═══════════════════════════════════════════════════════════════
+		// Replace scope with custom one - just like original plugin
+		// ═══════════════════════════════════════════════════════════════
+		this.scope = new Scope();
+		this.setupScope();
+	}
+
+	setupScope(): void {
+		// Register Enter to handle both rename and workspace switching
+		this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
+			return this.useSelectedItem(evt);
+		});
+
+		// Ctrl+Enter for rename
+		this.scope.register(['Ctrl'], 'Enter', (evt: KeyboardEvent) => {
+			evt.preventDefault();
+			this.onRenameClick(evt);
+			return false;
+		});
+
+		// Shift+Delete for delete
+		this.scope.register(['Shift'], 'Delete', (evt: KeyboardEvent) => {
+			evt.preventDefault();
+			this.deleteWorkspace();
+			return false;
+		});
+
+		// Shift+Enter for save & switch
+		this.scope.register(['Shift'], 'Enter', (evt: KeyboardEvent) => {
+			return this.useSelectedItem(evt);
+		});
+
+		// Alt+Enter for save & switch
+		this.scope.register(['Alt'], 'Enter', (evt: KeyboardEvent) => {
+			return this.useSelectedItem(evt);
+		});
+	}
+
+	useSelectedItem(evt: KeyboardEvent): boolean {
+		const targetEl = (evt as any).composedPath ? (evt as any).composedPath()[0] as HTMLElement : evt.target as HTMLElement;
+
+		console.log('[useSelectedItem] targetEl:', targetEl?.tagName, 'contentEditable:', targetEl?.contentEditable);
+
+		// If we're editing a contentEditable element, handle rename
+		if (targetEl && targetEl.contentEditable === 'true') {
+			console.log('[useSelectedItem] Calling handleRename');
+			this.handleRename(targetEl);
+			return false;
+		}
+
+		// Otherwise, proceed with normal item selection
+		const selectedItem = (this as any).chooser.selectedItem;
+		const values = (this as any).chooser.values;
+
+		if (selectedItem >= 0 && selectedItem < values.length) {
+			const item = values[selectedItem];
+			this.selectSuggestion(item, evt);
+			return false;
+		}
+
+		return false;
+	}
+
+	open(): void {
+		// Push custom scope - just like original plugin
+		(this.app as any).keymap.pushScope(this.scope);
+		super.open();
 	}
 
 	onOpen(): void {
@@ -45,32 +113,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				modifiers: [{ name: 'offset', options: { offset: [0, 10] } }]
 			});
 		}
-
-		// Add custom keyboard handlers directly to the input element
-		// This way we don't interfere with the modal's default arrow key handling
-		const inputEl = (this as any).inputEl as HTMLInputElement;
-		if (inputEl) {
-			inputEl.addEventListener('keydown', (evt: KeyboardEvent) => {
-				// Ctrl+Enter to rename
-				if (evt.ctrlKey && evt.key === 'Enter') {
-					evt.preventDefault();
-					evt.stopPropagation();
-					this.onRenameClick(evt);
-					return;
-				}
-
-				// Shift+Delete to delete
-				if (evt.shiftKey && evt.key === 'Delete') {
-					evt.preventDefault();
-					evt.stopPropagation();
-					this.deleteWorkspace();
-					return;
-				}
-			});
-		}
 	}
 
 	onClose(): void {
+		// Pop custom scope
+		(this.app as any).keymap.popScope(this.scope);
+
 		// Cleanup popper instance
 		if (this.popper) {
 			this.popper.destroy();
@@ -154,7 +202,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	onRenameClick(evt: MouseEvent | KeyboardEvent, el?: HTMLElement): void {
 		if (!el) {
-			// Get currently selected item
 			const selectedItem = (this as any).chooser.selectedItem;
 			const suggestions = (this as any).chooser.suggestions;
 			if (selectedItem >= 0 && selectedItem < suggestions.length) {
@@ -163,86 +210,58 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 
 		if (!el) return;
-
 		evt.stopPropagation();
 
-		// Find the text span
 		const textSpan = el.querySelector('.workspace-name-text') as HTMLElement;
 		if (!textSpan) return;
 
-		// If already in edit mode with input, finish editing
-		const existingInput = el.querySelector('.workspace-rename-input') as HTMLInputElement;
-		if (existingInput) {
-			this.handleRename(el, existingInput);
+		// Toggle contentEditable - just like original plugin
+		if (textSpan.contentEditable === 'true') {
+			// Cancel rename
+			textSpan.textContent = el.dataset.workspaceName || '';
+			textSpan.contentEditable = 'false';
+			el.removeClass('is-renaming');
 			return;
 		}
 
-		// Enter edit mode - create an input field
+		// Enter rename mode
 		el.addClass('is-renaming');
+		textSpan.contentEditable = 'true';
 
-		// Create input element
-		const input = document.createElement('input');
-		input.type = 'text';
-		input.value = el.dataset.workspaceName || '';
-		input.className = 'workspace-rename-input';
+		// Select all text
+		const selection = window.getSelection();
+		const range = document.createRange();
+		if (selection) {
+			selection.removeAllRanges();
+			range.selectNodeContents(textSpan);
+			range.collapse(false);
+			selection.addRange(range);
+		}
+		textSpan.focus();
 
-		// Replace text span with input
-		textSpan.style.display = 'none';
-		el.appendChild(input);
-		input.focus();
-		input.select();
-
-		// Handle Enter key - use addEventListener with capture to intercept before modal
-		input.addEventListener('keydown', (e: KeyboardEvent) => {
-			console.log('[Input] Key pressed:', e.key, 'target:', e.target);
-			if (e.key === 'Enter') {
-				console.log('[Input] Enter detected - calling handleRename');
-				e.preventDefault();
-				e.stopPropagation();
-				e.stopImmediatePropagation();
-				// Remove blur handler before calling handleRename
-				input.onblur = null;
-				this.handleRename(el, input);
-			} else if (e.key === 'Escape') {
-				e.preventDefault();
-				e.stopPropagation();
-				e.stopImmediatePropagation();
-				input.onblur = null;
-				if (input.parentElement) {
-					input.remove();
-					textSpan.style.display = '';
-					el.removeClass('is-renaming');
-				}
-			}
-		}, true); // Use capture phase
-
-		// Handle blur (cancel edit) - with timeout to let Enter execute first
-		input.onblur = () => {
-			setTimeout(() => {
-				if (input.parentElement) {
-					input.remove();
-					textSpan.style.display = '';
-					el.removeClass('is-renaming');
-				}
-			}, 100);
+		// Handle blur - cancel rename
+		textSpan.onblur = () => {
+			textSpan.contentEditable = 'false';
+			el.removeClass('is-renaming');
 		};
 	}
 
 	// ─────────────────────────────────────────────────────────────────
-	// Handle workspace rename
+	// Handle workspace rename (called from onChooseItem when Enter is pressed)
 	// ─────────────────────────────────────────────────────────────────
 
-	async handleRename(el: HTMLElement, input: HTMLInputElement): Promise<void> {
+	async handleRename(textSpan: HTMLElement): Promise<void> {
+		const el = textSpan.closest('.workspace-suggestion-item') as HTMLElement;
+		if (!el) return;
+
 		const oldName = el.dataset.workspaceName;
-		const newName = input.value.trim();
+		const newName = textSpan.textContent?.trim();
 
 		console.log('[Rename] oldName:', oldName, 'newName:', newName);
 
-		const textSpan = el.querySelector('.workspace-name-text') as HTMLElement;
-
 		if (!oldName || !newName || oldName === newName) {
-			if (input.parentElement) input.remove();
-			if (textSpan) textSpan.style.display = '';
+			textSpan.textContent = oldName || '';
+			textSpan.contentEditable = 'false';
 			el.removeClass('is-renaming');
 			return;
 		}
@@ -252,11 +271,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Check if new name already exists
 		if (workspaceManager.hasWorkspace(newName)) {
 			new Notice(`Workspace "${newName}" already exists`);
-			if (input.parentElement) {
-				input.value = oldName;
-				input.focus();
-				input.select();
-			}
+			textSpan.textContent = oldName;
+			textSpan.focus();
 			return;
 		}
 
@@ -273,14 +289,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Save changes
 		await this.plugin.saveSettings();
 
-		// Exit edit mode - safely remove input
-		if (input.parentElement) {
-			input.remove();
-		}
-		if (textSpan) {
-			textSpan.textContent = newName;
-			textSpan.style.display = '';
-		}
+		// Exit edit mode
+		textSpan.contentEditable = 'false';
 		el.removeClass('is-renaming');
 		el.dataset.workspaceName = newName;
 
@@ -289,6 +299,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		new Notice(`Renamed workspace to "${newName}"`);
 	}
+
 
 	// ─────────────────────────────────────────────────────────────────
 	// Handle workspace deletion
@@ -433,14 +444,18 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			return;
 		}
 
-		// Handle regular Enter: Just switch (with auto-save if enabled)
-		if (this.plugin.settings.autoSaveOnSwitch) {
-			const currentWorkspace = workspaceManager.getActiveWorkspace();
-			if (currentWorkspace) {
+		// Handle regular Enter: Save current workspace first, then switch
+		const currentWorkspace = workspaceManager.getActiveWorkspace();
+		if (currentWorkspace) {
+			// Always save folder state when switching (even if autoSaveOnSwitch is false)
+			// Only save layout if autoSaveOnSwitch is enabled
+			if (this.plugin.settings.autoSaveOnSwitch) {
 				await this.plugin.saveNavigationLayout(currentWorkspace);
-				const saveFolderState = this.plugin.settings.rememberNavigationLayout;
-				await workspaceManager.saveWorkspace(currentWorkspace, saveFolderState);
 			}
+
+			// Always save folder state to preserve folder expansion
+			const saveFolderState = this.plugin.settings.rememberNavigationLayout;
+			await workspaceManager.saveWorkspace(currentWorkspace, saveFolderState);
 		}
 
 		// Load the selected workspace

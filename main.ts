@@ -47,7 +47,7 @@ export default class WorkspaceNavigator extends Plugin {
 	// ─────────────────────────────────────────────────────────────────
 
 	async onload() {
-		console.log('Loading Workspace Navigator plugin');
+		console.log(`[Workspace Navigator v${this.manifest.version}] Plugin loaded`);
 
 		// Load settings
 		await this.loadSettings();
@@ -67,6 +67,10 @@ export default class WorkspaceNavigator extends Plugin {
 
 	async onunload() {
 		console.log('Unloading Workspace Navigator plugin');
+
+		// Save development log before unloading
+		await this.workspaceManager.saveLog();
+
 		// Clean up status bar
 		if (this.statusBarItem) {
 			this.statusBarItem.remove();
@@ -139,7 +143,8 @@ export default class WorkspaceNavigator extends Plugin {
 				}
 
 				await this.saveNavigationLayout(workspaceName);
-				await this.workspaceManager.saveWorkspace(workspaceName);
+				const saveFolderState = this.settings.rememberNavigationLayout;
+				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
 				new Notice(`Saved workspace: ${workspaceName}`);
 			}
 		});
@@ -280,8 +285,8 @@ export default class WorkspaceNavigator extends Plugin {
 		const rightSplit = workspace.rightSplit;
 
 		return {
-			leftSidebarOpen:   leftSplit?.collapsed === false,
-			rightSidebarOpen:  rightSplit?.collapsed === false,
+			leftSidebarOpen:   leftSplit && leftSplit.collapsed === false,
+			rightSidebarOpen:  rightSplit && rightSplit.collapsed === false,
 			leftSidebarTab:    (leftSplit as any)?.getActiveLeaf?.()?.getViewState?.()?.type || null,
 			rightSidebarTab:   (rightSplit as any)?.getActiveLeaf?.()?.getViewState?.()?.type || null,
 			leftSidebarWidth:  leftSplit ? (leftSplit as any).containerEl?.offsetWidth : null,
@@ -326,7 +331,7 @@ export default class WorkspaceNavigator extends Plugin {
 		const rightSplit = workspace.rightSplit;
 
 		// Restore sidebar states
-		if (leftSplit) {
+		if (leftSplit && typeof leftSplit.collapsed !== 'undefined') {
 			if (layout.leftSidebarOpen && leftSplit.collapsed) {
 				workspace.leftSplit.expand();
 			} else if (!layout.leftSidebarOpen && !leftSplit.collapsed) {
@@ -334,7 +339,7 @@ export default class WorkspaceNavigator extends Plugin {
 			}
 		}
 
-		if (rightSplit) {
+		if (rightSplit && typeof rightSplit.collapsed !== 'undefined') {
 			if (layout.rightSidebarOpen && rightSplit.collapsed) {
 				workspace.rightSplit.expand();
 			} else if (!layout.rightSidebarOpen && !rightSplit.collapsed) {
@@ -401,7 +406,8 @@ export default class WorkspaceNavigator extends Plugin {
 					const workspaceName = this.workspaceManager.getActiveWorkspace();
 					if (workspaceName) {
 						await this.saveNavigationLayout(workspaceName);
-						await this.workspaceManager.saveWorkspace(workspaceName);
+						const saveFolderState = this.settings.rememberNavigationLayout;
+						await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
 						await this.saveSettings();
 						new Notice(`Saved workspace: ${workspaceName}`);
 					}
