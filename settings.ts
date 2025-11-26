@@ -154,6 +154,50 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				}));
 
 		// ─────────────────────────────────────────────────────────────────
+		// Import/Export Settings
+		// ─────────────────────────────────────────────────────────────────
+
+		containerEl.createEl('h2', { text: 'Import / Export' });
+
+		new Setting(containerEl)
+			.setName('Import from Obsidian core Workspaces plugin')
+			.setDesc('Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name will be skipped.')
+			.addButton(button => button
+				.setButtonText('Import')
+				.onClick(async () => {
+					const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(false);
+					await this.plugin.saveSettings();
+
+					if (result.imported.length > 0) {
+						new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+					}
+					if (result.skipped.length > 0) {
+						new Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+					}
+					if (result.imported.length === 0 && result.skipped.length === 0) {
+						new Notice('No workspaces to import');
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Import and overwrite')
+			.setDesc('Import all workspaces from the core plugin, overwriting any existing workspaces with the same name.')
+			.addButton(button => button
+				.setButtonText('Import (Overwrite)')
+				.setWarning()
+				.onClick(async () => {
+					const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(true);
+					await this.plugin.saveSettings();
+
+					if (result.imported.length > 0) {
+						new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+					}
+					if (result.imported.length === 0) {
+						new Notice('No workspaces to import');
+					}
+				}));
+
+		// ─────────────────────────────────────────────────────────────────
 		// Debug Settings
 		// ─────────────────────────────────────────────────────────────────
 

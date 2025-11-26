@@ -199,6 +199,43 @@ export default class WorkspaceNavigator extends Plugin {
 			}
 		});
 
+		// Import from Obsidian Core Workspaces plugin
+		this.addCommand({
+			id: 'import-from-core-workspaces',
+			name: 'Import workspaces from Obsidian core plugin',
+			callback: async () => {
+				const result = await this.workspaceManager.importFromCorePlugin(false);
+				await this.saveSettings();
+
+				if (result.imported.length > 0) {
+					new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+				}
+				if (result.skipped.length > 0) {
+					new Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+				}
+				if (result.imported.length === 0 && result.skipped.length === 0) {
+					new Notice('No workspaces to import');
+				}
+			}
+		});
+
+		// Import from Obsidian Core Workspaces plugin (with overwrite)
+		this.addCommand({
+			id: 'import-from-core-workspaces-overwrite',
+			name: 'Import workspaces from Obsidian core plugin (overwrite existing)',
+			callback: async () => {
+				const result = await this.workspaceManager.importFromCorePlugin(true);
+				await this.saveSettings();
+
+				if (result.imported.length > 0) {
+					new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+				}
+				if (result.imported.length === 0) {
+					new Notice('No workspaces to import');
+				}
+			}
+		});
+
 		// Debug: Dump workspace data
 		this.addCommand({
 			id: 'debug-dump-workspace-data',

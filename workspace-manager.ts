@@ -488,4 +488,105 @@ export class WorkspaceManager {
 	loadStorage(storage: WorkspacesStorage): void {
 		this.storage = storage;
 	}
+
+	// ───────────────────────────────────────────────────────────────────
+	// Import from Obsidian Core Workspaces Plugin
+	// ───────────────────────────────────────────────────────────────────
+
+	/**
+	 * Import workspaces from Obsidian's core Workspaces plugin
+	 * Reads from .obsidian/workspaces.json in the vault
+	 * @param overwrite If true, overwrites existing workspaces with same name
+	 * @returns Object with counts of imported, skipped, and failed workspaces
+	 */
+	async importFromCorePlugin(overwrite: boolean = false): Promise<{
+		imported: string[];
+		skipped:  string[];
+		failed:   string[];
+	}> {
+		this.logger.log(`\n### IMPORT FROM CORE WORKSPACES PLUGIN`);
+		this.logger.log(`- Overwrite existing: ${overwrite}`);
+
+		const result = {
+			imported: [] as string[],
+			skipped:  [] as string[],
+			failed:   [] as string[]
+		};
+
+		try {
+			// Read the core workspaces.json file
+			// Note: .obsidian files are not in the vault tree, must use adapter
+			const configDir  = this.app.vault.configDir;
+			const configPath = `${configDir}/workspaces.json`;
+
+			this.logger.log(`- Looking for: ${configPath}`);
+
+			// Check if file exists using adapter (not vault API)
+			const exists = await this.app.vault.adapter.exists(configPath);
+			if (!exists) {
+				this.logger.log(`❌ ERROR: workspaces.json not found`);
+				new Notice('No core workspaces.json found. Is the Workspaces plugin enabled?');
+				return result;
+			}
+
+			// Read the file content using adapter
+			const content = await this.app.vault.adapter.read(configPath);
+			const coreData = JSON.parse(content);
+
+			this.logger.log(`- Found core workspaces data`);
+			this.logger.log(`\`\`\`json\n${JSON.stringify(Object.keys(coreData.workspaces || {}), null, 2)}\n\`\`\``);
+
+			// Check if there are workspaces to import
+			if (!coreData.workspaces || Object.keys(coreData.workspaces).length === 0) {
+				this.logger.log(`⚠️ No workspaces found in core plugin`);
+				new Notice('No workspaces found in core Workspaces plugin');
+				return result;
+			}
+
+			// Import each workspace
+			for (const [name, layout] of Object.entries(coreData.workspaces)) {
+				try {
+					// Check if workspace already exists
+					if (this.hasWorkspace(name)) {
+						if (overwrite) {
+							this.logger.log(`- Overwriting existing workspace: "${name}"`);
+						} else {
+							this.logger.log(`- Skipping existing workspace: "${name}"`);
+							result.skipped.push(name);
+							continue;
+						}
+					}
+
+					// Create workspace data structure
+					this.storage.workspaces[name] = {
+						layout:     layout,
+						lastSaved:  Date.now(),
+						metadata:   {
+							description: `Imported from core Workspaces plugin`
+						}
+					};
+
+					result.imported.push(name);
+					this.logger.log(`✅ Imported workspace: "${name}"`);
+
+				} catch (err) {
+					this.logger.log(`❌ Failed to import workspace "${name}": ${err}`);
+					result.failed.push(name);
+				}
+			}
+
+			this.logger.log(`\n### IMPORT COMPLETE`);
+			this.logger.log(`- Imported: ${result.imported.length}`);
+			this.logger.log(`- Skipped:  ${result.skipped.length}`);
+			this.logger.log(`- Failed:   ${result.failed.length}`);
+
+			await this.logger.save();
+
+		} catch (err) {
+			this.logger.log(`❌ ERROR reading workspaces.json: ${err}`);
+			new Notice(`Failed to read core workspaces: ${err}`);
+		}
+
+		return result;
+	}
 }
