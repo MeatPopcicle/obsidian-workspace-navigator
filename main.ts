@@ -5,20 +5,12 @@
 import { Plugin, Notice, setIcon } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal } from './workspace-modal';
+import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
+import { createConfirmationDialog } from './confirm-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Type Definitions
 // ───────────────────────────────────────────────────────────────────────────────
-
-interface WorkspacePluginInstance {
-	workspaces: Record<string, any>;
-	activeWorkspace: string | null;
-	saveWorkspace(name: string): void;
-	loadWorkspace(name: string): void;
-	deleteWorkspace(name: string): void;
-	setActiveWorkspace(name: string): void;
-	saveData(): void;
-}
 
 interface NavigationLayoutState {
 	leftSidebarOpen:    boolean;
@@ -36,9 +28,12 @@ interface NavigationLayoutState {
 
 export default class WorkspaceNavigator extends Plugin {
 	settings:              WorkspaceNavigatorSettings;
+	workspaceManager:      WorkspaceManager;
 	statusBarItem:         HTMLElement | null = null;
 	navigationLayouts:     Map<string, NavigationLayoutState> = new Map();
 	isLoadingWorkspace:    boolean = false;
+	autoSaveTimeout:       NodeJS.Timeout | null = null;
+	private saveQueue:     Promise<void> = Promise.resolve();
 
 	// ─────────────────────────────────────────────────────────────────
 	// Debug Logging
@@ -55,7 +50,7 @@ export default class WorkspaceNavigator extends Plugin {
 	// ─────────────────────────────────────────────────────────────────
 
 	async onload() {
-		console.log('Loading Workspace Navigator plugin');
+		console.log(`[Workspace Navigator v${this.manifest.version}] Plugin loaded`);
 
 		// Load settings
 		await this.loadSettings();
@@ -70,11 +65,30 @@ export default class WorkspaceNavigator extends Plugin {
 		this.app.workspace.onLayoutReady(() => {
 			this.updateStatusBar();
 			this.registerWorkspaceEvents();
+
+			// Set initial workspace data attribute if there's an active workspace
+			const activeWorkspace = this.workspaceManager.getActiveWorkspace();
+			if (activeWorkspace) {
+				this.updateWorkspaceDataAttribute(activeWorkspace);
+			}
 		});
 	}
 
 	async onunload() {
 		console.log('Unloading Workspace Navigator plugin');
+
+		// Save development log before unloading
+		await this.workspaceManager.saveLog();
+
+		// Clean up CSS data attribute
+		this.updateWorkspaceDataAttribute(null);
+
+		// Clean up auto-save timeout
+		if (this.autoSaveTimeout) {
+			clearTimeout(this.autoSaveTimeout);
+			this.autoSaveTimeout = null;
+		}
+
 		// Clean up status bar
 		if (this.statusBarItem) {
 			this.statusBarItem.remove();
@@ -89,6 +103,18 @@ export default class WorkspaceNavigator extends Plugin {
 		const data = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 
+		// Initialize workspace manager with saved storage and debug callback
+		const workspaceStorage: WorkspacesStorage = data?.workspaceStorage || {
+			workspaces: {},
+			activeWorkspace: null,
+			version: '2.0.0'
+		};
+		this.workspaceManager = new WorkspaceManager(
+			this.app,
+			workspaceStorage,
+			() => this.settings.debugMode
+		);
+
 		// Restore navigation layouts from saved data
 		if (data?.navigationLayouts) {
 			this.navigationLayouts = new Map(Object.entries(data.navigationLayouts));
@@ -96,22 +122,27 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	async saveSettings() {
-		await this.saveData(this.settings);
+		// Serialize saves to prevent race conditions
+		this.saveQueue = this.saveQueue.then(async () => {
+			// Include workspace manager storage in saved data
+			const dataToSave = {
+				...this.settings,
+				workspaceStorage: this.workspaceManager.getStorage(),
+				navigationLayouts: Object.fromEntries(this.navigationLayouts)
+			};
+			await this.saveData(dataToSave);
+		}).catch(err => {
+			console.error('[Workspace Navigator] Failed to save settings:', err);
+		});
+		return this.saveQueue;
 	}
 
 	// ─────────────────────────────────────────────────────────────────
-	// Workspace Plugin Access
+	// Workspace Manager Access (Standalone Implementation)
 	// ─────────────────────────────────────────────────────────────────
 
-	getWorkspacePlugin(): WorkspacePluginInstance | null {
-		// Access the core workspaces plugin
-		const workspacePlugin = (this.app as any).internalPlugins?.getPluginById?.('workspaces');
-
-		if (!workspacePlugin || !workspacePlugin.enabled) {
-			return null;
-		}
-
-		return workspacePlugin.instance as WorkspacePluginInstance;
+	getWorkspaceManager(): WorkspaceManager {
+		return this.workspaceManager;
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -133,16 +164,96 @@ export default class WorkspaceNavigator extends Plugin {
 			id: 'save-current-workspace',
 			name: 'Save current workspace',
 			callback: async () => {
-				const workspacePlugin = this.getWorkspacePlugin();
-				if (!workspacePlugin || !workspacePlugin.activeWorkspace) {
+				const workspaceName = this.workspaceManager.getActiveWorkspace();
+				if (!workspaceName) {
 					new Notice('No active workspace');
 					return;
 				}
 
-				const workspaceName = workspacePlugin.activeWorkspace;
 				await this.saveNavigationLayout(workspaceName);
-				workspacePlugin.saveWorkspace(workspaceName);
+				const saveFolderState = this.settings.rememberNavigationLayout;
+				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
 				new Notice(`Saved workspace: ${workspaceName}`);
+			}
+		});
+
+		// Duplicate current workspace
+		this.addCommand({
+			id: 'duplicate-current-workspace',
+			name: 'Duplicate current workspace',
+			callback: () => {
+				const workspaceName = this.workspaceManager.getActiveWorkspace();
+				if (!workspaceName) {
+					new Notice('No active workspace');
+					return;
+				}
+
+				// Generate a unique name for the duplicate
+				let newName = `${workspaceName} (copy)`;
+				let counter = 2;
+				while (this.workspaceManager.hasWorkspace(newName)) {
+					newName = `${workspaceName} (copy ${counter})`;
+					counter++;
+				}
+
+				// Duplicate the workspace
+				this.workspaceManager.duplicateWorkspace(workspaceName, newName);
+
+				// Also duplicate navigation layout data if it exists
+				const layout = this.navigationLayouts.get(workspaceName);
+				if (layout) {
+					this.navigationLayouts.set(newName, JSON.parse(JSON.stringify(layout)));
+				}
+
+				this.saveSettings();
+
+				new Notice(`Duplicated workspace to: ${newName}`);
+			}
+		});
+
+		// Import from Obsidian Core Workspaces plugin
+		this.addCommand({
+			id: 'import-from-core-workspaces',
+			name: 'Import workspaces from Obsidian core plugin',
+			callback: async () => {
+				const result = await this.workspaceManager.importFromCorePlugin(false);
+				await this.saveSettings();
+
+				if (result.imported.length > 0) {
+					new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+				}
+				if (result.skipped.length > 0) {
+					new Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+				}
+				if (result.imported.length === 0 && result.skipped.length === 0) {
+					new Notice('No workspaces to import');
+				}
+			}
+		});
+
+		// Import from Obsidian Core Workspaces plugin (with overwrite)
+		this.addCommand({
+			id: 'import-from-core-workspaces-overwrite',
+			name: 'Import workspaces from Obsidian core plugin (overwrite existing)',
+			callback: () => {
+				const existingCount = this.workspaceManager.getWorkspaceNames().length;
+
+				createConfirmationDialog(this.app, {
+					title:   'Overwrite All Workspaces?',
+					text:    `This will DELETE all ${existingCount} existing workspace(s) and replace them with workspaces from the core plugin. This cannot be undone.`,
+					cta:     'Delete & Import',
+					onAccept: async () => {
+						const result = await this.workspaceManager.importFromCorePlugin(true);
+						await this.saveSettings();
+
+						if (result.imported.length > 0) {
+							new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+						}
+						if (result.imported.length === 0) {
+							new Notice('No workspaces to import');
+						}
+					}
+				});
 			}
 		});
 
@@ -151,14 +262,13 @@ export default class WorkspaceNavigator extends Plugin {
 			id: 'debug-dump-workspace-data',
 			name: 'Debug: Dump current workspace data',
 			callback: async () => {
-				const workspacePlugin = this.getWorkspacePlugin();
-				if (!workspacePlugin || !workspacePlugin.activeWorkspace) {
+				const name = this.workspaceManager.getActiveWorkspace();
+				if (!name) {
 					new Notice('No active workspace');
 					return;
 				}
 
-				const name = workspacePlugin.activeWorkspace;
-				const workspace = workspacePlugin.workspaces[name];
+				const workspace = this.workspaceManager.getWorkspace(name);
 				const folderState = await this.app.loadLocalStorage('file-explorer-unfold');
 
 				console.log('═══════════════════════════════════════════');
@@ -169,9 +279,8 @@ export default class WorkspaceNavigator extends Plugin {
 				console.log(`  - Remember layout: ${this.settings.rememberNavigationLayout}`);
 				console.log(`  - Maintain across workspaces: ${this.settings.maintainLayoutAcrossWorkspaces}`);
 				console.log(`\nCurrent folder state (localStorage):`, folderState);
-				console.log(`\nStored workspace data:`, workspace?.['workspace-navigator:data']);
-				console.log(`\nFull workspace object:`, workspace);
-				console.log(`\nAll workspaces:`, Object.keys(workspacePlugin.workspaces));
+				console.log(`\nStored workspace data:`, workspace);
+				console.log(`\nAll workspaces:`, this.workspaceManager.getWorkspaceNames());
 				console.log('═══════════════════════════════════════════');
 
 				new Notice(`Workspace data dumped to console (Ctrl+Shift+I)`);
@@ -183,19 +292,13 @@ export default class WorkspaceNavigator extends Plugin {
 			id: 'debug-export-diagnostics',
 			name: 'Debug: Export diagnostics to file',
 			callback: async () => {
-				const workspacePlugin = this.getWorkspacePlugin();
-				if (!workspacePlugin) {
-					new Notice('Workspaces core plugin is not enabled');
-					return;
-				}
-
 				const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
 				const fileName = `workspace-navigator-debug-${timestamp}.md`;
 
 				// Gather all diagnostic info
-				const currentWorkspace = workspacePlugin.activeWorkspace || 'None';
+				const currentWorkspace = this.workspaceManager.getActiveWorkspace() || 'None';
 				const folderState = await this.app.loadLocalStorage('file-explorer-unfold');
-				const allWorkspaces = Object.keys(workspacePlugin.workspaces);
+				const allWorkspaces = this.workspaceManager.getWorkspaceNames();
 
 				// Build diagnostic report
 				let report = `# Workspace Navigator Debug Report\n\n`;
@@ -220,18 +323,17 @@ export default class WorkspaceNavigator extends Plugin {
 				report += `Total: ${allWorkspaces.length}\n\n`;
 
 				for (const wsName of allWorkspaces) {
-					const ws = workspacePlugin.workspaces[wsName];
-					const navData = ws?.['workspace-navigator:data'];
+					const ws = this.workspaceManager.getWorkspace(wsName);
 
 					report += `### ${wsName}\n\n`;
 
-					if (navData?.folderExpandState) {
-						report += `**Stored folder state:**\n\`\`\`json\n${JSON.stringify(navData.folderExpandState, null, 2)}\n\`\`\`\n\n`;
+					if (ws?.folderExpandState) {
+						report += `**Stored folder state:**\n\`\`\`json\n${JSON.stringify(ws.folderExpandState, null, 2)}\n\`\`\`\n\n`;
 					} else {
 						report += `**Stored folder state:** None\n\n`;
 					}
 
-					report += `**Full workspace-navigator:data:**\n\`\`\`json\n${JSON.stringify(navData, null, 2)}\n\`\`\`\n\n`;
+					report += `**Full workspace data:**\n\`\`\`json\n${JSON.stringify(ws, null, 2)}\n\`\`\`\n\n`;
 					report += `---\n\n`;
 				}
 
@@ -245,9 +347,19 @@ export default class WorkspaceNavigator extends Plugin {
 					report += `No navigation layouts stored.\n\n`;
 				}
 
-				// Save to vault root
-				await this.app.vault.create(fileName, report);
-				new Notice(`Debug report saved to ${fileName}`);
+				// Save to plugin data directory (not vault root)
+				const configDir = this.app.vault.configDir;
+				const logsDir = `${configDir}/plugins/workspace-navigator/logs`;
+				const filePath = `${logsDir}/${fileName}`;
+				const adapter = this.app.vault.adapter;
+
+				// Ensure logs directory exists
+				if (!(await adapter.exists(logsDir))) {
+					await adapter.mkdir(logsDir);
+				}
+
+				await adapter.write(filePath, report);
+				new Notice(`Debug report saved to plugin logs folder`);
 
 				// Also copy to clipboard
 				await navigator.clipboard.writeText(report);
@@ -265,92 +377,56 @@ export default class WorkspaceNavigator extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on('layout-change', () => {
 				this.updateStatusBar();
+
+				// Auto-save on layout change if enabled
+				if (this.settings.autoSaveOnLayoutChange) {
+					this.handleAutoSaveOnLayoutChange();
+				}
 			})
 		);
 
-		// Hook into workspace save/load to inject folder expansion state
-		const workspacePlugin = this.getWorkspacePlugin();
-		if (workspacePlugin) {
-			// Store the original methods
-			const originalSave = workspacePlugin.saveWorkspace.bind(workspacePlugin);
-			const originalLoad = workspacePlugin.loadWorkspace.bind(workspacePlugin);
+		// Listen for workspace open event to restore navigation layout
+		this.registerEvent(
+			(this.app.workspace as any).on('workspace-open', async (workspaceName: string) => {
+				this.debug(`🟢 Workspace opened: ${workspaceName}`);
+				await this.afterWorkspaceLoad(workspaceName);
+			})
+		);
+	}
 
-			// Wrap saveWorkspace to inject folder expansion state into workspace data
-			workspacePlugin.saveWorkspace = async (name: string) => {
-				if (!name) return;
-
-				this.debug(`🔵 SAVE WORKSPACE: "${name}"`);
-
-				// Save the workspace first
-				const result = originalSave(name);
-
-				// Then inject our folder expansion state into the workspace data
-				if (this.settings.rememberNavigationLayout) {
-					const folderState = await this.app.loadLocalStorage('file-explorer-unfold');
-					this.debug(`  📂 Current folder state:`, folderState);
-
-					if (folderState && workspacePlugin.workspaces[name]) {
-						// Store in workspace data using a custom property
-						if (!workspacePlugin.workspaces[name]['workspace-navigator:data']) {
-							workspacePlugin.workspaces[name]['workspace-navigator:data'] = {};
-						}
-						workspacePlugin.workspaces[name]['workspace-navigator:data'].folderExpandState = folderState;
-						workspacePlugin.saveData();
-						this.debug(`  ✅ Folder state saved to workspace data`);
-					} else {
-						this.debug(`  ⚠️ No folder state to save or workspace doesn't exist`);
-					}
-				} else {
-					this.debug(`  ⏭️ Skip: Remember navigation layout is disabled`);
-				}
-
-				return result;
-			};
-
-			// Wrap loadWorkspace to restore folder expansion state from workspace data
-			workspacePlugin.loadWorkspace = async (name: string) => {
-				if (!name) return;
-
-				this.debug(`🟢 LOAD WORKSPACE: "${name}"`);
-				this.debug(`  Settings: rememberLayout=${this.settings.rememberNavigationLayout}, maintainLayout=${this.settings.maintainLayoutAcrossWorkspaces}`);
-
-				this.beforeWorkspaceLoad(name);
-
-				// CRITICAL: Update localStorage BEFORE calling originalLoad
-				// The file explorer reads from localStorage when changeLayout rebuilds it
-				if (this.settings.rememberNavigationLayout && !this.settings.maintainLayoutAcrossWorkspaces) {
-					const workspace = workspacePlugin.workspaces[name];
-					const storedState = workspace?.['workspace-navigator:data']?.folderExpandState;
-
-					this.debug(`  📂 Stored folder state:`, storedState);
-
-					if (workspace && storedState) {
-						const currentState = await this.app.loadLocalStorage('file-explorer-unfold');
-						this.debug(`  📂 Current folder state (before restore):`, currentState);
-
-						await this.app.saveLocalStorage('file-explorer-unfold', storedState);
-
-						const afterState = await this.app.loadLocalStorage('file-explorer-unfold');
-						this.debug(`  📂 Folder state (after restore):`, afterState);
-						this.debug(`  ✅ Folder state restored BEFORE loading workspace`);
-					} else {
-						this.debug(`  ⚠️ No stored folder state found in workspace data`);
-					}
-				} else {
-					this.debug(`  ⏭️ Skip restore: rememberLayout=${this.settings.rememberNavigationLayout}, maintainLayout=${this.settings.maintainLayoutAcrossWorkspaces}`);
-				}
-
-				// Now call originalLoad - it will rebuild the file explorer and read from the updated localStorage
-				const result = originalLoad(name);
-
-				// Call afterWorkspaceLoad after a delay to ensure layout has changed
-				setTimeout(() => {
-					this.afterWorkspaceLoad(name);
-				}, 300);
-
-				return result;
-			};
+	/**
+	 * Handle auto-save on layout change with debouncing
+	 */
+	handleAutoSaveOnLayoutChange(): void {
+		// Don't save during workspace loading
+		if (this.isLoadingWorkspace) {
+			return;
 		}
+
+		// Get active workspace
+		const workspaceName = this.workspaceManager.getActiveWorkspace();
+		if (!workspaceName) {
+			return;
+		}
+
+		// Debounce: Clear any pending save
+		if (this.autoSaveTimeout) {
+			clearTimeout(this.autoSaveTimeout);
+		}
+
+		// Schedule save after 2 seconds of no layout changes
+		this.autoSaveTimeout = setTimeout(async () => {
+			this.debug(`💾 Auto-saving workspace "${workspaceName}" after layout change`);
+
+			try {
+				await this.saveNavigationLayout(workspaceName);
+				const saveFolderState = this.settings.rememberNavigationLayout;
+				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+				await this.saveSettings();
+			} catch (error) {
+				console.error('[Workspace Navigator] Auto-save failed:', error);
+			}
+		}, 2000);
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -367,8 +443,8 @@ export default class WorkspaceNavigator extends Plugin {
 		const rightSplit = workspace.rightSplit;
 
 		return {
-			leftSidebarOpen:   leftSplit?.collapsed === false,
-			rightSidebarOpen:  rightSplit?.collapsed === false,
+			leftSidebarOpen:   leftSplit && leftSplit.collapsed === false,
+			rightSidebarOpen:  rightSplit && rightSplit.collapsed === false,
 			leftSidebarTab:    (leftSplit as any)?.getActiveLeaf?.()?.getViewState?.()?.type || null,
 			rightSidebarTab:   (rightSplit as any)?.getActiveLeaf?.()?.getViewState?.()?.type || null,
 			leftSidebarWidth:  leftSplit ? (leftSplit as any).containerEl?.offsetWidth : null,
@@ -413,7 +489,7 @@ export default class WorkspaceNavigator extends Plugin {
 		const rightSplit = workspace.rightSplit;
 
 		// Restore sidebar states
-		if (leftSplit) {
+		if (leftSplit && typeof leftSplit.collapsed !== 'undefined') {
 			if (layout.leftSidebarOpen && leftSplit.collapsed) {
 				workspace.leftSplit.expand();
 			} else if (!layout.leftSidebarOpen && !leftSplit.collapsed) {
@@ -421,7 +497,7 @@ export default class WorkspaceNavigator extends Plugin {
 			}
 		}
 
-		if (rightSplit) {
+		if (rightSplit && typeof rightSplit.collapsed !== 'undefined') {
 			if (layout.rightSidebarOpen && rightSplit.collapsed) {
 				workspace.rightSplit.expand();
 			} else if (!layout.rightSidebarOpen && !rightSplit.collapsed) {
@@ -443,19 +519,36 @@ export default class WorkspaceNavigator extends Plugin {
 		await this.restoreNavigationLayout(name);
 		this.isLoadingWorkspace = false;
 		this.updateStatusBar();
+
+		// Set CSS data attribute for workspace-specific styling
+		this.updateWorkspaceDataAttribute(name);
+	}
+
+	/**
+	 * Update body data-workspace-name attribute for CSS theming
+	 */
+	updateWorkspaceDataAttribute(workspaceName: string | null) {
+		const body = document.body;
+
+		if (workspaceName) {
+			body.setAttribute('data-workspace-name', workspaceName);
+			this.debug(`Set data-workspace-name="${workspaceName}"`);
+		} else {
+			body.removeAttribute('data-workspace-name');
+			this.debug('Removed data-workspace-name attribute');
+		}
 	}
 
 	/**
 	 * Public method to load a workspace with navigation handling
 	 */
-	loadWorkspace(name: string) {
-		const workspacePlugin = this.getWorkspacePlugin();
-		if (!workspacePlugin) {
-			new Notice('Workspaces core plugin is not enabled');
-			return;
-		}
+	async loadWorkspace(name: string) {
+		const restoreFolderState = this.settings.rememberNavigationLayout &&
+		                           !this.settings.maintainLayoutAcrossWorkspaces;
 
-		workspacePlugin.loadWorkspace(name);
+		this.beforeWorkspaceLoad(name);
+		await this.workspaceManager.loadWorkspace(name, restoreFolderState);
+		await this.saveSettings(); // Save after loading
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -486,11 +579,12 @@ export default class WorkspaceNavigator extends Plugin {
 			this.statusBarItem.addEventListener('click', async (evt: MouseEvent) => {
 				// Shift+Click to save current workspace
 				if (evt.shiftKey) {
-					const workspacePlugin = this.getWorkspacePlugin();
-					if (workspacePlugin && workspacePlugin.activeWorkspace) {
-						const workspaceName = workspacePlugin.activeWorkspace;
+					const workspaceName = this.workspaceManager.getActiveWorkspace();
+					if (workspaceName) {
 						await this.saveNavigationLayout(workspaceName);
-						workspacePlugin.saveWorkspace(workspaceName);
+						const saveFolderState = this.settings.rememberNavigationLayout;
+						await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+						await this.saveSettings();
 						new Notice(`Saved workspace: ${workspaceName}`);
 					}
 					return;
@@ -504,8 +598,7 @@ export default class WorkspaceNavigator extends Plugin {
 		// Update text
 		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text');
 		if (textEl) {
-			const workspacePlugin = this.getWorkspacePlugin();
-			const workspaceName = workspacePlugin?.activeWorkspace || 'No workspace';
+			const workspaceName = this.workspaceManager.getActiveWorkspace() || 'No workspace';
 			textEl.setText(workspaceName);
 		}
 	}

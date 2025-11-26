@@ -1,9 +1,9 @@
 {
   "id": "workspace-navigator",
   "name": "Workspace Navigator",
-  "version": "1.2.4",
+  "version": "2.5.1",
   "minAppVersion": "1.8.0",
-  "description": "Enhanced workspace management with navigation layout memory, create/delete/rename workspaces, and quick switching",
+  "description": "Standalone workspace manager with navigation layout memory, no dependency on core Workspaces plugin",
   "author": "",
   "authorUrl": "",
   "isDesktopOnly": false

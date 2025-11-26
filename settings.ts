@@ -4,6 +4,7 @@
 
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import WorkspaceNavigator from './main';
+import { createConfirmationDialog } from './confirm-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Settings Interface
@@ -23,6 +24,7 @@ export interface WorkspaceNavigatorSettings {
 
 	// Auto-save options
 	autoSaveOnSwitch:                boolean;
+	autoSaveOnLayoutChange:          boolean;
 
 	// Sorting preferences
 	sortWorkspacesAlphabetically:    boolean;
@@ -38,6 +40,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showInstructions:                true,
 	showDeleteConfirmation:          true,
 	autoSaveOnSwitch:                false,
+	autoSaveOnLayoutChange:          false,
 	sortWorkspacesAlphabetically:    true,
 	debugMode:                       false,
 };
@@ -139,6 +142,69 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.autoSaveOnSwitch = value;
 					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-save on layout change')
+			.setDesc('Automatically save the current workspace whenever the layout changes (e.g., when you open/close panels, rearrange panes, expand/collapse folders). Note: This can result in frequent saves.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoSaveOnLayoutChange)
+				.onChange(async (value) => {
+					this.plugin.settings.autoSaveOnLayoutChange = value;
+					await this.plugin.saveSettings();
+				}));
+
+		// ─────────────────────────────────────────────────────────────────
+		// Import/Export Settings
+		// ─────────────────────────────────────────────────────────────────
+
+		containerEl.createEl('h2', { text: 'Import / Export' });
+
+		new Setting(containerEl)
+			.setName('Import from Obsidian core Workspaces plugin')
+			.setDesc('Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name will be skipped.')
+			.addButton(button => button
+				.setButtonText('Import')
+				.onClick(async () => {
+					const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(false);
+					await this.plugin.saveSettings();
+
+					if (result.imported.length > 0) {
+						new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+					}
+					if (result.skipped.length > 0) {
+						new Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+					}
+					if (result.imported.length === 0 && result.skipped.length === 0) {
+						new Notice('No workspaces to import');
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Import and overwrite')
+			.setDesc('Import all workspaces from the core plugin. WARNING: This will DELETE all existing workspaces first!')
+			.addButton(button => button
+				.setButtonText('Import (Overwrite)')
+				.setWarning()
+				.onClick(async () => {
+					const existingCount = this.plugin.getWorkspaceManager().getWorkspaceNames().length;
+
+					createConfirmationDialog(this.app, {
+						title:   'Overwrite All Workspaces?',
+						text:    `This will DELETE all ${existingCount} existing workspace(s) and replace them with workspaces from the core plugin. This cannot be undone.`,
+						cta:     'Delete & Import',
+						onAccept: async () => {
+							const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(true);
+							await this.plugin.saveSettings();
+
+							if (result.imported.length > 0) {
+								new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+							}
+							if (result.imported.length === 0) {
+								new Notice('No workspaces to import');
+							}
+						}
+					});
 				}));
 
 		// ─────────────────────────────────────────────────────────────────
