@@ -34,7 +34,7 @@
 
 .workspace-suggestion-item {
 	position: relative;
-	padding: 5px 6rem 5px 2rem !important;
+	padding: 5px 7.5rem 5px 2rem !important;
 }
 
 .workspace-suggestion-item.is-active {
@@ -51,6 +51,7 @@
 }
 
 .workspace-delete-btn,
+.workspace-duplicate-btn,
 .workspace-rename-btn {
 	position: absolute;
 	top: 50%;
@@ -66,12 +67,20 @@
 	right: 0.7em;
 }
 
-.workspace-rename-btn {
+.workspace-duplicate-btn {
 	right: 2em;
+}
+
+.workspace-rename-btn {
+	right: 3.3em;
 }
 
 .workspace-delete-btn:hover {
 	fill: var(--text-error);
+}
+
+.workspace-duplicate-btn:hover {
+	fill: var(--interactive-accent);
 }
 
 .workspace-rename-btn:hover {
@@ -90,7 +99,7 @@
 	color: var(--text-normal);
 	font-size: inherit;
 	font-family: inherit;
-	width: calc(100% - 7rem);
+	width: calc(100% - 8.5rem);
 	box-shadow: 0 0 0 3px hsla(var(--accent-hsl), 0.15);
 }
 
@@ -98,8 +107,18 @@
 	outline: none;
 }
 
-/* Hide delete/active icons during rename, but keep rename button visible */
+/* Workspace description styling */
+.workspace-description {
+	font-size: 0.85em;
+	color: var(--text-muted);
+	margin-top: 2px;
+	padding-left: 0.5em;
+	font-style: italic;
+}
+
+/* Hide delete/duplicate/active icons during rename, but keep rename button visible */
 .workspace-suggestion-item.is-renaming .workspace-delete-btn,
+.workspace-suggestion-item.is-renaming .workspace-duplicate-btn,
 .workspace-suggestion-item.is-renaming .workspace-active-indicator {
 	display: none;
 }

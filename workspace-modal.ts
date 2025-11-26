@@ -28,6 +28,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				{ command: 'shift ↵', purpose: 'save & switch' },
 				{ command: 'alt ↵', purpose: 'save & switch' },
 				{ command: 'ctrl ↵', purpose: 'rename' },
+				{ command: 'ctrl d', purpose: 'duplicate' },
 				{ command: 'shift ⌫', purpose: 'delete' },
 				{ command: 'esc', purpose: 'cancel' }
 			]);
@@ -50,6 +51,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.scope.register(['Ctrl'], 'Enter', (evt: KeyboardEvent) => {
 			evt.preventDefault();
 			this.onRenameClick(evt);
+			return false;
+		});
+
+		// Ctrl+D for duplicate
+		this.scope.register(['Ctrl'], 'd', (evt: KeyboardEvent) => {
+			evt.preventDefault();
+			this.duplicateWorkspace();
 			return false;
 		});
 
@@ -186,6 +194,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.deleteWorkspace(workspaceName);
 		});
 
+		// Create duplicate button
+		const duplicateBtn = el.createDiv('workspace-duplicate-btn');
+		duplicateBtn.setAttribute('aria-label', 'Duplicate workspace');
+		duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .552-.45 1-1.007 1H4.007A1.001 1.001 0 0 1 3 21l.003-14c0-.552.45-1 1.007-1H7zM5.003 8L5 20h10V8H5.003zM9 6h8v10h2V4H9v2z"/></svg>`;
+		duplicateBtn.addEventListener('click', (evt) => {
+			evt.stopPropagation();
+			this.duplicateWorkspace(workspaceName);
+		});
+
 		// Create rename button
 		const renameBtn = el.createDiv('workspace-rename-btn');
 		renameBtn.setAttribute('aria-label', 'Rename workspace');
@@ -194,6 +211,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			evt.stopPropagation();
 			this.onRenameClick(evt, el);
 		});
+
+		// Add workspace description if it exists
+		const workspace = workspaceManager.getWorkspace(workspaceName);
+		if (workspace?.metadata?.description) {
+			const descEl = el.createDiv('workspace-description');
+			descEl.textContent = workspace.metadata.description;
+		}
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -344,6 +368,49 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		} else {
 			doDelete();
 		}
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Handle workspace duplication
+	// ─────────────────────────────────────────────────────────────────
+
+	duplicateWorkspace(workspaceName?: string): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+
+		// If no workspace name provided, use the currently selected one
+		if (!workspaceName) {
+			const selectedItem = (this as any).chooser.selectedItem;
+			const suggestions = (this as any).chooser.values;
+			if (selectedItem >= 0 && selectedItem < suggestions.length) {
+				workspaceName = suggestions[selectedItem].item;
+			}
+		}
+
+		if (!workspaceName) return;
+
+		// Generate a unique name for the duplicate
+		let newName = `${workspaceName} (copy)`;
+		let counter = 2;
+		while (workspaceManager.hasWorkspace(newName)) {
+			newName = `${workspaceName} (copy ${counter})`;
+			counter++;
+		}
+
+		// Duplicate the workspace
+		workspaceManager.duplicateWorkspace(workspaceName, newName);
+
+		// Also duplicate navigation layout data if it exists
+		const layout = this.plugin.navigationLayouts.get(workspaceName);
+		if (layout) {
+			this.plugin.navigationLayouts.set(newName, JSON.parse(JSON.stringify(layout)));
+		}
+
+		this.plugin.saveSettings();
+
+		// Update the suggestions list
+		(this as any).updateSuggestions();
+
+		new Notice(`Duplicated workspace to: ${newName}`);
 	}
 
 	// ─────────────────────────────────────────────────────────────────

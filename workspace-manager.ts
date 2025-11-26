@@ -412,6 +412,45 @@ export class WorkspaceManager {
 		this.logger.save();
 	}
 
+	/**
+	 * Duplicate a workspace
+	 */
+	duplicateWorkspace(sourceName: string, newName: string): void {
+		this.logger.log(`\n### DUPLICATE WORKSPACE: "${sourceName}" → "${newName}"`);
+
+		if (!this.hasWorkspace(sourceName)) {
+			this.logger.log(`❌ ERROR: Source workspace "${sourceName}" not found`);
+			new Notice(`Workspace "${sourceName}" not found`);
+			return;
+		}
+
+		if (this.hasWorkspace(newName)) {
+			this.logger.log(`❌ ERROR: Workspace "${newName}" already exists`);
+			new Notice(`Workspace "${newName}" already exists`);
+			return;
+		}
+
+		if (!newName || newName.trim() === '') {
+			this.logger.log(`❌ ERROR: New workspace name cannot be empty`);
+			new Notice('Workspace name cannot be empty');
+			return;
+		}
+
+		// Deep copy the source workspace data
+		const sourceWorkspace = this.storage.workspaces[sourceName];
+		this.storage.workspaces[newName] = {
+			layout: JSON.parse(JSON.stringify(sourceWorkspace.layout)),
+			lastSaved: Date.now(),
+			folderExpandState: sourceWorkspace.folderExpandState ?
+				JSON.parse(JSON.stringify(sourceWorkspace.folderExpandState)) : undefined,
+			metadata: sourceWorkspace.metadata ?
+				JSON.parse(JSON.stringify(sourceWorkspace.metadata)) : undefined
+		};
+
+		this.logger.log(`✅ Successfully duplicated workspace to "${newName}"`);
+		this.logger.save();
+	}
+
 	// ───────────────────────────────────────────────────────────────────
 	// Active Workspace Management
 	// ───────────────────────────────────────────────────────────────────

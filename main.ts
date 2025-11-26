@@ -31,6 +31,7 @@ export default class WorkspaceNavigator extends Plugin {
 	statusBarItem:         HTMLElement | null = null;
 	navigationLayouts:     Map<string, NavigationLayoutState> = new Map();
 	isLoadingWorkspace:    boolean = false;
+	autoSaveTimeout:       NodeJS.Timeout | null = null;
 
 	// ─────────────────────────────────────────────────────────────────
 	// Debug Logging
@@ -62,6 +63,12 @@ export default class WorkspaceNavigator extends Plugin {
 		this.app.workspace.onLayoutReady(() => {
 			this.updateStatusBar();
 			this.registerWorkspaceEvents();
+
+			// Set initial workspace data attribute if there's an active workspace
+			const activeWorkspace = this.workspaceManager.getActiveWorkspace();
+			if (activeWorkspace) {
+				this.updateWorkspaceDataAttribute(activeWorkspace);
+			}
 		});
 	}
 
@@ -70,6 +77,15 @@ export default class WorkspaceNavigator extends Plugin {
 
 		// Save development log before unloading
 		await this.workspaceManager.saveLog();
+
+		// Clean up CSS data attribute
+		this.updateWorkspaceDataAttribute(null);
+
+		// Clean up auto-save timeout
+		if (this.autoSaveTimeout) {
+			clearTimeout(this.autoSaveTimeout);
+			this.autoSaveTimeout = null;
+		}
 
 		// Clean up status bar
 		if (this.statusBarItem) {
@@ -146,6 +162,40 @@ export default class WorkspaceNavigator extends Plugin {
 				const saveFolderState = this.settings.rememberNavigationLayout;
 				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
 				new Notice(`Saved workspace: ${workspaceName}`);
+			}
+		});
+
+		// Duplicate current workspace
+		this.addCommand({
+			id: 'duplicate-current-workspace',
+			name: 'Duplicate current workspace',
+			callback: () => {
+				const workspaceName = this.workspaceManager.getActiveWorkspace();
+				if (!workspaceName) {
+					new Notice('No active workspace');
+					return;
+				}
+
+				// Generate a unique name for the duplicate
+				let newName = `${workspaceName} (copy)`;
+				let counter = 2;
+				while (this.workspaceManager.hasWorkspace(newName)) {
+					newName = `${workspaceName} (copy ${counter})`;
+					counter++;
+				}
+
+				// Duplicate the workspace
+				this.workspaceManager.duplicateWorkspace(workspaceName, newName);
+
+				// Also duplicate navigation layout data if it exists
+				const layout = this.navigationLayouts.get(workspaceName);
+				if (layout) {
+					this.navigationLayouts.set(newName, JSON.parse(JSON.stringify(layout)));
+				}
+
+				this.saveSettings();
+
+				new Notice(`Duplicated workspace to: ${newName}`);
 			}
 		});
 
@@ -259,6 +309,11 @@ export default class WorkspaceNavigator extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on('layout-change', () => {
 				this.updateStatusBar();
+
+				// Auto-save on layout change if enabled
+				if (this.settings.autoSaveOnLayoutChange) {
+					this.handleAutoSaveOnLayoutChange();
+				}
 			})
 		);
 
@@ -269,6 +324,41 @@ export default class WorkspaceNavigator extends Plugin {
 				await this.afterWorkspaceLoad(workspaceName);
 			})
 		);
+	}
+
+	/**
+	 * Handle auto-save on layout change with debouncing
+	 */
+	handleAutoSaveOnLayoutChange(): void {
+		// Don't save during workspace loading
+		if (this.isLoadingWorkspace) {
+			return;
+		}
+
+		// Get active workspace
+		const workspaceName = this.workspaceManager.getActiveWorkspace();
+		if (!workspaceName) {
+			return;
+		}
+
+		// Debounce: Clear any pending save
+		if (this.autoSaveTimeout) {
+			clearTimeout(this.autoSaveTimeout);
+		}
+
+		// Schedule save after 2 seconds of no layout changes
+		this.autoSaveTimeout = setTimeout(async () => {
+			this.debug(`💾 Auto-saving workspace "${workspaceName}" after layout change`);
+
+			try {
+				await this.saveNavigationLayout(workspaceName);
+				const saveFolderState = this.settings.rememberNavigationLayout;
+				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+				await this.saveSettings();
+			} catch (error) {
+				console.error('[Workspace Navigator] Auto-save failed:', error);
+			}
+		}, 2000);
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -361,6 +451,24 @@ export default class WorkspaceNavigator extends Plugin {
 		await this.restoreNavigationLayout(name);
 		this.isLoadingWorkspace = false;
 		this.updateStatusBar();
+
+		// Set CSS data attribute for workspace-specific styling
+		this.updateWorkspaceDataAttribute(name);
+	}
+
+	/**
+	 * Update body data-workspace-name attribute for CSS theming
+	 */
+	updateWorkspaceDataAttribute(workspaceName: string | null) {
+		const body = document.body;
+
+		if (workspaceName) {
+			body.setAttribute('data-workspace-name', workspaceName);
+			this.debug(`Set data-workspace-name="${workspaceName}"`);
+		} else {
+			body.removeAttribute('data-workspace-name');
+			this.debug('Removed data-workspace-name attribute');
+		}
 	}
 
 	/**

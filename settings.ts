@@ -23,6 +23,7 @@ export interface WorkspaceNavigatorSettings {
 
 	// Auto-save options
 	autoSaveOnSwitch:                boolean;
+	autoSaveOnLayoutChange:          boolean;
 
 	// Sorting preferences
 	sortWorkspacesAlphabetically:    boolean;
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showInstructions:                true,
 	showDeleteConfirmation:          true,
 	autoSaveOnSwitch:                false,
+	autoSaveOnLayoutChange:          false,
 	sortWorkspacesAlphabetically:    true,
 	debugMode:                       false,
 };
@@ -138,6 +140,16 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.autoSaveOnSwitch)
 				.onChange(async (value) => {
 					this.plugin.settings.autoSaveOnSwitch = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-save on layout change')
+			.setDesc('Automatically save the current workspace whenever the layout changes (e.g., when you open/close panels, rearrange panes, expand/collapse folders). Note: This can result in frequent saves.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoSaveOnLayoutChange)
+				.onChange(async (value) => {
+					this.plugin.settings.autoSaveOnLayoutChange = value;
 					await this.plugin.saveSettings();
 				}));
 
