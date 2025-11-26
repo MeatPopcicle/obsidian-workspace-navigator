@@ -12,22 +12,27 @@ class WorkspaceLogger {
 	private app: App;
 	private logs: string[] = [];
 	private sessionStart: string;
-	private logFileName: string;
-	private logFile: any = null;
+	private logFilePath: string;
+	private debugEnabled: () => boolean;
 
-	constructor(app: App) {
+	constructor(app: App, debugEnabled: () => boolean) {
 		this.app = app;
+		this.debugEnabled = debugEnabled;
 		this.sessionStart = new Date().toISOString();
 
-		// Create unique filename for this session
+		// Create unique filename in plugin data directory (not vault root)
 		const timestamp = this.sessionStart.replace(/[:.]/g, '-').slice(0, -5);
-		this.logFileName = `workspace-dev-log-${timestamp}.md`;
+		const configDir = this.app.vault.configDir;
+		this.logFilePath = `${configDir}/plugins/workspace-navigator/logs/dev-log-${timestamp}.md`;
 
 		this.log('# Workspace Navigator Development Log');
 		this.log(`**Session Started:** ${new Date().toLocaleString()}\n`);
 	}
 
 	log(message: string) {
+		// Only log if debug mode is enabled
+		if (!this.debugEnabled()) return;
+
 		const timestamp = new Date().toISOString();
 		const entry = `[${timestamp}] ${message}`;
 		this.logs.push(entry);
@@ -44,17 +49,16 @@ class WorkspaceLogger {
 
 		try {
 			const content = this.logs.join('\n');
+			const adapter = this.app.vault.adapter;
 
-			// Try to get existing file
-			this.logFile = this.app.vault.getAbstractFileByPath(this.logFileName);
-
-			if (this.logFile) {
-				// Update existing file
-				await this.app.vault.modify(this.logFile, content);
-			} else {
-				// Create new file
-				this.logFile = await this.app.vault.create(this.logFileName, content);
+			// Ensure logs directory exists
+			const logsDir = this.logFilePath.substring(0, this.logFilePath.lastIndexOf('/'));
+			if (!(await adapter.exists(logsDir))) {
+				await adapter.mkdir(logsDir);
 			}
+
+			// Write log file using adapter (for config directory access)
+			await adapter.write(this.logFilePath, content);
 		} catch (err) {
 			console.error('[WorkspaceLogger] Failed to save log:', err);
 		}
@@ -99,8 +103,9 @@ export class WorkspaceManager {
 	app: App;
 	storage: WorkspacesStorage;
 	logger: WorkspaceLogger;
+	private debugEnabled: () => boolean;
 
-	constructor(app: App, initialStorage?: WorkspacesStorage) {
+	constructor(app: App, initialStorage?: WorkspacesStorage, debugEnabled?: () => boolean) {
 		this.app = app;
 		this.storage = initialStorage || {
 			workspaces: {},
@@ -108,9 +113,12 @@ export class WorkspaceManager {
 			version: '2.0.0'
 		};
 
-		// Initialize logger
+		// Default to false if no callback provided
+		this.debugEnabled = debugEnabled || (() => false);
+
+		// Initialize logger with debug callback
 		if (!globalLogger) {
-			globalLogger = new WorkspaceLogger(app);
+			globalLogger = new WorkspaceLogger(app, this.debugEnabled);
 		}
 		this.logger = globalLogger;
 
@@ -496,7 +504,7 @@ export class WorkspaceManager {
 	/**
 	 * Import workspaces from Obsidian's core Workspaces plugin
 	 * Reads from .obsidian/workspaces.json in the vault
-	 * @param overwrite If true, overwrites existing workspaces with same name
+	 * @param overwrite If true, clears ALL existing workspaces first, then imports
 	 * @returns Object with counts of imported, skipped, and failed workspaces
 	 */
 	async importFromCorePlugin(overwrite: boolean = false): Promise<{
@@ -543,18 +551,43 @@ export class WorkspaceManager {
 				return result;
 			}
 
+			// If overwrite mode, clear ALL existing workspaces first
+			if (overwrite) {
+				const existingNames = Object.keys(this.storage.workspaces);
+				this.logger.log(`- Overwrite mode: clearing ${existingNames.length} existing workspaces`);
+				this.storage.workspaces = {};
+				// Don't clear activeWorkspace yet - we'll set it to first imported workspace
+			}
+
 			// Import each workspace
 			for (const [name, layout] of Object.entries(coreData.workspaces)) {
 				try {
-					// Check if workspace already exists
+					// Validate workspace name
+					if (!name || typeof name !== 'string' || name.trim() === '') {
+						this.logger.log(`❌ Skipping invalid workspace name: "${name}"`);
+						result.failed.push(name || '(empty)');
+						continue;
+					}
+
+					// Validate layout structure (must be an object with main property)
+					if (!layout || typeof layout !== 'object') {
+						this.logger.log(`❌ Invalid layout for "${name}": not an object`);
+						result.failed.push(name);
+						continue;
+					}
+
+					const layoutObj = layout as Record<string, any>;
+					if (!layoutObj.main) {
+						this.logger.log(`❌ Invalid layout for "${name}": missing 'main' property`);
+						result.failed.push(name);
+						continue;
+					}
+
+					// Check if workspace already exists (only relevant in non-overwrite mode)
 					if (this.hasWorkspace(name)) {
-						if (overwrite) {
-							this.logger.log(`- Overwriting existing workspace: "${name}"`);
-						} else {
-							this.logger.log(`- Skipping existing workspace: "${name}"`);
-							result.skipped.push(name);
-							continue;
-						}
+						this.logger.log(`- Skipping existing workspace: "${name}"`);
+						result.skipped.push(name);
+						continue;
 					}
 
 					// Create workspace data structure
@@ -579,6 +612,12 @@ export class WorkspaceManager {
 			this.logger.log(`- Imported: ${result.imported.length}`);
 			this.logger.log(`- Skipped:  ${result.skipped.length}`);
 			this.logger.log(`- Failed:   ${result.failed.length}`);
+
+			// Set first imported workspace as active if we imported any
+			if (result.imported.length > 0) {
+				this.storage.activeWorkspace = result.imported[0];
+				this.logger.log(`- Set active workspace to: "${result.imported[0]}"`);
+			}
 
 			await this.logger.save();
 

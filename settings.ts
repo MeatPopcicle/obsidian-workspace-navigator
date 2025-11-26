@@ -4,6 +4,7 @@
 
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import WorkspaceNavigator from './main';
+import { createConfirmationDialog } from './confirm-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Settings Interface
@@ -181,20 +182,29 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Import and overwrite')
-			.setDesc('Import all workspaces from the core plugin, overwriting any existing workspaces with the same name.')
+			.setDesc('Import all workspaces from the core plugin. WARNING: This will DELETE all existing workspaces first!')
 			.addButton(button => button
 				.setButtonText('Import (Overwrite)')
 				.setWarning()
 				.onClick(async () => {
-					const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(true);
-					await this.plugin.saveSettings();
+					const existingCount = this.plugin.getWorkspaceManager().getWorkspaceNames().length;
 
-					if (result.imported.length > 0) {
-						new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
-					}
-					if (result.imported.length === 0) {
-						new Notice('No workspaces to import');
-					}
+					createConfirmationDialog(this.app, {
+						title:   'Overwrite All Workspaces?',
+						text:    `This will DELETE all ${existingCount} existing workspace(s) and replace them with workspaces from the core plugin. This cannot be undone.`,
+						cta:     'Delete & Import',
+						onAccept: async () => {
+							const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(true);
+							await this.plugin.saveSettings();
+
+							if (result.imported.length > 0) {
+								new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+							}
+							if (result.imported.length === 0) {
+								new Notice('No workspaces to import');
+							}
+						}
+					});
 				}));
 
 		// ─────────────────────────────────────────────────────────────────

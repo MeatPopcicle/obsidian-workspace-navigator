@@ -6,6 +6,7 @@ import { Plugin, Notice, setIcon } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal } from './workspace-modal';
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
+import { createConfirmationDialog } from './confirm-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Type Definitions
@@ -32,6 +33,7 @@ export default class WorkspaceNavigator extends Plugin {
 	navigationLayouts:     Map<string, NavigationLayoutState> = new Map();
 	isLoadingWorkspace:    boolean = false;
 	autoSaveTimeout:       NodeJS.Timeout | null = null;
+	private saveQueue:     Promise<void> = Promise.resolve();
 
 	// ─────────────────────────────────────────────────────────────────
 	// Debug Logging
@@ -101,13 +103,17 @@ export default class WorkspaceNavigator extends Plugin {
 		const data = await this.loadData();
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
 
-		// Initialize workspace manager with saved storage
+		// Initialize workspace manager with saved storage and debug callback
 		const workspaceStorage: WorkspacesStorage = data?.workspaceStorage || {
 			workspaces: {},
 			activeWorkspace: null,
 			version: '2.0.0'
 		};
-		this.workspaceManager = new WorkspaceManager(this.app, workspaceStorage);
+		this.workspaceManager = new WorkspaceManager(
+			this.app,
+			workspaceStorage,
+			() => this.settings.debugMode
+		);
 
 		// Restore navigation layouts from saved data
 		if (data?.navigationLayouts) {
@@ -116,13 +122,19 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	async saveSettings() {
-		// Include workspace manager storage in saved data
-		const dataToSave = {
-			...this.settings,
-			workspaceStorage: this.workspaceManager.getStorage(),
-			navigationLayouts: Object.fromEntries(this.navigationLayouts)
-		};
-		await this.saveData(dataToSave);
+		// Serialize saves to prevent race conditions
+		this.saveQueue = this.saveQueue.then(async () => {
+			// Include workspace manager storage in saved data
+			const dataToSave = {
+				...this.settings,
+				workspaceStorage: this.workspaceManager.getStorage(),
+				navigationLayouts: Object.fromEntries(this.navigationLayouts)
+			};
+			await this.saveData(dataToSave);
+		}).catch(err => {
+			console.error('[Workspace Navigator] Failed to save settings:', err);
+		});
+		return this.saveQueue;
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -223,16 +235,25 @@ export default class WorkspaceNavigator extends Plugin {
 		this.addCommand({
 			id: 'import-from-core-workspaces-overwrite',
 			name: 'Import workspaces from Obsidian core plugin (overwrite existing)',
-			callback: async () => {
-				const result = await this.workspaceManager.importFromCorePlugin(true);
-				await this.saveSettings();
+			callback: () => {
+				const existingCount = this.workspaceManager.getWorkspaceNames().length;
 
-				if (result.imported.length > 0) {
-					new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
-				}
-				if (result.imported.length === 0) {
-					new Notice('No workspaces to import');
-				}
+				createConfirmationDialog(this.app, {
+					title:   'Overwrite All Workspaces?',
+					text:    `This will DELETE all ${existingCount} existing workspace(s) and replace them with workspaces from the core plugin. This cannot be undone.`,
+					cta:     'Delete & Import',
+					onAccept: async () => {
+						const result = await this.workspaceManager.importFromCorePlugin(true);
+						await this.saveSettings();
+
+						if (result.imported.length > 0) {
+							new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+						}
+						if (result.imported.length === 0) {
+							new Notice('No workspaces to import');
+						}
+					}
+				});
 			}
 		});
 
@@ -326,9 +347,19 @@ export default class WorkspaceNavigator extends Plugin {
 					report += `No navigation layouts stored.\n\n`;
 				}
 
-				// Save to vault root
-				await this.app.vault.create(fileName, report);
-				new Notice(`Debug report saved to ${fileName}`);
+				// Save to plugin data directory (not vault root)
+				const configDir = this.app.vault.configDir;
+				const logsDir = `${configDir}/plugins/workspace-navigator/logs`;
+				const filePath = `${logsDir}/${fileName}`;
+				const adapter = this.app.vault.adapter;
+
+				// Ensure logs directory exists
+				if (!(await adapter.exists(logsDir))) {
+					await adapter.mkdir(logsDir);
+				}
+
+				await adapter.write(filePath, report);
+				new Notice(`Debug report saved to plugin logs folder`);
 
 				// Also copy to clipboard
 				await navigator.clipboard.writeText(report);
