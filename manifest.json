@@ -1,7 +1,7 @@
 {
   "id": "workspace-navigator",
   "name": "Workspace Navigator",
-  "version": "2.6.0",
+  "version": "2.6.1",
   "minAppVersion": "1.8.0",
   "description": "Standalone workspace manager with navigation layout memory, no dependency on core Workspaces plugin",
   "author": "",

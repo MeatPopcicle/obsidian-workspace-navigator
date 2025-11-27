@@ -593,10 +593,7 @@ export class WorkspaceManager {
 					// Create workspace data structure
 					this.storage.workspaces[name] = {
 						layout:     layout,
-						lastSaved:  Date.now(),
-						metadata:   {
-							description: `Imported from core Workspaces plugin`
-						}
+						lastSaved:  Date.now()
 					};
 
 					result.imported.push(name);
