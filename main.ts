@@ -28,13 +28,14 @@ interface NavigationLayoutState {
 // ───────────────────────────────────────────────────────────────────────────────
 
 export default class WorkspaceNavigator extends Plugin {
-	settings:              WorkspaceNavigatorSettings;
-	workspaceManager:      WorkspaceManager;
-	statusBarItem:         HTMLElement | null = null;
-	navigationLayouts:     Map<string, NavigationLayoutState> = new Map();
-	isLoadingWorkspace:    boolean = false;
-	autoSaveTimeout:       NodeJS.Timeout | null = null;
-	private saveQueue:     Promise<void> = Promise.resolve();
+	settings:                    WorkspaceNavigatorSettings;
+	workspaceManager:            WorkspaceManager;
+	statusBarItem:               HTMLElement | null = null;
+	navigationLayouts:           Map<string, NavigationLayoutState> = new Map();
+	isLoadingWorkspace:          boolean = false;
+	autoSaveTimeout:             NodeJS.Timeout | null = null;
+	private saveQueue:           Promise<void> = Promise.resolve();
+	private workspaceCommandIds: Set<string> = new Set();
 
 	// ─────────────────────────────────────────────────────────────────
 	// Debug Logging
@@ -229,7 +230,9 @@ export default class WorkspaceNavigator extends Plugin {
 				const result = await this.workspaceManager.importFromCorePlugin(false);
 				await this.saveSettings();
 
+				// Register commands for imported workspaces
 				if (result.imported.length > 0) {
+					this.refreshWorkspaceCommands();
 					new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
 				}
 				if (result.skipped.length > 0) {
@@ -256,7 +259,9 @@ export default class WorkspaceNavigator extends Plugin {
 						const result = await this.workspaceManager.importFromCorePlugin(true);
 						await this.saveSettings();
 
+						// Register commands for imported workspaces
 						if (result.imported.length > 0) {
+							this.refreshWorkspaceCommands();
 							new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
 						}
 						if (result.imported.length === 0) {
@@ -376,6 +381,51 @@ export default class WorkspaceNavigator extends Plugin {
 				new Notice('Also copied to clipboard!');
 			}
 		});
+
+		// Register workspace-specific switch commands
+		this.registerWorkspaceCommands();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Workspace-Specific Commands
+	// ─────────────────────────────────────────────────────────────────
+
+	/**
+	 * Register commands to switch to specific workspaces
+	 * These are updated whenever workspaces change
+	 */
+	registerWorkspaceCommands() {
+		const workspaces = this.workspaceManager.getWorkspaceNames();
+
+		for (const name of workspaces) {
+			const commandId = `switch-to-workspace-${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
+
+			// Skip if already registered
+			if (this.workspaceCommandIds.has(commandId)) {
+				continue;
+			}
+
+			this.addCommand({
+				id:   commandId,
+				name: `Switch to workspace: ${name}`,
+				callback: async () => {
+					await this.loadWorkspace(name);
+					new Notice(`Switched to workspace: ${name}`);
+				}
+			});
+
+			this.workspaceCommandIds.add(commandId);
+		}
+	}
+
+	/**
+	 * Refresh workspace commands (call when workspaces are added/renamed/deleted)
+	 */
+	refreshWorkspaceCommands() {
+		// Note: Obsidian doesn't provide a way to remove commands at runtime
+		// New workspaces will get commands added, but removed/renamed ones
+		// will have orphaned commands until plugin reload
+		this.registerWorkspaceCommands();
 	}
 
 	// ─────────────────────────────────────────────────────────────────

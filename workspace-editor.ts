@@ -82,6 +82,9 @@ export class WorkspaceEditorModal extends Modal {
 					await workspaceManager.saveWorkspace(name, saveFolderState);
 					await this.plugin.saveSettings();
 
+					// Register command for the new workspace
+					this.plugin.refreshWorkspaceCommands();
+
 					new Notice(`Created workspace: ${name}`);
 					newNameInput.setValue('');
 
