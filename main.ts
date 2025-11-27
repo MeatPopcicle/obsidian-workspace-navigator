@@ -5,6 +5,7 @@
 import { Plugin, Notice, setIcon } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal } from './workspace-modal';
+import { WorkspaceEditorModal } from './workspace-editor';
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
 import { createConfirmationDialog } from './confirm-modal';
 
@@ -156,6 +157,15 @@ export default class WorkspaceNavigator extends Plugin {
 			name: 'Open workspace switcher',
 			callback: () => {
 				new WorkspaceSwitcherModal(this.app, this).open();
+			}
+		});
+
+		// Open workspace editor (manage workspaces)
+		this.addCommand({
+			id: 'open-workspace-editor',
+			name: 'Manage workspaces',
+			callback: () => {
+				new WorkspaceEditorModal(this.app, this).open();
 			}
 		});
 

@@ -128,3 +128,56 @@
 	opacity: 1;
 	fill: var(--text-success);
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Workspace Editor Modal                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.modal.workspace-editor-modal {
+	padding: 1em;
+	width: 700px !important;
+	max-width: 90vw;
+	min-width: 600px;
+}
+
+.modal.workspace-editor-modal .modal-content {
+	max-height: 80vh;
+	overflow-x: hidden;
+	width: 100%;
+}
+
+.workspace-editor-list .setting-item-control {
+	flex-shrink: 0;
+}
+
+.workspace-editor-modal h2 {
+	margin-top: 0;
+	margin-bottom: 1em;
+}
+
+.workspace-editor-modal hr {
+	margin: 1.5em 0;
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.workspace-editor-list {
+	max-height: 60vh;
+	overflow-y: auto;
+}
+
+.workspace-editor-list .setting-item {
+	border-top: 1px solid var(--background-modifier-border);
+	padding: 0.75em 0;
+}
+
+.workspace-editor-list .setting-item:first-child {
+	border-top: none;
+}
+
+.workspace-editor-empty {
+	color: var(--text-muted);
+	font-style: italic;
+	text-align: center;
+	padding: 2em;
+}
