@@ -655,11 +655,29 @@ export default class WorkspaceNavigator extends Plugin {
 			});
 		}
 
-		// Update text
-		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text');
+		// Update text and icon
+		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text') as HTMLElement;
 		if (textEl) {
-			const workspaceName = this.workspaceManager.getActiveWorkspace() || 'No workspace';
-			textEl.setText(workspaceName);
+			const workspaceName = this.workspaceManager.getActiveWorkspace();
+			const icon      = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
+			const iconColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
+			const iconSize  = workspaceName ? this.workspaceManager.getWorkspaceIconSize(workspaceName) : 1.1;
+			const displayName = workspaceName || 'No workspace';
+
+			if (icon) {
+				textEl.empty();
+				const iconSpan = textEl.createSpan('workspace-status-icon');
+				iconSpan.textContent = icon;
+				if (iconColor) {
+					iconSpan.style.color = iconColor;
+				}
+				if (iconSize && iconSize !== 1.1) {
+					iconSpan.style.fontSize = `${iconSize}em`;
+				}
+				textEl.appendText(` ${displayName}`);
+			} else {
+				textEl.setText(displayName);
+			}
 		}
 	}
 }

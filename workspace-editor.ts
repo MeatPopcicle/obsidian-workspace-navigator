@@ -5,6 +5,7 @@
 import { App, Modal, Setting, Notice, TextComponent } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
+import { StylePickerModal, WorkspaceStyleResult } from './workspace-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Workspace Editor Modal
@@ -118,14 +119,48 @@ export class WorkspaceEditorModal extends Modal {
 	}
 
 	renderWorkspaceItem(containerEl: HTMLElement, name: string, isActive: boolean) {
+		const workspaceManager = this.plugin.getWorkspaceManager();
 		const setting = new Setting(containerEl);
 
-		// Name with active indicator
+		// Get style properties
+		const icon      = workspaceManager.getWorkspaceIcon(name);
+		const iconColor = workspaceManager.getWorkspaceIconColor(name);
+		const iconSize  = workspaceManager.getWorkspaceIconSize(name);
+		const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
+
+		// Build name with icon and styling
+		const nameEl = document.createDocumentFragment();
+		if (icon) {
+			const iconSpan = document.createElement('span');
+			iconSpan.textContent = icon;
+			iconSpan.className = 'workspace-editor-icon';
+			if (iconColor) {
+				iconSpan.style.color = iconColor;
+			}
+			if (iconSize && iconSize !== 1.1) {
+				iconSpan.style.fontSize = `${iconSize}em`;
+			}
+			nameEl.appendChild(iconSpan);
+			nameEl.appendChild(document.createTextNode(' '));
+		}
+
+		// Create styled name span
+		const nameSpan = document.createElement('span');
+		nameSpan.textContent = name;
+		if (nameStyle.color) nameSpan.style.color = nameStyle.color;
+		if (nameStyle.bold) nameSpan.style.fontWeight = 'bold';
+		if (nameStyle.italic) nameSpan.style.fontStyle = 'italic';
+		nameEl.appendChild(nameSpan);
+
 		if (isActive) {
-			setting.setName(`${name} ✓`);
+			nameEl.appendChild(document.createTextNode(' ✓'));
+		}
+
+		// Name with active indicator
+		setting.nameEl.empty();
+		setting.nameEl.appendChild(nameEl);
+		if (isActive) {
 			setting.setDesc('Currently active');
-		} else {
-			setting.setName(name);
 		}
 
 		// Load button
@@ -137,6 +172,16 @@ export class WorkspaceEditorModal extends Modal {
 				new Notice(`Loaded workspace: ${name}`);
 				this.close();
 			}));
+
+		// Style button (only if enabled in settings)
+		if (this.plugin.settings.showStyleButton) {
+			setting.addExtraButton(button => button
+				.setIcon('palette')
+				.setTooltip('Style workspace')
+				.onClick(() => {
+					this.showStyleDialog(name);
+				}));
+		}
 
 		// Rename button
 		setting.addExtraButton(button => button
@@ -166,6 +211,42 @@ export class WorkspaceEditorModal extends Modal {
 	// ─────────────────────────────────────────────────────────────────
 	// Workspace Operations
 	// ─────────────────────────────────────────────────────────────────
+
+	showStyleDialog(name: string) {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const currentIcon  = workspaceManager.getWorkspaceIcon(name) || '';
+		const currentColor = workspaceManager.getWorkspaceIconColor(name) || '';
+		const currentSize  = workspaceManager.getWorkspaceIconSize(name);
+		const nameStyle    = workspaceManager.getWorkspaceNameStyle(name);
+
+		const currentStyle: WorkspaceStyleResult = {
+			icon:       currentIcon,
+			iconColor:  currentColor,
+			iconSize:   currentSize,
+			nameColor:  nameStyle.color || '',
+			nameBold:   nameStyle.bold || false,
+			nameItalic: nameStyle.italic || false,
+		};
+
+		const modal = new StylePickerModal(this.app, name, currentStyle, async (newStyle) => {
+			workspaceManager.setWorkspaceIcon(name, newStyle.icon || null, newStyle.iconColor || null, newStyle.iconSize);
+			workspaceManager.setWorkspaceNameStyle(name, {
+				color:  newStyle.nameColor || null,
+				bold:   newStyle.nameBold,
+				italic: newStyle.nameItalic,
+			});
+			await this.plugin.saveSettings();
+
+			// Update the status bar
+			this.plugin.updateStatusBar();
+
+			// Refresh the workspace list
+			this.onOpen();
+
+			new Notice(`Updated style for "${name}"`);
+		});
+		modal.open();
+	}
 
 	showRenameDialog(oldName: string) {
 		const workspaceManager = this.plugin.getWorkspaceManager();

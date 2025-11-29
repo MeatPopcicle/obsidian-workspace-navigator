@@ -18,6 +18,7 @@ export interface WorkspaceNavigatorSettings {
 	// UI preferences
 	showStatusBar:                   boolean;
 	showInstructions:                boolean;
+	showStyleButton:                 boolean;
 
 	// Workspace management
 	showDeleteConfirmation:          boolean;
@@ -38,6 +39,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	maintainLayoutAcrossWorkspaces:  false,
 	showStatusBar:                   true,
 	showInstructions:                true,
+	showStyleButton:                 false,
 	showDeleteConfirmation:          true,
 	autoSaveOnSwitch:                false,
 	autoSaveOnLayoutChange:          false,
@@ -111,6 +113,16 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.showInstructions)
 				.onChange(async (value) => {
 					this.plugin.settings.showInstructions = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Show style button in modal')
+			.setDesc('Display the style button (icon, color, formatting) for each workspace in the switcher modal')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showStyleButton)
+				.onChange(async (value) => {
+					this.plugin.settings.showStyleButton = value;
 					await this.plugin.saveSettings();
 				}));
 

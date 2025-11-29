@@ -34,7 +34,7 @@
 
 .workspace-suggestion-item {
 	position: relative;
-	padding: 5px 7.5rem 5px 2rem !important;
+	padding: 5px 8.5rem 5px 2rem !important;
 }
 
 .workspace-suggestion-item.is-active {
@@ -52,7 +52,8 @@
 
 .workspace-delete-btn,
 .workspace-duplicate-btn,
-.workspace-rename-btn {
+.workspace-rename-btn,
+.workspace-icon-btn {
 	position: absolute;
 	top: 50%;
 	transform: translateY(-50%);
@@ -75,6 +76,10 @@
 	right: 3.3em;
 }
 
+.workspace-icon-btn {
+	right: 4.6em;
+}
+
 .workspace-delete-btn:hover {
 	fill: var(--text-error);
 }
@@ -85,6 +90,16 @@
 
 .workspace-rename-btn:hover {
 	fill: var(--text-accent-hover);
+}
+
+.workspace-icon-btn:hover {
+	fill: var(--text-accent-hover);
+}
+
+.workspace-icon {
+	display: inline-block;
+	margin-right: 0.4em;
+	font-size: 1.1em;
 }
 
 .workspace-name-text {
@@ -127,6 +142,160 @@
 .workspace-suggestion-item.is-renaming .workspace-rename-btn {
 	opacity: 1;
 	fill: var(--text-success);
+}
+
+/* Hide icon button during rename */
+.workspace-suggestion-item.is-renaming .workspace-icon-btn {
+	display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Icon Picker Modal                                                            */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.workspace-icon-picker h3 {
+	margin-top: 0;
+	margin-bottom: 0.5em;
+}
+
+.workspace-icon-note {
+	color: var(--text-muted);
+	font-size: 0.85em;
+	font-style: italic;
+	margin-bottom: 1em;
+}
+
+.workspace-icon-input {
+	font-size: 1.5em;
+	text-align: center;
+	width: 4em !important;
+}
+
+.workspace-icon-label {
+	margin: 1em 0 0.5em;
+	color: var(--text-muted);
+	font-size: 0.9em;
+}
+
+.workspace-icon-grid {
+	display: grid;
+	grid-template-columns: repeat(8, 1fr);
+	gap: 4px;
+	max-height: 200px;
+	overflow-y: auto;
+	padding: 4px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	margin-bottom: 1em;
+}
+
+.workspace-icon-btn-grid {
+	font-size: 1.4em;
+	padding: 6px;
+	border: none;
+	background: transparent;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background-color 0.15s;
+}
+
+.workspace-icon-btn-grid:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.workspace-icon-btn-grid.is-selected {
+	background-color: var(--interactive-accent);
+}
+
+/* Style Preview */
+.workspace-style-preview-container {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	gap: 0.5em;
+	margin-bottom: 1em;
+	padding: 0.5em 1em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-secondary);
+	font-size: 1.5em;
+}
+
+.workspace-style-preview-icon {
+	font-size: 1.5em;
+}
+
+.workspace-style-preview-name {
+	/* Inherits styles from inline */
+}
+
+.workspace-style-section {
+	margin-top: 1.5em;
+	margin-bottom: 0.5em;
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: 0.3em;
+}
+
+/* Legacy - keep for compatibility */
+.workspace-icon-preview-container {
+	display: flex;
+	justify-content: center;
+	margin-bottom: 1em;
+}
+
+.workspace-icon-preview {
+	font-size: 3em;
+	padding: 0.3em 0.5em;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	background: var(--background-secondary);
+}
+
+/* Color Picker */
+.workspace-color-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 1em;
+}
+
+.workspace-color-swatches {
+	display: flex;
+	gap: 4px;
+	flex-wrap: wrap;
+}
+
+.workspace-color-swatch {
+	width: 24px;
+	height: 24px;
+	border: 2px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: pointer;
+	padding: 0;
+	transition: transform 0.1s, border-color 0.1s;
+}
+
+.workspace-color-swatch:hover {
+	transform: scale(1.1);
+}
+
+.workspace-color-swatch.is-selected {
+	border-color: var(--interactive-accent);
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+}
+
+.workspace-color-input {
+	width: 32px;
+	height: 24px;
+	border: none;
+	border-radius: 4px;
+	cursor: pointer;
+	padding: 0;
+}
+
+/* Workspace Editor Icon */
+.workspace-editor-icon {
+	margin-right: 0.3em;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

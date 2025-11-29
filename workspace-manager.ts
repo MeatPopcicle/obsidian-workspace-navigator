@@ -81,6 +81,12 @@ export interface WorkspaceData {
 	metadata?: {
 		description?: string;
 		tags?: string[];
+		icon?: string;        // Nerd Font glyph
+		iconColor?: string;   // CSS color for the icon
+		iconSize?: number;    // Icon size in em (default 1.1)
+		nameColor?: string;   // CSS color for the name
+		nameBold?: boolean;   // Bold name
+		nameItalic?: boolean; // Italic name
 	};
 }
 
@@ -155,6 +161,97 @@ export class WorkspaceManager {
 	 */
 	getWorkspace(name: string): WorkspaceData | null {
 		return this.storage.workspaces[name] || null;
+	}
+
+	/**
+	 * Get workspace icon
+	 */
+	getWorkspaceIcon(name: string): string | null {
+		const workspace = this.getWorkspace(name);
+		return workspace?.metadata?.icon || null;
+	}
+
+	/**
+	 * Set workspace icon
+	 */
+	setWorkspaceIcon(name: string, icon: string | null, color?: string | null, size?: number | null): void {
+		const workspace = this.getWorkspace(name);
+		if (!workspace) return;
+
+		if (!workspace.metadata) {
+			workspace.metadata = {};
+		}
+
+		if (icon) {
+			workspace.metadata.icon = icon;
+		} else {
+			delete workspace.metadata.icon;
+		}
+
+		if (color) {
+			workspace.metadata.iconColor = color;
+		} else {
+			delete workspace.metadata.iconColor;
+		}
+
+		if (size && size !== 1.1) {
+			workspace.metadata.iconSize = size;
+		} else {
+			delete workspace.metadata.iconSize;
+		}
+	}
+
+	/**
+	 * Get workspace icon size (in em units)
+	 */
+	getWorkspaceIconSize(name: string): number {
+		const workspace = this.getWorkspace(name);
+		return workspace?.metadata?.iconSize || 1.1; // Default to 1.1em
+	}
+
+	/**
+	 * Get workspace icon color
+	 */
+	getWorkspaceIconColor(name: string): string | null {
+		const workspace = this.getWorkspace(name);
+		return workspace?.metadata?.iconColor || null;
+	}
+
+	/**
+	 * Get workspace name style
+	 */
+	getWorkspaceNameStyle(name: string): { color?: string; bold?: boolean; italic?: boolean } {
+		const workspace = this.getWorkspace(name);
+		return {
+			color:  workspace?.metadata?.nameColor || undefined,
+			bold:   workspace?.metadata?.nameBold || false,
+			italic: workspace?.metadata?.nameItalic || false,
+		};
+	}
+
+	/**
+	 * Set workspace name style
+	 */
+	setWorkspaceNameStyle(name: string, style: { color?: string | null; bold?: boolean; italic?: boolean }): void {
+		const workspace = this.getWorkspace(name);
+		if (!workspace) return;
+
+		if (!workspace.metadata) {
+			workspace.metadata = {};
+		}
+
+		if (style.color) {
+			workspace.metadata.nameColor = style.color;
+		} else if (style.color === null) {
+			delete workspace.metadata.nameColor;
+		}
+
+		workspace.metadata.nameBold = style.bold || false;
+		workspace.metadata.nameItalic = style.italic || false;
+
+		// Clean up if all false/undefined
+		if (!workspace.metadata.nameBold) delete workspace.metadata.nameBold;
+		if (!workspace.metadata.nameItalic) delete workspace.metadata.nameItalic;
 	}
 
 	/**

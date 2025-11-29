@@ -2,10 +2,355 @@
 // WORKSPACE SWITCHER MODAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope } from 'obsidian';
+import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope, Modal, Setting } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { createPopper, Instance as PopperInstance } from '@popperjs/core';
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Nerd Font Icons (requires a Nerd Font to be configured in Obsidian)
+// ───────────────────────────────────────────────────────────────────────────────
+
+// Common Nerd Font icons - using Unicode codepoints from nerdfonts.com
+const NERD_FONT_ICONS: { icon: string; name: string }[] = [
+	// Folders & Files
+	{ icon: '\uf07b', name: 'folder' },
+	{ icon: '\uf07c', name: 'folder-open' },
+	{ icon: '\uf15b', name: 'file' },
+	{ icon: '\uf15c', name: 'file-text' },
+	{ icon: '\ue5fe', name: 'folder-config' },
+	{ icon: '\uf0c5', name: 'copy' },
+	{ icon: '\uf0c7', name: 'save' },
+	{ icon: '\uf1c9', name: 'file-code' },
+
+	// Development
+	{ icon: '\ue796', name: 'typescript' },
+	{ icon: '\ue781', name: 'javascript' },
+	{ icon: '\ue73c', name: 'python' },
+	{ icon: '\ue7a8', name: 'rust' },
+	{ icon: '\ue626', name: 'golang' },
+	{ icon: '\ue738', name: 'git' },
+	{ icon: '\uf09b', name: 'github' },
+	{ icon: '\uf296', name: 'gitlab' },
+
+	// Editors & Tools
+	{ icon: '\ue7c5', name: 'vim' },
+	{ icon: '\ue70c', name: 'vscode' },
+	{ icon: '\uf121', name: 'code' },
+	{ icon: '\uf120', name: 'terminal' },
+	{ icon: '\uf489', name: 'terminal-alt' },
+	{ icon: '\uf7d9', name: 'console' },
+	{ icon: '\uf085', name: 'cogs' },
+	{ icon: '\uf013', name: 'cog' },
+
+	// UI & Layout
+	{ icon: '\uf009', name: 'th-large' },
+	{ icon: '\uf00a', name: 'th' },
+	{ icon: '\uf0db', name: 'columns' },
+	{ icon: '\uf24d', name: 'clone' },
+	{ icon: '\uf2d0', name: 'window' },
+	{ icon: '\uf2d1', name: 'window-max' },
+	{ icon: '\uf31c', name: 'layout' },
+	{ icon: '\uf03a', name: 'list' },
+
+	// Objects
+	{ icon: '\uf015', name: 'home' },
+	{ icon: '\uf19c', name: 'building' },
+	{ icon: '\uf0b1', name: 'briefcase' },
+	{ icon: '\uf0e0', name: 'envelope' },
+	{ icon: '\uf02d', name: 'book' },
+	{ icon: '\uf02e', name: 'bookmark' },
+	{ icon: '\uf5fd', name: 'brain' },
+	{ icon: '\uf0eb', name: 'lightbulb' },
+
+	// Actions
+	{ icon: '\uf002', name: 'search' },
+	{ icon: '\uf044', name: 'edit' },
+	{ icon: '\uf1fc', name: 'brush' },
+	{ icon: '\uf0ad', name: 'wrench' },
+	{ icon: '\uf0c3', name: 'flask' },
+	{ icon: '\uf1b2', name: 'cube' },
+	{ icon: '\uf1b3', name: 'cubes' },
+	{ icon: '\uf21b', name: 'rocket' },
+
+	// Symbols
+	{ icon: '\uf005', name: 'star' },
+	{ icon: '\uf004', name: 'heart' },
+	{ icon: '\uf0e7', name: 'bolt' },
+	{ icon: '\uf06d', name: 'fire' },
+	{ icon: '\uf043', name: 'droplet' },
+	{ icon: '\uf06e', name: 'eye' },
+	{ icon: '\uf023', name: 'lock' },
+	{ icon: '\uf3c1', name: 'key' },
+
+	// Misc
+	{ icon: '\uf11b', name: 'gamepad' },
+	{ icon: '\uf001', name: 'music' },
+	{ icon: '\uf03d', name: 'video' },
+	{ icon: '\uf030', name: 'camera' },
+	{ icon: '\uf0ac', name: 'globe' },
+	{ icon: '\uf0c2', name: 'cloud' },
+	{ icon: '\uf233', name: 'server' },
+	{ icon: '\uf108', name: 'desktop' },
+];
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Preset Colors
+// ───────────────────────────────────────────────────────────────────────────────
+
+const PRESET_COLORS = [
+	{ color: '#ef4444', name: 'red' },
+	{ color: '#f97316', name: 'orange' },
+	{ color: '#eab308', name: 'yellow' },
+	{ color: '#22c55e', name: 'green' },
+	{ color: '#14b8a6', name: 'teal' },
+	{ color: '#3b82f6', name: 'blue' },
+	{ color: '#8b5cf6', name: 'purple' },
+	{ color: '#ec4899', name: 'pink' },
+	{ color: '#6b7280', name: 'gray' },
+	{ color: '#ffffff', name: 'white' },
+];
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Style Result Interface
+// ───────────────────────────────────────────────────────────────────────────────
+
+export interface WorkspaceStyleResult {
+	icon:       string;
+	iconColor:  string;
+	iconSize:   number;
+	nameColor:  string;
+	nameBold:   boolean;
+	nameItalic: boolean;
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Style Picker Modal
+// ───────────────────────────────────────────────────────────────────────────────
+
+export class StylePickerModal extends Modal {
+	workspaceName: string;
+	currentStyle:  WorkspaceStyleResult;
+	onSubmit:      (style: WorkspaceStyleResult) => void;
+
+	constructor(app: App, workspaceName: string, currentStyle: WorkspaceStyleResult, onSubmit: (style: WorkspaceStyleResult) => void) {
+		super(app);
+		this.workspaceName = workspaceName;
+		this.currentStyle  = currentStyle;
+		this.onSubmit      = onSubmit;
+	}
+
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+		contentEl.addClass('workspace-style-picker');
+
+		contentEl.createEl('h3', { text: 'Customize Workspace Appearance' });
+		contentEl.createEl('p', {
+			text: 'Icons require a Nerd Font configured in Obsidian',
+			cls: 'workspace-icon-note'
+		});
+
+		// State
+		let iconValue       = this.currentStyle.icon;
+		let iconColorValue  = this.currentStyle.iconColor;
+		let iconSizeValue   = this.currentStyle.iconSize || 1.1;
+		let nameColorValue  = this.currentStyle.nameColor;
+		let nameBoldValue   = this.currentStyle.nameBold;
+		let nameItalicValue = this.currentStyle.nameItalic;
+
+		// ─────────────────────────────────────────────────────────────
+		// Preview
+		// ─────────────────────────────────────────────────────────────
+		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
+		const iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
+		iconPreview.textContent = iconValue || '';
+		if (iconColorValue) iconPreview.style.color = iconColorValue;
+		iconPreview.style.fontSize = `${iconSizeValue}em`;
+
+		const namePreview = previewContainer.createSpan('workspace-style-preview-name');
+		namePreview.textContent = this.workspaceName;
+		if (nameColorValue) namePreview.style.color = nameColorValue;
+		if (nameBoldValue) namePreview.style.fontWeight = 'bold';
+		if (nameItalicValue) namePreview.style.fontStyle = 'italic';
+
+		const updatePreview = () => {
+			iconPreview.textContent = iconValue || '';
+			iconPreview.style.color = iconColorValue || '';
+			iconPreview.style.fontSize = `${iconSizeValue}em`;
+			namePreview.style.color = nameColorValue || '';
+			namePreview.style.fontWeight = nameBoldValue ? 'bold' : '';
+			namePreview.style.fontStyle = nameItalicValue ? 'italic' : '';
+		};
+
+		// ─────────────────────────────────────────────────────────────
+		// Icon Section
+		// ─────────────────────────────────────────────────────────────
+		contentEl.createEl('h4', { text: 'Icon', cls: 'workspace-style-section' });
+
+		new Setting(contentEl)
+			.setName('Custom icon')
+			.setDesc('Paste any Nerd Font glyph')
+			.addText(text => {
+				text.setValue(iconValue)
+					.setPlaceholder('\uf015')
+					.onChange(value => {
+						iconValue = value;
+						updatePreview();
+					});
+				text.inputEl.addClass('workspace-icon-input');
+			});
+
+		// Icon color
+		contentEl.createEl('p', { text: 'Icon color:', cls: 'workspace-icon-label' });
+		const iconColorRow = contentEl.createDiv('workspace-color-row');
+		const iconSwatchContainer = iconColorRow.createDiv('workspace-color-swatches');
+
+		for (const { color, name } of PRESET_COLORS) {
+			const swatch = iconSwatchContainer.createEl('button', { cls: 'workspace-color-swatch' });
+			swatch.style.backgroundColor = color;
+			swatch.setAttribute('title', name);
+			if (color === iconColorValue) swatch.addClass('is-selected');
+			swatch.addEventListener('click', () => {
+				iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+				swatch.addClass('is-selected');
+				iconColorValue = color;
+				iconColorInput.value = color;
+				updatePreview();
+			});
+		}
+
+		const iconColorInput = iconColorRow.createEl('input', { cls: 'workspace-color-input' }) as HTMLInputElement;
+		iconColorInput.type = 'color';
+		iconColorInput.value = iconColorValue || '#ffffff';
+		iconColorInput.addEventListener('input', () => {
+			iconColorValue = iconColorInput.value;
+			iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+			updatePreview();
+		});
+
+		// Icon size slider
+		new Setting(contentEl)
+			.setName('Icon size')
+			.setDesc(`${iconSizeValue.toFixed(1)}em`)
+			.addSlider(slider => {
+				slider
+					.setLimits(0.8, 2.0, 0.1)
+					.setValue(iconSizeValue)
+					.setDynamicTooltip()
+					.onChange(value => {
+						iconSizeValue = value;
+						// Update the description to show current value
+						const descEl = slider.sliderEl.closest('.setting-item')?.querySelector('.setting-item-description');
+						if (descEl) descEl.textContent = `${value.toFixed(1)}em`;
+						updatePreview();
+					});
+			});
+
+		// Icon grid
+		contentEl.createEl('p', { text: 'Common icons:', cls: 'workspace-icon-label' });
+		const grid = contentEl.createDiv('workspace-icon-grid');
+		for (const { icon, name } of NERD_FONT_ICONS) {
+			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
+			btn.textContent = icon;
+			btn.setAttribute('title', name);
+			if (icon === iconValue) btn.addClass('is-selected');
+			btn.addEventListener('click', () => {
+				iconValue = icon;
+				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+				btn.addClass('is-selected');
+				updatePreview();
+			});
+		}
+
+		// ─────────────────────────────────────────────────────────────
+		// Name Style Section
+		// ─────────────────────────────────────────────────────────────
+		contentEl.createEl('h4', { text: 'Name Style', cls: 'workspace-style-section' });
+
+		// Name color
+		contentEl.createEl('p', { text: 'Name color:', cls: 'workspace-icon-label' });
+		const nameColorRow = contentEl.createDiv('workspace-color-row');
+		const nameSwatchContainer = nameColorRow.createDiv('workspace-color-swatches');
+
+		for (const { color, name } of PRESET_COLORS) {
+			const swatch = nameSwatchContainer.createEl('button', { cls: 'workspace-color-swatch' });
+			swatch.style.backgroundColor = color;
+			swatch.setAttribute('title', name);
+			if (color === nameColorValue) swatch.addClass('is-selected');
+			swatch.addEventListener('click', () => {
+				nameSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+				swatch.addClass('is-selected');
+				nameColorValue = color;
+				nameColorInput.value = color;
+				updatePreview();
+			});
+		}
+
+		const nameColorInput = nameColorRow.createEl('input', { cls: 'workspace-color-input' }) as HTMLInputElement;
+		nameColorInput.type = 'color';
+		nameColorInput.value = nameColorValue || '#ffffff';
+		nameColorInput.addEventListener('input', () => {
+			nameColorValue = nameColorInput.value;
+			nameSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+			updatePreview();
+		});
+
+		// Bold & Italic toggles
+		new Setting(contentEl)
+			.setName('Bold')
+			.addToggle(toggle => toggle
+				.setValue(nameBoldValue)
+				.onChange(value => {
+					nameBoldValue = value;
+					updatePreview();
+				}));
+
+		new Setting(contentEl)
+			.setName('Italic')
+			.addToggle(toggle => toggle
+				.setValue(nameItalicValue)
+				.onChange(value => {
+					nameItalicValue = value;
+					updatePreview();
+				}));
+
+		// ─────────────────────────────────────────────────────────────
+		// Action buttons
+		// ─────────────────────────────────────────────────────────────
+		new Setting(contentEl)
+			.addButton(btn => btn
+				.setButtonText('Clear All')
+				.onClick(() => {
+					this.onSubmit({
+						icon: '', iconColor: '', iconSize: 1.1, nameColor: '',
+						nameBold: false, nameItalic: false
+					});
+					this.close();
+				}))
+			.addButton(btn => btn
+				.setButtonText('Cancel')
+				.onClick(() => this.close()))
+			.addButton(btn => btn
+				.setButtonText('Save')
+				.setCta()
+				.onClick(() => {
+					this.onSubmit({
+						icon:       iconValue,
+						iconColor:  iconColorValue,
+						iconSize:   iconSizeValue,
+						nameColor:  nameColorValue,
+						nameBold:   nameBoldValue,
+						nameItalic: nameItalicValue
+					});
+					this.close();
+				}));
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Workspace Modal Class
@@ -42,6 +387,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	}
 
 	setupScope(): void {
+		// Escape to close modal
+		this.scope.register([], 'Escape', (evt: KeyboardEvent) => {
+			this.close();
+			return false;
+		});
+
 		// Register Enter to handle both rename and workspace switching
 		this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
 			return this.useSelectedItem(evt);
@@ -166,17 +517,38 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Add data attribute for rename functionality
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
-		el.style.position = 'relative';
-		el.style.padding = '5px 6rem 5px 2rem';
 
 		// Wrap the text content in a span for rename functionality
 		const textContent = el.textContent || '';
 		el.empty();
+
+		// Add workspace icon if it exists
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
+		const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
+		const iconSize  = workspaceManager.getWorkspaceIconSize(workspaceName);
+		const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
+
+		if (icon) {
+			const iconSpan = el.createSpan('workspace-icon');
+			iconSpan.textContent = icon;
+			if (iconColor) {
+				iconSpan.style.color = iconColor;
+			}
+			if (iconSize && iconSize !== 1.1) {
+				iconSpan.style.fontSize = `${iconSize}em`;
+			}
+		}
+
 		const textSpan = el.createSpan('workspace-name-text');
 		textSpan.textContent = textContent;
 
+		// Apply name styling
+		if (nameStyle.color) textSpan.style.color = nameStyle.color;
+		if (nameStyle.bold) textSpan.style.fontWeight = 'bold';
+		if (nameStyle.italic) textSpan.style.fontStyle = 'italic';
+
 		// Add active workspace indicator (checkmark)
-		const workspaceManager = this.plugin.getWorkspaceManager();
 		const activeWorkspace = workspaceManager.getActiveWorkspace();
 		if (activeWorkspace && workspaceName === activeWorkspace) {
 			const activeIndicator = el.createDiv('workspace-active-indicator');
@@ -211,6 +583,17 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			evt.stopPropagation();
 			this.onRenameClick(evt, el);
 		});
+
+		// Create style button (only if enabled in settings)
+		if (this.plugin.settings.showStyleButton) {
+			const iconBtn = el.createDiv('workspace-icon-btn');
+			iconBtn.setAttribute('aria-label', 'Style workspace');
+			iconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
+			iconBtn.addEventListener('click', (evt) => {
+				evt.stopPropagation();
+				this.onIconClick(workspaceName);
+			});
+		}
 
 		// Add workspace description if it exists
 		const workspace = workspaceManager.getWorkspace(workspaceName);
@@ -411,6 +794,44 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		(this as any).updateSuggestions();
 
 		new Notice(`Duplicated workspace to: ${newName}`);
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Handle icon click
+	// ─────────────────────────────────────────────────────────────────
+
+	onIconClick(workspaceName: string): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const currentIcon  = workspaceManager.getWorkspaceIcon(workspaceName) || '';
+		const currentColor = workspaceManager.getWorkspaceIconColor(workspaceName) || '';
+		const currentSize  = workspaceManager.getWorkspaceIconSize(workspaceName);
+		const nameStyle    = workspaceManager.getWorkspaceNameStyle(workspaceName);
+
+		const currentStyle: WorkspaceStyleResult = {
+			icon:       currentIcon,
+			iconColor:  currentColor,
+			iconSize:   currentSize,
+			nameColor:  nameStyle.color || '',
+			nameBold:   nameStyle.bold || false,
+			nameItalic: nameStyle.italic || false,
+		};
+
+		const modal = new StylePickerModal(this.app, workspaceName, currentStyle, async (newStyle) => {
+			workspaceManager.setWorkspaceIcon(workspaceName, newStyle.icon || null, newStyle.iconColor || null, newStyle.iconSize);
+			workspaceManager.setWorkspaceNameStyle(workspaceName, {
+				color:  newStyle.nameColor || null,
+				bold:   newStyle.nameBold,
+				italic: newStyle.nameItalic,
+			});
+			await this.plugin.saveSettings();
+
+			// Update the suggestions list and status bar
+			(this as any).updateSuggestions();
+			this.plugin.updateStatusBar();
+
+			new Notice(`Updated style for "${workspaceName}"`);
+		});
+		modal.open();
 	}
 
 	// ─────────────────────────────────────────────────────────────────
