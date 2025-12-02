@@ -35,6 +35,9 @@
 .workspace-suggestion-item {
 	position: relative;
 	padding: 5px 8.5rem 5px 2rem !important;
+	min-height: 1.8em;
+	display: flex;
+	align-items: center;
 }
 
 .workspace-suggestion-item.is-active {
@@ -96,10 +99,29 @@
 	fill: var(--text-accent-hover);
 }
 
-.workspace-icon {
+/* Fixed-width icon column - always same width for alignment */
+.workspace-icon-column {
 	display: inline-block;
+	width: 2em;
+	text-align: center;
+	margin-right: 0.3em;
+	font-family: var(--font-monospace);
+	line-height: 1;
+	vertical-align: middle;
+}
+
+/* Legacy inline icon class */
+.workspace-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	margin-right: 0.4em;
 	font-size: 1.1em;
+	font-family: var(--font-monospace);
+	line-height: 1;
+	vertical-align: middle;
+	height: 1em;
+	overflow: visible;
 }
 
 .workspace-name-text {

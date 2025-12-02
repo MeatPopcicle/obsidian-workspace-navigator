@@ -120,36 +120,42 @@ export class WorkspaceEditorModal extends Modal {
 
 	renderWorkspaceItem(containerEl: HTMLElement, name: string, isActive: boolean) {
 		const workspaceManager = this.plugin.getWorkspaceManager();
-		const setting = new Setting(containerEl);
+		const setting    = new Setting(containerEl);
+		const showStyles = this.plugin.settings.showStyleButton;
 
-		// Get style properties
-		const icon      = workspaceManager.getWorkspaceIcon(name);
-		const iconColor = workspaceManager.getWorkspaceIconColor(name);
-		const iconSize  = workspaceManager.getWorkspaceIconSize(name);
-		const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
-
-		// Build name with icon and styling
+		// Build name with icon and styling (only if enabled)
 		const nameEl = document.createDocumentFragment();
-		if (icon) {
-			const iconSpan = document.createElement('span');
-			iconSpan.textContent = icon;
-			iconSpan.className = 'workspace-editor-icon';
-			if (iconColor) {
-				iconSpan.style.color = iconColor;
+
+		if (showStyles) {
+			const icon      = workspaceManager.getWorkspaceIcon(name);
+			const iconColor = workspaceManager.getWorkspaceIconColor(name);
+			const iconSize  = workspaceManager.getWorkspaceIconSize(name);
+
+			if (icon) {
+				const iconSpan = document.createElement('span');
+				iconSpan.textContent = icon;
+				iconSpan.className = 'workspace-editor-icon';
+				if (iconColor) {
+					iconSpan.style.color = iconColor;
+				}
+				if (iconSize && iconSize !== 1.1) {
+					iconSpan.style.fontSize = `${iconSize}em`;
+				}
+				nameEl.appendChild(iconSpan);
+				nameEl.appendChild(document.createTextNode(' '));
 			}
-			if (iconSize && iconSize !== 1.1) {
-				iconSpan.style.fontSize = `${iconSize}em`;
-			}
-			nameEl.appendChild(iconSpan);
-			nameEl.appendChild(document.createTextNode(' '));
 		}
 
-		// Create styled name span
+		// Create name span with optional styling
 		const nameSpan = document.createElement('span');
 		nameSpan.textContent = name;
-		if (nameStyle.color) nameSpan.style.color = nameStyle.color;
-		if (nameStyle.bold) nameSpan.style.fontWeight = 'bold';
-		if (nameStyle.italic) nameSpan.style.fontStyle = 'italic';
+
+		if (showStyles) {
+			const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
+			if (nameStyle.color) nameSpan.style.color = nameStyle.color;
+			if (nameStyle.bold) nameSpan.style.fontWeight = 'bold';
+			if (nameStyle.italic) nameSpan.style.fontStyle = 'italic';
+		}
 		nameEl.appendChild(nameSpan);
 
 		if (isActive) {

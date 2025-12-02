@@ -19,6 +19,7 @@ export interface WorkspaceNavigatorSettings {
 	showStatusBar:                   boolean;
 	showInstructions:                boolean;
 	showStyleButton:                 boolean;
+	showSearchBox:                   boolean;
 
 	// Workspace management
 	showDeleteConfirmation:          boolean;
@@ -40,6 +41,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showStatusBar:                   true,
 	showInstructions:                true,
 	showStyleButton:                 false,
+	showSearchBox:                   true,
 	showDeleteConfirmation:          true,
 	autoSaveOnSwitch:                false,
 	autoSaveOnLayoutChange:          false,
@@ -117,13 +119,44 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
+			.setName('Show search box in modal')
+			.setDesc('Display the search/filter box in the workspace switcher modal')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showSearchBox)
+				.onChange(async (value) => {
+					this.plugin.settings.showSearchBox = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
 			.setName('Show style button in modal')
-			.setDesc('Display the style button (icon, color, formatting) for each workspace in the switcher modal')
+			.setDesc('Display the style button (icon, color, formatting) for each workspace in the switcher modal. Styles are retained when disabled.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.showStyleButton)
 				.onChange(async (value) => {
 					this.plugin.settings.showStyleButton = value;
+					this.plugin.updateStatusBar();
 					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Reset all workspace styles')
+			.setDesc('Clear all icons, colors, and formatting from all workspaces')
+			.addButton(button => button
+				.setButtonText('Reset Styles')
+				.setWarning()
+				.onClick(async () => {
+					createConfirmationDialog(this.app, {
+						title:   'Reset All Styles?',
+						text:    'This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.',
+						cta:     'Reset All',
+						onAccept: async () => {
+							this.plugin.getWorkspaceManager().clearAllStyles();
+							this.plugin.updateStatusBar();
+							await this.plugin.saveSettings();
+							new Notice('All workspace styles have been reset');
+						}
+					});
 				}));
 
 		new Setting(containerEl)

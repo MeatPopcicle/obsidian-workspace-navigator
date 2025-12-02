@@ -229,22 +229,24 @@ export class StylePickerModal extends Modal {
 			updatePreview();
 		});
 
-		// Icon size slider
+		// Icon size input
 		new Setting(contentEl)
 			.setName('Icon size')
-			.setDesc(`${iconSizeValue.toFixed(1)}em`)
-			.addSlider(slider => {
-				slider
-					.setLimits(0.8, 2.0, 0.1)
-					.setValue(iconSizeValue)
-					.setDynamicTooltip()
-					.onChange(value => {
-						iconSizeValue = value;
-						// Update the description to show current value
-						const descEl = slider.sliderEl.closest('.setting-item')?.querySelector('.setting-item-description');
-						if (descEl) descEl.textContent = `${value.toFixed(1)}em`;
+			.setDesc('em')
+			.addText(text => {
+				text.inputEl.type = 'number';
+				text.inputEl.min = '0.8';
+				text.inputEl.max = '2.0';
+				text.inputEl.step = '0.1';
+				text.inputEl.style.width = '70px';
+				text.setValue(iconSizeValue.toFixed(1));
+				text.onChange(value => {
+					const num = parseFloat(value);
+					if (!isNaN(num) && num >= 0.8 && num <= 2.0) {
+						iconSizeValue = num;
 						updatePreview();
-					});
+					}
+				});
 			});
 
 		// Icon grid
@@ -393,6 +395,17 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			return false;
 		});
 
+		// Arrow keys for navigation
+		this.scope.register([], 'ArrowDown', (evt: KeyboardEvent) => {
+			(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem + 1, evt);
+			return false;
+		});
+
+		this.scope.register([], 'ArrowUp', (evt: KeyboardEvent) => {
+			(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem - 1, evt);
+			return false;
+		});
+
 		// Register Enter to handle both rename and workspace switching
 		this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
 			return this.useSelectedItem(evt);
@@ -464,6 +477,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	onOpen(): void {
 		super.onOpen();
 
+		// Hide search box if disabled in settings
+		if (!this.plugin.settings.showSearchBox) {
+			const inputEl = (this as any).inputEl as HTMLInputElement;
+			if (inputEl?.parentElement) {
+				inputEl.parentElement.style.display = 'none';
+			}
+		}
+
 		// Position modal above status bar using Popper
 		const statusBar = document.body.querySelector('.workspace-navigator-status');
 		if (statusBar) {
@@ -522,31 +543,43 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textContent = el.textContent || '';
 		el.empty();
 
-		// Add workspace icon if it exists
+		// Add workspace icon column and styling if enabled
 		const workspaceManager = this.plugin.getWorkspaceManager();
-		const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
-		const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
-		const iconSize  = workspaceManager.getWorkspaceIconSize(workspaceName);
-		const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
+		const showStyles = this.plugin.settings.showStyleButton;
 
-		if (icon) {
-			const iconSpan = el.createSpan('workspace-icon');
-			iconSpan.textContent = icon;
-			if (iconColor) {
-				iconSpan.style.color = iconColor;
-			}
-			if (iconSize && iconSize !== 1.1) {
-				iconSpan.style.fontSize = `${iconSize}em`;
+		// Always create icon column when styles enabled (for alignment)
+		if (showStyles) {
+			const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
+			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
+			const iconSize  = workspaceManager.getWorkspaceIconSize(workspaceName);
+
+			// Always create the column with icon or invisible placeholder
+			const iconSpan = el.createSpan('workspace-icon-column');
+			if (icon) {
+				iconSpan.textContent = icon;
+				if (iconColor) {
+					iconSpan.style.color = iconColor;
+				}
+				if (iconSize && iconSize !== 1.1) {
+					iconSpan.style.fontSize = `${iconSize}em`;
+				}
+			} else {
+				// Transparent icon placeholder (takes up space but not visible)
+				iconSpan.textContent = '\uf015';  // Home icon as placeholder
+				iconSpan.style.color = 'transparent';
 			}
 		}
 
 		const textSpan = el.createSpan('workspace-name-text');
 		textSpan.textContent = textContent;
 
-		// Apply name styling
-		if (nameStyle.color) textSpan.style.color = nameStyle.color;
-		if (nameStyle.bold) textSpan.style.fontWeight = 'bold';
-		if (nameStyle.italic) textSpan.style.fontStyle = 'italic';
+		// Apply name styling only if enabled
+		if (showStyles) {
+			const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
+			if (nameStyle.color) textSpan.style.color = nameStyle.color;
+			if (nameStyle.bold) textSpan.style.fontWeight = 'bold';
+			if (nameStyle.italic) textSpan.style.fontStyle = 'italic';
+		}
 
 		// Add active workspace indicator (checkmark)
 		const activeWorkspace = workspaceManager.getActiveWorkspace();

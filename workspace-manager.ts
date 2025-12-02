@@ -255,6 +255,24 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Clear all style data (icon, colors, formatting) from all workspaces
+	 */
+	clearAllStyles(): void {
+		for (const name of this.getWorkspaceNames()) {
+			const workspace = this.getWorkspace(name);
+			if (workspace?.metadata) {
+				delete workspace.metadata.icon;
+				delete workspace.metadata.iconColor;
+				delete workspace.metadata.iconSize;
+				delete workspace.metadata.nameColor;
+				delete workspace.metadata.nameBold;
+				delete workspace.metadata.nameItalic;
+			}
+		}
+		this.logger.log('Cleared all workspace styles');
+	}
+
+	/**
 	 * Save current workspace layout
 	 */
 	async saveWorkspace(name: string, saveFolderState: boolean = false): Promise<void> {
@@ -318,11 +336,13 @@ export class WorkspaceManager {
 				this.logger.log(`- Folder state NOT saved (saveFolderState=false)`);
 			}
 
-			// Store workspace data
+			// Store workspace data (preserve existing metadata)
+			const existingMetadata = this.storage.workspaces[name]?.metadata;
 			this.storage.workspaces[name] = {
 				layout: layout,
 				lastSaved: Date.now(),
-				folderExpandState: folderExpandState
+				folderExpandState: folderExpandState,
+				metadata: existingMetadata
 			};
 
 			// Set as active workspace

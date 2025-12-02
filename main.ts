@@ -630,7 +630,7 @@ export default class WorkspaceNavigator extends Plugin {
 
 			// Add icon
 			const icon = this.statusBarItem.createSpan('workspace-navigator-icon');
-			setIcon(icon, 'layout-dashboard');
+			setIcon(icon, 'layout-template');
 
 			// Add text element
 			this.statusBarItem.createSpan('workspace-navigator-text');
@@ -655,29 +655,12 @@ export default class WorkspaceNavigator extends Plugin {
 			});
 		}
 
-		// Update text and icon
+		// Update text (icons only shown in modal, not status bar)
 		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text') as HTMLElement;
 		if (textEl) {
 			const workspaceName = this.workspaceManager.getActiveWorkspace();
-			const icon      = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
-			const iconColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
-			const iconSize  = workspaceName ? this.workspaceManager.getWorkspaceIconSize(workspaceName) : 1.1;
-			const displayName = workspaceName || 'No workspace';
-
-			if (icon) {
-				textEl.empty();
-				const iconSpan = textEl.createSpan('workspace-status-icon');
-				iconSpan.textContent = icon;
-				if (iconColor) {
-					iconSpan.style.color = iconColor;
-				}
-				if (iconSize && iconSize !== 1.1) {
-					iconSpan.style.fontSize = `${iconSize}em`;
-				}
-				textEl.appendText(` ${displayName}`);
-			} else {
-				textEl.setText(displayName);
-			}
+			const displayName   = workspaceName || 'No workspace';
+			textEl.setText(displayName);
 		}
 	}
 }
