@@ -79,11 +79,8 @@ export interface WorkspaceData {
 	folderExpandState?: any;
 	/** Optional metadata */
 	metadata?: {
-		description?: string;
-		tags?: string[];
-		icon?: string;        // Nerd Font glyph
+		icon?: string;        // Lucide icon name (e.g., 'folder', 'star')
 		iconColor?: string;   // CSS color for the icon
-		iconSize?: number;    // Icon size in em (default 1.1)
 		nameColor?: string;   // CSS color for the name
 		nameBold?: boolean;   // Bold name
 		nameItalic?: boolean; // Italic name
@@ -172,9 +169,9 @@ export class WorkspaceManager {
 	}
 
 	/**
-	 * Set workspace icon
+	 * Set workspace icon (Lucide icon name)
 	 */
-	setWorkspaceIcon(name: string, icon: string | null, color?: string | null, size?: number | null): void {
+	setWorkspaceIcon(name: string, icon: string | null, color?: string | null): void {
 		const workspace = this.getWorkspace(name);
 		if (!workspace) return;
 
@@ -193,20 +190,6 @@ export class WorkspaceManager {
 		} else {
 			delete workspace.metadata.iconColor;
 		}
-
-		if (size && size !== 1.1) {
-			workspace.metadata.iconSize = size;
-		} else {
-			delete workspace.metadata.iconSize;
-		}
-	}
-
-	/**
-	 * Get workspace icon size (in em units)
-	 */
-	getWorkspaceIconSize(name: string): number {
-		const workspace = this.getWorkspace(name);
-		return workspace?.metadata?.iconSize || 1.1; // Default to 1.1em
 	}
 
 	/**
@@ -263,7 +246,6 @@ export class WorkspaceManager {
 			if (workspace?.metadata) {
 				delete workspace.metadata.icon;
 				delete workspace.metadata.iconColor;
-				delete workspace.metadata.iconSize;
 				delete workspace.metadata.nameColor;
 				delete workspace.metadata.nameBold;
 				delete workspace.metadata.nameItalic;

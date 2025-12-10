@@ -101,13 +101,17 @@
 
 /* Fixed-width icon column - always same width for alignment */
 .workspace-icon-column {
-	display: inline-block;
-	width: 2em;
-	text-align: center;
-	margin-right: 0.3em;
-	font-family: var(--font-monospace);
-	line-height: 1;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.5em;
+	margin-right: 0.4em;
 	vertical-align: middle;
+}
+
+.workspace-icon-column svg {
+	width: 1em;
+	height: 1em;
 }
 
 /* Legacy inline icon class */
@@ -144,14 +148,6 @@
 	outline: none;
 }
 
-/* Workspace description styling */
-.workspace-description {
-	font-size: 0.85em;
-	color: var(--text-muted);
-	margin-top: 2px;
-	padding-left: 0.5em;
-	font-style: italic;
-}
 
 /* Hide delete/duplicate/active icons during rename, but keep rename button visible */
 .workspace-suggestion-item.is-renaming .workspace-delete-btn,

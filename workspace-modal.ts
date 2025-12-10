@@ -2,96 +2,67 @@
 // WORKSPACE SWITCHER MODAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope, Modal, Setting } from 'obsidian';
+import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope, Modal, Setting, setIcon } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { createPopper, Instance as PopperInstance } from '@popperjs/core';
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Nerd Font Icons (requires a Nerd Font to be configured in Obsidian)
+// Lucide Icons (same icon set used by Obsidian)
 // ───────────────────────────────────────────────────────────────────────────────
 
-// Common Nerd Font icons - using Unicode codepoints from nerdfonts.com
-const NERD_FONT_ICONS: { icon: string; name: string }[] = [
-	// Folders & Files
-	{ icon: '\uf07b', name: 'folder' },
-	{ icon: '\uf07c', name: 'folder-open' },
-	{ icon: '\uf15b', name: 'file' },
-	{ icon: '\uf15c', name: 'file-text' },
-	{ icon: '\ue5fe', name: 'folder-config' },
-	{ icon: '\uf0c5', name: 'copy' },
-	{ icon: '\uf0c7', name: 'save' },
-	{ icon: '\uf1c9', name: 'file-code' },
+// Common Lucide icons - these are SVG-based and rendered via setIcon()
+const LUCIDE_ICONS: string[] = [
+	// Layouts & UI
+	'layout-grid', 'layout-template', 'layout-dashboard', 'layout-list',
+	'panels-top-left', 'panel-left', 'panel-right', 'columns',
+	'grid-2x2', 'grid-3x3', 'square', 'squares',
 
-	// Development
-	{ icon: '\ue796', name: 'typescript' },
-	{ icon: '\ue781', name: 'javascript' },
-	{ icon: '\ue73c', name: 'python' },
-	{ icon: '\ue7a8', name: 'rust' },
-	{ icon: '\ue626', name: 'golang' },
-	{ icon: '\ue738', name: 'git' },
-	{ icon: '\uf09b', name: 'github' },
-	{ icon: '\uf296', name: 'gitlab' },
-
-	// Editors & Tools
-	{ icon: '\ue7c5', name: 'vim' },
-	{ icon: '\ue70c', name: 'vscode' },
-	{ icon: '\uf121', name: 'code' },
-	{ icon: '\uf120', name: 'terminal' },
-	{ icon: '\uf489', name: 'terminal-alt' },
-	{ icon: '\uf7d9', name: 'console' },
-	{ icon: '\uf085', name: 'cogs' },
-	{ icon: '\uf013', name: 'cog' },
-
-	// UI & Layout
-	{ icon: '\uf009', name: 'th-large' },
-	{ icon: '\uf00a', name: 'th' },
-	{ icon: '\uf0db', name: 'columns' },
-	{ icon: '\uf24d', name: 'clone' },
-	{ icon: '\uf2d0', name: 'window' },
-	{ icon: '\uf2d1', name: 'window-max' },
-	{ icon: '\uf31c', name: 'layout' },
-	{ icon: '\uf03a', name: 'list' },
+	// Files & Folders
+	'folder', 'folder-open', 'file', 'file-text',
+	'files', 'folder-tree', 'archive', 'package',
 
 	// Objects
-	{ icon: '\uf015', name: 'home' },
-	{ icon: '\uf19c', name: 'building' },
-	{ icon: '\uf0b1', name: 'briefcase' },
-	{ icon: '\uf0e0', name: 'envelope' },
-	{ icon: '\uf02d', name: 'book' },
-	{ icon: '\uf02e', name: 'bookmark' },
-	{ icon: '\uf5fd', name: 'brain' },
-	{ icon: '\uf0eb', name: 'lightbulb' },
+	'home', 'building', 'building-2', 'briefcase',
+	'book', 'book-open', 'bookmark', 'library',
+	'notebook', 'clipboard', 'calendar', 'inbox',
 
-	// Actions
-	{ icon: '\uf002', name: 'search' },
-	{ icon: '\uf044', name: 'edit' },
-	{ icon: '\uf1fc', name: 'brush' },
-	{ icon: '\uf0ad', name: 'wrench' },
-	{ icon: '\uf0c3', name: 'flask' },
-	{ icon: '\uf1b2', name: 'cube' },
-	{ icon: '\uf1b3', name: 'cubes' },
-	{ icon: '\uf21b', name: 'rocket' },
+	// Tools & Actions
+	'settings', 'wrench', 'hammer', 'pencil',
+	'brush', 'palette', 'scissors', 'eraser',
+	'search', 'filter', 'sliders', 'toggles',
+
+	// Development
+	'code', 'code-2', 'terminal', 'terminal-square',
+	'braces', 'brackets', 'git-branch', 'git-merge',
+	'database', 'server', 'cpu', 'hard-drive',
 
 	// Symbols
-	{ icon: '\uf005', name: 'star' },
-	{ icon: '\uf004', name: 'heart' },
-	{ icon: '\uf0e7', name: 'bolt' },
-	{ icon: '\uf06d', name: 'fire' },
-	{ icon: '\uf043', name: 'droplet' },
-	{ icon: '\uf06e', name: 'eye' },
-	{ icon: '\uf023', name: 'lock' },
-	{ icon: '\uf3c1', name: 'key' },
+	'star', 'heart', 'flag', 'bookmark',
+	'tag', 'hash', 'at-sign', 'circle',
+	'triangle', 'hexagon', 'octagon', 'diamond',
+
+	// Nature & Objects
+	'sun', 'moon', 'cloud', 'zap',
+	'flame', 'droplet', 'leaf', 'tree',
+	'mountain', 'globe', 'compass', 'map',
+
+	// Communication
+	'mail', 'message-square', 'message-circle', 'phone',
+	'send', 'share', 'link', 'paperclip',
+
+	// Media
+	'image', 'camera', 'video', 'music',
+	'play', 'headphones', 'mic', 'radio',
+
+	// People & Social
+	'user', 'users', 'user-circle', 'contact',
+	'smile', 'crown', 'award', 'trophy',
 
 	// Misc
-	{ icon: '\uf11b', name: 'gamepad' },
-	{ icon: '\uf001', name: 'music' },
-	{ icon: '\uf03d', name: 'video' },
-	{ icon: '\uf030', name: 'camera' },
-	{ icon: '\uf0ac', name: 'globe' },
-	{ icon: '\uf0c2', name: 'cloud' },
-	{ icon: '\uf233', name: 'server' },
-	{ icon: '\uf108', name: 'desktop' },
+	'lightbulb', 'rocket', 'target', 'crosshair',
+	'shield', 'lock', 'key', 'eye',
+	'clock', 'timer', 'hourglass', 'activity',
 ];
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -116,9 +87,8 @@ const PRESET_COLORS = [
 // ───────────────────────────────────────────────────────────────────────────────
 
 export interface WorkspaceStyleResult {
-	icon:       string;
+	icon:       string;  // Lucide icon name (e.g., 'folder', 'star')
 	iconColor:  string;
-	iconSize:   number;
 	nameColor:  string;
 	nameBold:   boolean;
 	nameItalic: boolean;
@@ -146,15 +116,10 @@ export class StylePickerModal extends Modal {
 		contentEl.addClass('workspace-style-picker');
 
 		contentEl.createEl('h3', { text: 'Customize Workspace Appearance' });
-		contentEl.createEl('p', {
-			text: 'Icons require a Nerd Font configured in Obsidian',
-			cls: 'workspace-icon-note'
-		});
 
 		// State
 		let iconValue       = this.currentStyle.icon;
 		let iconColorValue  = this.currentStyle.iconColor;
-		let iconSizeValue   = this.currentStyle.iconSize || 1.1;
 		let nameColorValue  = this.currentStyle.nameColor;
 		let nameBoldValue   = this.currentStyle.nameBold;
 		let nameItalicValue = this.currentStyle.nameItalic;
@@ -164,9 +129,10 @@ export class StylePickerModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
 		const iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
-		iconPreview.textContent = iconValue || '';
-		if (iconColorValue) iconPreview.style.color = iconColorValue;
-		iconPreview.style.fontSize = `${iconSizeValue}em`;
+		if (iconValue) {
+			setIcon(iconPreview, iconValue);
+			if (iconColorValue) iconPreview.style.color = iconColorValue;
+		}
 
 		const namePreview = previewContainer.createSpan('workspace-style-preview-name');
 		namePreview.textContent = this.workspaceName;
@@ -175,9 +141,11 @@ export class StylePickerModal extends Modal {
 		if (nameItalicValue) namePreview.style.fontStyle = 'italic';
 
 		const updatePreview = () => {
-			iconPreview.textContent = iconValue || '';
-			iconPreview.style.color = iconColorValue || '';
-			iconPreview.style.fontSize = `${iconSizeValue}em`;
+			iconPreview.empty();
+			if (iconValue) {
+				setIcon(iconPreview, iconValue);
+				iconPreview.style.color = iconColorValue || '';
+			}
 			namePreview.style.color = nameColorValue || '';
 			namePreview.style.fontWeight = nameBoldValue ? 'bold' : '';
 			namePreview.style.fontStyle = nameItalicValue ? 'italic' : '';
@@ -187,19 +155,6 @@ export class StylePickerModal extends Modal {
 		// Icon Section
 		// ─────────────────────────────────────────────────────────────
 		contentEl.createEl('h4', { text: 'Icon', cls: 'workspace-style-section' });
-
-		new Setting(contentEl)
-			.setName('Custom icon')
-			.setDesc('Paste any Nerd Font glyph')
-			.addText(text => {
-				text.setValue(iconValue)
-					.setPlaceholder('\uf015')
-					.onChange(value => {
-						iconValue = value;
-						updatePreview();
-					});
-				text.inputEl.addClass('workspace-icon-input');
-			});
 
 		// Icon color
 		contentEl.createEl('p', { text: 'Icon color:', cls: 'workspace-icon-label' });
@@ -229,36 +184,16 @@ export class StylePickerModal extends Modal {
 			updatePreview();
 		});
 
-		// Icon size input
-		new Setting(contentEl)
-			.setName('Icon size')
-			.setDesc('em')
-			.addText(text => {
-				text.inputEl.type = 'number';
-				text.inputEl.min = '0.8';
-				text.inputEl.max = '2.0';
-				text.inputEl.step = '0.1';
-				text.inputEl.style.width = '70px';
-				text.setValue(iconSizeValue.toFixed(1));
-				text.onChange(value => {
-					const num = parseFloat(value);
-					if (!isNaN(num) && num >= 0.8 && num <= 2.0) {
-						iconSizeValue = num;
-						updatePreview();
-					}
-				});
-			});
-
 		// Icon grid
-		contentEl.createEl('p', { text: 'Common icons:', cls: 'workspace-icon-label' });
+		contentEl.createEl('p', { text: 'Select icon:', cls: 'workspace-icon-label' });
 		const grid = contentEl.createDiv('workspace-icon-grid');
-		for (const { icon, name } of NERD_FONT_ICONS) {
+		for (const iconName of LUCIDE_ICONS) {
 			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
-			btn.textContent = icon;
-			btn.setAttribute('title', name);
-			if (icon === iconValue) btn.addClass('is-selected');
+			setIcon(btn, iconName);
+			btn.setAttribute('title', iconName);
+			if (iconName === iconValue) btn.addClass('is-selected');
 			btn.addEventListener('click', () => {
-				iconValue = icon;
+				iconValue = iconName;
 				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
 				btn.addClass('is-selected');
 				updatePreview();
@@ -325,7 +260,7 @@ export class StylePickerModal extends Modal {
 				.setButtonText('Clear All')
 				.onClick(() => {
 					this.onSubmit({
-						icon: '', iconColor: '', iconSize: 1.1, nameColor: '',
+						icon: '', iconColor: '', nameColor: '',
 						nameBold: false, nameItalic: false
 					});
 					this.close();
@@ -340,7 +275,6 @@ export class StylePickerModal extends Modal {
 					this.onSubmit({
 						icon:       iconValue,
 						iconColor:  iconColorValue,
-						iconSize:   iconSizeValue,
 						nameColor:  nameColorValue,
 						nameBold:   nameBoldValue,
 						nameItalic: nameItalicValue
@@ -551,21 +485,17 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (showStyles) {
 			const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
 			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
-			const iconSize  = workspaceManager.getWorkspaceIconSize(workspaceName);
 
 			// Always create the column with icon or invisible placeholder
 			const iconSpan = el.createSpan('workspace-icon-column');
 			if (icon) {
-				iconSpan.textContent = icon;
+				setIcon(iconSpan, icon);
 				if (iconColor) {
 					iconSpan.style.color = iconColor;
 				}
-				if (iconSize && iconSize !== 1.1) {
-					iconSpan.style.fontSize = `${iconSize}em`;
-				}
 			} else {
-				// Transparent icon placeholder (takes up space but not visible)
-				iconSpan.textContent = '\uf015';  // Home icon as placeholder
+				// Invisible placeholder icon (takes up space but not visible)
+				setIcon(iconSpan, 'circle');
 				iconSpan.style.color = 'transparent';
 			}
 		}
@@ -626,13 +556,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				evt.stopPropagation();
 				this.onIconClick(workspaceName);
 			});
-		}
-
-		// Add workspace description if it exists
-		const workspace = workspaceManager.getWorkspace(workspaceName);
-		if (workspace?.metadata?.description) {
-			const descEl = el.createDiv('workspace-description');
-			descEl.textContent = workspace.metadata.description;
 		}
 	}
 
@@ -837,20 +760,18 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const currentIcon  = workspaceManager.getWorkspaceIcon(workspaceName) || '';
 		const currentColor = workspaceManager.getWorkspaceIconColor(workspaceName) || '';
-		const currentSize  = workspaceManager.getWorkspaceIconSize(workspaceName);
 		const nameStyle    = workspaceManager.getWorkspaceNameStyle(workspaceName);
 
 		const currentStyle: WorkspaceStyleResult = {
 			icon:       currentIcon,
 			iconColor:  currentColor,
-			iconSize:   currentSize,
 			nameColor:  nameStyle.color || '',
 			nameBold:   nameStyle.bold || false,
 			nameItalic: nameStyle.italic || false,
 		};
 
 		const modal = new StylePickerModal(this.app, workspaceName, currentStyle, async (newStyle) => {
-			workspaceManager.setWorkspaceIcon(workspaceName, newStyle.icon || null, newStyle.iconColor || null, newStyle.iconSize);
+			workspaceManager.setWorkspaceIcon(workspaceName, newStyle.icon || null, newStyle.iconColor || null);
 			workspaceManager.setWorkspaceNameStyle(workspaceName, {
 				color:  newStyle.nameColor || null,
 				bold:   newStyle.nameBold,

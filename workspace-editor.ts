@@ -2,7 +2,7 @@
 // WORKSPACE EDITOR MODAL
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { App, Modal, Setting, Notice, TextComponent } from 'obsidian';
+import { App, Modal, Setting, Notice, TextComponent, setIcon } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { StylePickerModal, WorkspaceStyleResult } from './workspace-modal';
@@ -129,17 +129,13 @@ export class WorkspaceEditorModal extends Modal {
 		if (showStyles) {
 			const icon      = workspaceManager.getWorkspaceIcon(name);
 			const iconColor = workspaceManager.getWorkspaceIconColor(name);
-			const iconSize  = workspaceManager.getWorkspaceIconSize(name);
 
 			if (icon) {
 				const iconSpan = document.createElement('span');
-				iconSpan.textContent = icon;
 				iconSpan.className = 'workspace-editor-icon';
+				setIcon(iconSpan, icon);
 				if (iconColor) {
 					iconSpan.style.color = iconColor;
-				}
-				if (iconSize && iconSize !== 1.1) {
-					iconSpan.style.fontSize = `${iconSize}em`;
 				}
 				nameEl.appendChild(iconSpan);
 				nameEl.appendChild(document.createTextNode(' '));
@@ -222,20 +218,18 @@ export class WorkspaceEditorModal extends Modal {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const currentIcon  = workspaceManager.getWorkspaceIcon(name) || '';
 		const currentColor = workspaceManager.getWorkspaceIconColor(name) || '';
-		const currentSize  = workspaceManager.getWorkspaceIconSize(name);
 		const nameStyle    = workspaceManager.getWorkspaceNameStyle(name);
 
 		const currentStyle: WorkspaceStyleResult = {
 			icon:       currentIcon,
 			iconColor:  currentColor,
-			iconSize:   currentSize,
 			nameColor:  nameStyle.color || '',
 			nameBold:   nameStyle.bold || false,
 			nameItalic: nameStyle.italic || false,
 		};
 
 		const modal = new StylePickerModal(this.app, name, currentStyle, async (newStyle) => {
-			workspaceManager.setWorkspaceIcon(name, newStyle.icon || null, newStyle.iconColor || null, newStyle.iconSize);
+			workspaceManager.setWorkspaceIcon(name, newStyle.icon || null, newStyle.iconColor || null);
 			workspaceManager.setWorkspaceNameStyle(name, {
 				color:  newStyle.nameColor || null,
 				bold:   newStyle.nameBold,
