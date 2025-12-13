@@ -79,6 +79,7 @@ export interface WorkspaceData {
 	folderExpandState?: any;
 	/** Optional metadata */
 	metadata?: {
+		group?: string;       // Group name for categorization
 		icon?: string;        // Lucide icon name (e.g., 'folder', 'star')
 		iconColor?: string;   // CSS color for the icon
 		nameColor?: string;   // CSS color for the name
@@ -97,6 +98,12 @@ export interface WorkspacesStorage {
 	activeWorkspace: string | null;
 	/** Plugin version for migration purposes */
 	version: string;
+	/** Group icons (group name -> Lucide icon name) */
+	groupIcons?: Record<string, string>;
+	/** Group icon colors (group name -> CSS color) */
+	groupIconColors?: Record<string, string>;
+	/** Group text colors (group name -> CSS color) */
+	groupColors?: Record<string, string>;
 }
 
 /**
@@ -158,6 +165,157 @@ export class WorkspaceManager {
 	 */
 	getWorkspace(name: string): WorkspaceData | null {
 		return this.storage.workspaces[name] || null;
+	}
+
+	/**
+	 * Get workspace group
+	 */
+	getWorkspaceGroup(name: string): string | null {
+		const workspace = this.getWorkspace(name);
+		return workspace?.metadata?.group || null;
+	}
+
+	/**
+	 * Set workspace group
+	 */
+	setWorkspaceGroup(name: string, group: string | null): void {
+		const workspace = this.getWorkspace(name);
+		if (!workspace) return;
+
+		if (!workspace.metadata) {
+			workspace.metadata = {};
+		}
+
+		if (group) {
+			workspace.metadata.group = group;
+		} else {
+			delete workspace.metadata.group;
+		}
+	}
+
+	/**
+	 * Get all unique group names
+	 */
+	getGroups(): string[] {
+		const groups = new Set<string>();
+		for (const name of this.getWorkspaceNames()) {
+			const group = this.getWorkspaceGroup(name);
+			if (group) {
+				groups.add(group);
+			}
+		}
+		return Array.from(groups).sort((a, b) =>
+			a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+		);
+	}
+
+	/**
+	 * Get workspaces by group (null for ungrouped)
+	 */
+	getWorkspacesByGroup(group: string | null): string[] {
+		return this.getWorkspaceNames().filter(name => {
+			const workspaceGroup = this.getWorkspaceGroup(name);
+			return group === null ? !workspaceGroup : workspaceGroup === group;
+		});
+	}
+
+	/**
+	 * Get group icon
+	 */
+	getGroupIcon(group: string): string | null {
+		return this.storage.groupIcons?.[group] || null;
+	}
+
+	/**
+	 * Set group icon
+	 */
+	setGroupIcon(group: string, icon: string | null): void {
+		if (!this.storage.groupIcons) {
+			this.storage.groupIcons = {};
+		}
+
+		if (icon) {
+			this.storage.groupIcons[group] = icon;
+		} else {
+			delete this.storage.groupIcons[group];
+		}
+	}
+
+	/**
+	 * Get group icon color
+	 */
+	getGroupIconColor(group: string): string | null {
+		return this.storage.groupIconColors?.[group] || null;
+	}
+
+	/**
+	 * Set group icon color
+	 */
+	setGroupIconColor(group: string, color: string | null): void {
+		if (!this.storage.groupIconColors) {
+			this.storage.groupIconColors = {};
+		}
+
+		if (color) {
+			this.storage.groupIconColors[group] = color;
+		} else {
+			delete this.storage.groupIconColors[group];
+		}
+	}
+
+	/**
+	 * Rename a group (updates all workspaces and transfers style data)
+	 */
+	renameGroup(oldName: string, newName: string): void {
+		if (!oldName || !newName || oldName === newName) return;
+
+		// Update all workspaces in this group
+		for (const workspaceName of this.getWorkspacesByGroup(oldName)) {
+			this.setWorkspaceGroup(workspaceName, newName);
+		}
+
+		// Transfer group icon
+		const icon = this.getGroupIcon(oldName);
+		if (icon) {
+			this.setGroupIcon(newName, icon);
+			this.setGroupIcon(oldName, null);
+		}
+
+		// Transfer group icon color
+		const iconColor = this.getGroupIconColor(oldName);
+		if (iconColor) {
+			this.setGroupIconColor(newName, iconColor);
+			this.setGroupIconColor(oldName, null);
+		}
+
+		// Transfer group text color
+		const textColor = this.getGroupColor(oldName);
+		if (textColor) {
+			this.setGroupColor(newName, textColor);
+			this.setGroupColor(oldName, null);
+		}
+	}
+
+	/**
+	 * Get group color
+	 */
+	getGroupColor(group: string): string | null {
+		return this.storage.groupColors?.[group] || null;
+	}
+
+	/**
+	 * Set group color
+	 */
+	setGroupColor(group: string, color: string | null): void {
+		if (!this.storage.groupColors) {
+			this.storage.groupColors = {};
+		}
+
+		if (color) {
+			this.storage.groupColors[group] = color;
+		} else {
+			delete this.storage.groupColors[group];
+		}
 	}
 
 	/**

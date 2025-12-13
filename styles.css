@@ -32,6 +32,66 @@
 /* Workspace Modal                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+.workspace-group-header {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 0.5em 1em 0.3em;
+	font-size: 0.75em;
+	font-weight: var(--font-weight-semibold);
+	color: var(--text-muted);
+	letter-spacing: 0.05em;
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-top: 0.3em;
+}
+
+.workspace-group-header:first-child {
+	margin-top: 0;
+}
+
+.workspace-group-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.workspace-group-icon svg {
+	width: 1em;
+	height: 1em;
+}
+
+.workspace-group-text {
+	flex: 1;
+}
+
+.workspace-group-edit-btn {
+	display: inline-flex;
+	align-items: center;
+	fill: var(--text-muted);
+	cursor: pointer;
+	transition: fill 0.15s;
+}
+
+.workspace-group-edit-btn:hover {
+	fill: var(--text-accent-hover);
+}
+
+.workspace-color-none {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--background-secondary);
+	font-size: 0.8em;
+}
+
+/* Group header rename mode */
+.workspace-group-header.is-renaming .workspace-group-text {
+	outline: none;
+}
+
+.workspace-group-header.is-renaming .workspace-group-edit-btn {
+	display: none;
+}
+
 .workspace-suggestion-item {
 	position: relative;
 	padding: 5px 8.5rem 5px 2rem !important;

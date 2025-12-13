@@ -216,11 +216,13 @@ export class WorkspaceEditorModal extends Modal {
 
 	showStyleDialog(name: string) {
 		const workspaceManager = this.plugin.getWorkspaceManager();
+		const currentGroup = workspaceManager.getWorkspaceGroup(name) || '';
 		const currentIcon  = workspaceManager.getWorkspaceIcon(name) || '';
 		const currentColor = workspaceManager.getWorkspaceIconColor(name) || '';
 		const nameStyle    = workspaceManager.getWorkspaceNameStyle(name);
 
 		const currentStyle: WorkspaceStyleResult = {
+			group:      currentGroup,
 			icon:       currentIcon,
 			iconColor:  currentColor,
 			nameColor:  nameStyle.color || '',
@@ -228,7 +230,8 @@ export class WorkspaceEditorModal extends Modal {
 			nameItalic: nameStyle.italic || false,
 		};
 
-		const modal = new StylePickerModal(this.app, name, currentStyle, async (newStyle) => {
+		const modal = new StylePickerModal(this.app, this.plugin, name, currentStyle, async (newStyle) => {
+			workspaceManager.setWorkspaceGroup(name, newStyle.group || null);
 			workspaceManager.setWorkspaceIcon(name, newStyle.icon || null, newStyle.iconColor || null);
 			workspaceManager.setWorkspaceNameStyle(name, {
 				color:  newStyle.nameColor || null,
