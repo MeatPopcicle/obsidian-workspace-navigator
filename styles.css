@@ -63,6 +63,24 @@
 	flex: 1;
 }
 
+.workspace-group-chevron {
+	display: inline-flex;
+	align-items: center;
+	fill: var(--text-muted);
+	cursor: pointer;
+	transition: fill 0.15s;
+}
+
+.workspace-group-chevron:hover {
+	fill: var(--text-accent-hover);
+}
+
+.workspace-group-count {
+	color: var(--text-faint);
+	font-size: 0.9em;
+	margin-left: 0.3em;
+}
+
 .workspace-group-edit-btn {
 	display: inline-flex;
 	align-items: center;

@@ -343,7 +343,8 @@ export class GroupStylePickerModal extends Modal {
 		const { contentEl } = this;
 		contentEl.empty();
 
-		contentEl.createEl('h3', { text: `Style for "${this.groupName}"` });
+		const displayName = this.groupName === '\x00nogroup' ? 'No Group' : this.groupName;
+		contentEl.createEl('h3', { text: `Style for "${displayName}"` });
 
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		let iconValue      = workspaceManager.getGroupIcon(this.groupName) || '';
@@ -651,15 +652,37 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Add workspaces by group (groups sorted alphabetically)
 		for (const group of groups) {
-			const workspaces = workspaceManager.getWorkspacesByGroup(group);
-			result.push(...workspaces);
+			if (workspaceManager.isGroupCollapsed(group)) {
+				// Add a placeholder for collapsed group (will render header only)
+				result.push(`\x00collapsed:${group}`);
+			} else {
+				const workspaces = workspaceManager.getWorkspacesByGroup(group);
+				result.push(...workspaces);
+			}
 		}
 
 		// Add ungrouped workspaces at the end
 		const ungrouped = workspaceManager.getWorkspacesByGroup(null);
-		result.push(...ungrouped);
+		if (ungrouped.length > 0) {
+			if (workspaceManager.isGroupCollapsed('\x00nogroup')) {
+				// Add placeholder for collapsed "No Group"
+				result.push('\x00collapsed:\x00nogroup');
+			} else {
+				result.push(...ungrouped);
+			}
+		}
 
 		return result;
+	}
+
+	/**
+	 * Check if an item is a collapsed group placeholder
+	 */
+	private isCollapsedGroupPlaceholder(item: string): string | null {
+		if (item.startsWith('\x00collapsed:')) {
+			return item.substring('\x00collapsed:'.length);
+		}
+		return null;
 	}
 
 	/**
@@ -674,6 +697,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	getItemText(workspace: string): string {
+		// For collapsed group placeholders, return the group name for search
+		const collapsedGroup = this.isCollapsedGroupPlaceholder(workspace);
+		if (collapsedGroup) {
+			return collapsedGroup === '\x00nogroup' ? 'No Group' : collapsedGroup;
+		}
 		return workspace;
 	}
 
@@ -682,10 +710,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	renderSuggestion(item: FuzzyMatch<string>, el: HTMLElement): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+
+		// Check if this is a collapsed group placeholder
+		const collapsedGroup = this.isCollapsedGroupPlaceholder(item.item);
+		if (collapsedGroup) {
+			// Render collapsed group header only (no workspace item)
+			this.lastRenderedGroup = collapsedGroup === '\x00nogroup' ? null : collapsedGroup;
+			el.empty();
+			el.addClass('workspace-group-header', 'is-collapsed');
+			this.renderGroupHeader(el, collapsedGroup, true);
+			return;
+		}
+
+		// Normal workspace item
 		super.renderSuggestion(item, el);
 
 		const workspaceName = item.item;
-		const workspaceManager = this.plugin.getWorkspaceManager();
 
 		// Check if we need to add a group header
 		const currentGroup = workspaceManager.getWorkspaceGroup(workspaceName);
@@ -695,61 +736,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const header = document.createElement('div');
 			header.addClass('workspace-group-header');
 
-			if (currentGroup) {
-				// Add group icon if set
-				const groupIcon = workspaceManager.getGroupIcon(currentGroup);
-				if (groupIcon) {
-					const iconSpan = document.createElement('span');
-					iconSpan.addClass('workspace-group-icon');
-					setIcon(iconSpan, groupIcon);
-					// Apply icon color if set
-					const iconColor = workspaceManager.getGroupIconColor(currentGroup);
-					if (iconColor) {
-						iconSpan.style.color = iconColor;
-					}
-					header.appendChild(iconSpan);
-				}
-
-				const textSpan = document.createElement('span');
-				textSpan.addClass('workspace-group-text');
-				textSpan.textContent = currentGroup;
-				textSpan.dataset.groupName = currentGroup;
-
-				// Apply group text color if set
-				const groupColor = workspaceManager.getGroupColor(currentGroup);
-				if (groupColor) {
-					textSpan.style.color = groupColor;
-				}
-				header.appendChild(textSpan);
-
-				// Style button (palette) - first
-				const styleBtn = document.createElement('span');
-				styleBtn.addClass('workspace-group-edit-btn');
-				styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
-				styleBtn.setAttribute('title', 'Edit group style');
-				styleBtn.addEventListener('click', (evt) => {
-					evt.stopPropagation();
-					this.onGroupStyleClick(currentGroup);
-				});
-				header.appendChild(styleBtn);
-
-				// Rename button (pencil) - second
-				const renameBtn = document.createElement('span');
-				renameBtn.addClass('workspace-group-edit-btn');
-				renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-				renameBtn.setAttribute('title', 'Rename group');
-				renameBtn.addEventListener('click', (evt) => {
-					evt.stopPropagation();
-					this.onGroupRenameClick(header, textSpan, currentGroup);
-				});
-				header.appendChild(renameBtn);
-			} else {
-				// "No Group" header for ungrouped workspaces
-				const textSpan = document.createElement('span');
-				textSpan.addClass('workspace-group-text');
-				textSpan.textContent = 'No Group';
-				header.appendChild(textSpan);
-			}
+			// Use '\x00nogroup' as internal key for "No Group"
+			const groupKey = currentGroup || '\x00nogroup';
+			this.renderGroupHeader(header, groupKey, false);
 
 			el.parentElement?.insertBefore(header, el);
 		}
@@ -1041,9 +1030,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	onGroupRenameClick(header: HTMLElement, textSpan: HTMLElement, groupName: string): void {
+		const isNoGroup = groupName === '\x00nogroup';
+		const displayName = isNoGroup ? 'No Group' : groupName;
+
 		// Already editing? Cancel it
 		if (textSpan.contentEditable === 'true') {
-			textSpan.textContent = groupName;
+			textSpan.textContent = displayName;
 			textSpan.contentEditable = 'false';
 			header.removeClass('is-renaming');
 			return;
@@ -1052,6 +1044,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Enter edit mode
 		header.addClass('is-renaming');
 		textSpan.contentEditable = 'true';
+
+		// For "No Group", clear the text so user can type fresh
+		if (isNoGroup) {
+			textSpan.textContent = '';
+		}
 
 		// Place cursor at end (matching workspace rename behavior)
 		const selection = window.getSelection();
@@ -1073,20 +1070,55 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			textSpan.contentEditable = 'false';
 			header.removeClass('is-renaming');
 
-			if (!newName || newName === groupName) {
-				textSpan.textContent = groupName;
+			// Cancel if empty or same name
+			if (!newName || (isNoGroup && newName === 'No Group') || (!isNoGroup && newName === groupName)) {
+				textSpan.textContent = displayName;
 				return;
 			}
 
 			const workspaceManager = this.plugin.getWorkspaceManager();
-			workspaceManager.renameGroup(groupName, newName);
+
+			if (isNoGroup) {
+				// Naming "No Group" - assign all ungrouped workspaces to new group
+				const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+				for (const workspace of ungrouped) {
+					workspaceManager.setWorkspaceGroup(workspace, newName);
+				}
+
+				// Transfer any styling from '\x00nogroup' to the new group name
+				const icon = workspaceManager.getGroupIcon('\x00nogroup');
+				if (icon) {
+					workspaceManager.setGroupIcon(newName, icon);
+					workspaceManager.setGroupIcon('\x00nogroup', null);
+				}
+				const iconColor = workspaceManager.getGroupIconColor('\x00nogroup');
+				if (iconColor) {
+					workspaceManager.setGroupIconColor(newName, iconColor);
+					workspaceManager.setGroupIconColor('\x00nogroup', null);
+				}
+				const textColor = workspaceManager.getGroupColor('\x00nogroup');
+				if (textColor) {
+					workspaceManager.setGroupColor(newName, textColor);
+					workspaceManager.setGroupColor('\x00nogroup', null);
+				}
+				// Transfer collapsed state
+				if (workspaceManager.isGroupCollapsed('\x00nogroup')) {
+					workspaceManager.setGroupCollapsed(newName, true);
+					workspaceManager.setGroupCollapsed('\x00nogroup', false);
+				}
+
+				new Notice(`Created group "${newName}" with ${ungrouped.length} workspace(s)`);
+			} else {
+				// Normal rename
+				workspaceManager.renameGroup(groupName, newName);
+				new Notice(`Renamed group to "${newName}"`);
+			}
+
 			await this.plugin.saveSettings();
 
 			// Refresh
 			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
-
-			new Notice(`Renamed group to "${newName}"`);
 		};
 
 		// Handle keydown - Enter to save, Escape to cancel
@@ -1096,7 +1128,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				textSpan.blur();
 			} else if (evt.key === 'Escape') {
 				evt.preventDefault();
-				textSpan.textContent = groupName;
+				textSpan.textContent = displayName;
 				textSpan.blur();
 			}
 		};
@@ -1122,6 +1154,106 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			(this as any).updateSuggestions();
 		});
 		modal.open();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Render group header (shared between normal and collapsed groups)
+	// ─────────────────────────────────────────────────────────────────
+
+	renderGroupHeader(container: HTMLElement, groupName: string, isCollapsed: boolean): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const isNoGroup = groupName === '\x00nogroup';
+		const displayName = isNoGroup ? 'No Group' : groupName;
+
+		// Collapse/expand chevron
+		const chevron = document.createElement('span');
+		chevron.addClass('workspace-group-chevron');
+		chevron.innerHTML = isCollapsed
+			? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>`
+			: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
+		chevron.setAttribute('title', isCollapsed ? 'Expand group' : 'Collapse group');
+		chevron.addEventListener('click', (evt) => {
+			evt.stopPropagation();
+			this.onGroupToggleCollapse(groupName);
+		});
+		container.appendChild(chevron);
+
+		// Add group icon if set
+		const groupIcon = isNoGroup
+			? workspaceManager.getGroupIcon('\x00nogroup')
+			: workspaceManager.getGroupIcon(groupName);
+		if (groupIcon) {
+			const iconSpan = document.createElement('span');
+			iconSpan.addClass('workspace-group-icon');
+			setIcon(iconSpan, groupIcon);
+			const iconColor = isNoGroup
+				? workspaceManager.getGroupIconColor('\x00nogroup')
+				: workspaceManager.getGroupIconColor(groupName);
+			if (iconColor) {
+				iconSpan.style.color = iconColor;
+			}
+			container.appendChild(iconSpan);
+		}
+
+		// Group name text
+		const textSpan = document.createElement('span');
+		textSpan.addClass('workspace-group-text');
+		textSpan.textContent = displayName;
+		textSpan.dataset.groupName = groupName;
+		const groupColor = isNoGroup
+			? workspaceManager.getGroupColor('\x00nogroup')
+			: workspaceManager.getGroupColor(groupName);
+		if (groupColor) {
+			textSpan.style.color = groupColor;
+		}
+		container.appendChild(textSpan);
+
+		// Workspace count for collapsed groups
+		if (isCollapsed) {
+			const count = isNoGroup
+				? workspaceManager.getWorkspacesByGroup(null).length
+				: workspaceManager.getWorkspacesByGroup(groupName).length;
+			const countSpan = document.createElement('span');
+			countSpan.addClass('workspace-group-count');
+			countSpan.textContent = `(${count})`;
+			container.appendChild(countSpan);
+		}
+
+		// Style button (palette)
+		const styleBtn = document.createElement('span');
+		styleBtn.addClass('workspace-group-edit-btn');
+		styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
+		styleBtn.setAttribute('title', 'Edit group style');
+		styleBtn.addEventListener('click', (evt) => {
+			evt.stopPropagation();
+			this.onGroupStyleClick(groupName);
+		});
+		container.appendChild(styleBtn);
+
+		// Rename button (pencil)
+		const renameBtn = document.createElement('span');
+		renameBtn.addClass('workspace-group-edit-btn');
+		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+		renameBtn.setAttribute('title', isNoGroup ? 'Name this group' : 'Rename group');
+		renameBtn.addEventListener('click', (evt) => {
+			evt.stopPropagation();
+			this.onGroupRenameClick(container, textSpan, groupName);
+		});
+		container.appendChild(renameBtn);
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Handle group collapse toggle
+	// ─────────────────────────────────────────────────────────────────
+
+	async onGroupToggleCollapse(groupName: string): Promise<void> {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		workspaceManager.toggleGroupCollapsed(groupName);
+		await this.plugin.saveSettings();
+
+		// Refresh the suggestions
+		this.lastRenderedGroup = undefined;
+		(this as any).updateSuggestions();
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -1222,6 +1354,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	async onChooseItem(workspace: string, evt: MouseEvent | KeyboardEvent): Promise<void> {
+		// Check if this is a collapsed group placeholder - expand it instead
+		const collapsedGroup = this.isCollapsedGroupPlaceholder(workspace);
+		if (collapsedGroup) {
+			await this.onGroupToggleCollapse(collapsedGroup);
+			return;
+		}
+
 		const workspaceManager = this.plugin.getWorkspaceManager();
 
 		// Check for modifier keys

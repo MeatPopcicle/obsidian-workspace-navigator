@@ -104,6 +104,8 @@ export interface WorkspacesStorage {
 	groupIconColors?: Record<string, string>;
 	/** Group text colors (group name -> CSS color) */
 	groupColors?: Record<string, string>;
+	/** Collapsed groups (group name -> true if collapsed) */
+	collapsedGroups?: Record<string, boolean>;
 }
 
 /**
@@ -294,6 +296,13 @@ export class WorkspaceManager {
 			this.setGroupColor(newName, textColor);
 			this.setGroupColor(oldName, null);
 		}
+
+		// Transfer collapsed state
+		const collapsed = this.isGroupCollapsed(oldName);
+		if (collapsed) {
+			this.setGroupCollapsed(newName, true);
+			this.setGroupCollapsed(oldName, false);
+		}
 	}
 
 	/**
@@ -316,6 +325,37 @@ export class WorkspaceManager {
 		} else {
 			delete this.storage.groupColors[group];
 		}
+	}
+
+	/**
+	 * Check if a group is collapsed
+	 */
+	isGroupCollapsed(group: string): boolean {
+		return this.storage.collapsedGroups?.[group] || false;
+	}
+
+	/**
+	 * Set group collapsed state
+	 */
+	setGroupCollapsed(group: string, collapsed: boolean): void {
+		if (!this.storage.collapsedGroups) {
+			this.storage.collapsedGroups = {};
+		}
+
+		if (collapsed) {
+			this.storage.collapsedGroups[group] = true;
+		} else {
+			delete this.storage.collapsedGroups[group];
+		}
+	}
+
+	/**
+	 * Toggle group collapsed state
+	 */
+	toggleGroupCollapsed(group: string): boolean {
+		const newState = !this.isGroupCollapsed(group);
+		this.setGroupCollapsed(group, newState);
+		return newState;
 	}
 
 	/**
