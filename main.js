@@ -2346,12 +2346,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     if (showStyles) {
       const icon = workspaceManager.getWorkspaceIcon(workspaceName);
       const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
+      const iconSpan = el.createSpan("workspace-icon-column");
       if (icon) {
-        const iconSpan = el.createSpan("workspace-icon-column");
         (0, import_obsidian3.setIcon)(iconSpan, icon);
         if (iconColor) {
           iconSpan.style.color = iconColor;
         }
+      } else {
+        (0, import_obsidian3.setIcon)(iconSpan, "layout-grid");
+        iconSpan.style.opacity = "0.4";
       }
     }
     const textSpan = el.createSpan("workspace-name-text");
@@ -2840,6 +2843,7 @@ var import_obsidian4 = require("obsidian");
 var WorkspaceEditorModal = class extends import_obsidian4.Modal {
   constructor(app, plugin) {
     super(app);
+    this.collapsedGroups = /* @__PURE__ */ new Set();
     this.plugin = plugin;
   }
   onOpen() {
@@ -2900,8 +2904,63 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
       return;
     }
     const listEl = containerEl.createDiv("workspace-editor-list");
-    for (const name of workspaces) {
-      this.renderWorkspaceItem(listEl, name, name === activeWorkspace);
+    const groups = workspaceManager.getGroups();
+    const hasNamedGroups = groups.length > 0;
+    if (hasNamedGroups) {
+      for (const group of groups) {
+        this.renderGroupSection(listEl, group, activeWorkspace);
+      }
+      const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+      if (ungrouped.length > 0) {
+        this.renderGroupSection(listEl, null, activeWorkspace);
+      }
+    } else {
+      for (const name of workspaces) {
+        this.renderWorkspaceItem(listEl, name, name === activeWorkspace);
+      }
+    }
+  }
+  // ─────────────────────────────────────────────────────────────────
+  // Group Section
+  // ─────────────────────────────────────────────────────────────────
+  renderGroupSection(containerEl, group, activeWorkspace) {
+    const workspaceManager = this.plugin.getWorkspaceManager();
+    const groupKey = group || "\0nogroup";
+    const displayName = group || "No Group";
+    const isCollapsed = this.collapsedGroups.has(groupKey);
+    const workspaces = workspaceManager.getWorkspacesByGroup(group);
+    const header = containerEl.createDiv("workspace-editor-group-header");
+    const chevron = header.createSpan("workspace-editor-group-chevron");
+    chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
+    chevron.addEventListener("click", () => {
+      if (isCollapsed) {
+        this.collapsedGroups.delete(groupKey);
+      } else {
+        this.collapsedGroups.add(groupKey);
+      }
+      this.onOpen();
+    });
+    const groupIcon = workspaceManager.getGroupIcon(groupKey);
+    if (groupIcon) {
+      const iconSpan = header.createSpan("workspace-editor-group-icon");
+      (0, import_obsidian4.setIcon)(iconSpan, groupIcon);
+      const iconColor = workspaceManager.getGroupIconColor(groupKey);
+      if (iconColor) {
+        iconSpan.style.color = iconColor;
+      }
+    }
+    const nameSpan = header.createSpan("workspace-editor-group-name");
+    nameSpan.textContent = displayName;
+    const groupColor = workspaceManager.getGroupColor(groupKey);
+    if (groupColor) {
+      nameSpan.style.color = groupColor;
+    }
+    const countSpan = header.createSpan("workspace-editor-group-count");
+    countSpan.textContent = `(${workspaces.length})`;
+    if (!isCollapsed) {
+      for (const name of workspaces) {
+        this.renderWorkspaceItem(containerEl, name, name === activeWorkspace);
+      }
     }
   }
   renderWorkspaceItem(containerEl, name, isActive) {
@@ -2912,16 +2971,19 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     if (showStyles) {
       const icon = workspaceManager.getWorkspaceIcon(name);
       const iconColor = workspaceManager.getWorkspaceIconColor(name);
+      const iconSpan = document.createElement("span");
+      iconSpan.className = "workspace-editor-icon";
       if (icon) {
-        const iconSpan = document.createElement("span");
-        iconSpan.className = "workspace-editor-icon";
         (0, import_obsidian4.setIcon)(iconSpan, icon);
         if (iconColor) {
           iconSpan.style.color = iconColor;
         }
-        nameEl.appendChild(iconSpan);
-        nameEl.appendChild(document.createTextNode(" "));
+      } else {
+        (0, import_obsidian4.setIcon)(iconSpan, "layout-grid");
+        iconSpan.style.opacity = "0.4";
       }
+      nameEl.appendChild(iconSpan);
+      nameEl.appendChild(document.createTextNode(" "));
     }
     const nameSpan = document.createElement("span");
     nameSpan.textContent = name;
@@ -2943,7 +3005,7 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     if (isActive) {
       setting.setDesc("Currently active");
     }
-    setting.addExtraButton((button) => button.setIcon("upload").setTooltip("Load workspace").onClick(async () => {
+    setting.addExtraButton((button) => button.setIcon("log-in").setTooltip("Load workspace").onClick(async () => {
       await this.plugin.loadWorkspace(name);
       new import_obsidian4.Notice(`Loaded workspace: ${name}`);
       this.close();

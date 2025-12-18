@@ -12,7 +12,8 @@ import { StylePickerModal, WorkspaceStyleResult } from './workspace-modal';
 // ───────────────────────────────────────────────────────────────────────────────
 
 export class WorkspaceEditorModal extends Modal {
-	plugin: WorkspaceNavigator;
+	plugin:          WorkspaceNavigator;
+	collapsedGroups: Set<string> = new Set();
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -113,8 +114,85 @@ export class WorkspaceEditorModal extends Modal {
 
 		const listEl = containerEl.createDiv('workspace-editor-list');
 
-		for (const name of workspaces) {
-			this.renderWorkspaceItem(listEl, name, name === activeWorkspace);
+		// Get groups and check if we should show grouping
+		const groups = workspaceManager.getGroups();
+		const hasNamedGroups = groups.length > 0;
+
+		if (hasNamedGroups) {
+			// Render workspaces organized by group
+			for (const group of groups) {
+				this.renderGroupSection(listEl, group, activeWorkspace);
+			}
+
+			// Render ungrouped workspaces at the end
+			const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+			if (ungrouped.length > 0) {
+				this.renderGroupSection(listEl, null, activeWorkspace);
+			}
+		} else {
+			// No groups - render flat list
+			for (const name of workspaces) {
+				this.renderWorkspaceItem(listEl, name, name === activeWorkspace);
+			}
+		}
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Group Section
+	// ─────────────────────────────────────────────────────────────────
+
+	renderGroupSection(containerEl: HTMLElement, group: string | null, activeWorkspace: string | null) {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const groupKey = group || '\x00nogroup';
+		const displayName = group || 'No Group';
+		const isCollapsed = this.collapsedGroups.has(groupKey);
+		const workspaces = workspaceManager.getWorkspacesByGroup(group);
+
+		// Group header
+		const header = containerEl.createDiv('workspace-editor-group-header');
+
+		// Collapse/expand chevron
+		const chevron = header.createSpan('workspace-editor-group-chevron');
+		chevron.innerHTML = isCollapsed
+			? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>`
+			: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
+		chevron.addEventListener('click', () => {
+			if (isCollapsed) {
+				this.collapsedGroups.delete(groupKey);
+			} else {
+				this.collapsedGroups.add(groupKey);
+			}
+			this.onOpen(); // Refresh
+		});
+
+		// Group icon if set
+		const groupIcon = workspaceManager.getGroupIcon(groupKey);
+		if (groupIcon) {
+			const iconSpan = header.createSpan('workspace-editor-group-icon');
+			setIcon(iconSpan, groupIcon);
+			const iconColor = workspaceManager.getGroupIconColor(groupKey);
+			if (iconColor) {
+				iconSpan.style.color = iconColor;
+			}
+		}
+
+		// Group name
+		const nameSpan = header.createSpan('workspace-editor-group-name');
+		nameSpan.textContent = displayName;
+		const groupColor = workspaceManager.getGroupColor(groupKey);
+		if (groupColor) {
+			nameSpan.style.color = groupColor;
+		}
+
+		// Workspace count
+		const countSpan = header.createSpan('workspace-editor-group-count');
+		countSpan.textContent = `(${workspaces.length})`;
+
+		// Render workspaces if not collapsed
+		if (!isCollapsed) {
+			for (const name of workspaces) {
+				this.renderWorkspaceItem(containerEl, name, name === activeWorkspace);
+			}
 		}
 	}
 
@@ -130,16 +208,20 @@ export class WorkspaceEditorModal extends Modal {
 			const icon      = workspaceManager.getWorkspaceIcon(name);
 			const iconColor = workspaceManager.getWorkspaceIconColor(name);
 
+			const iconSpan = document.createElement('span');
+			iconSpan.className = 'workspace-editor-icon';
 			if (icon) {
-				const iconSpan = document.createElement('span');
-				iconSpan.className = 'workspace-editor-icon';
 				setIcon(iconSpan, icon);
 				if (iconColor) {
 					iconSpan.style.color = iconColor;
 				}
-				nameEl.appendChild(iconSpan);
-				nameEl.appendChild(document.createTextNode(' '));
+			} else {
+				// Default icon for workspaces without a custom icon
+				setIcon(iconSpan, 'layout-grid');
+				iconSpan.style.opacity = '0.4';
 			}
+			nameEl.appendChild(iconSpan);
+			nameEl.appendChild(document.createTextNode(' '));
 		}
 
 		// Create name span with optional styling
@@ -167,7 +249,7 @@ export class WorkspaceEditorModal extends Modal {
 
 		// Load button
 		setting.addExtraButton(button => button
-			.setIcon('upload')
+			.setIcon('log-in')
 			.setTooltip('Load workspace')
 			.onClick(async () => {
 				await this.plugin.loadWorkspace(name);

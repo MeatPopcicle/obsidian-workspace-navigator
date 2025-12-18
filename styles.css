@@ -124,7 +124,7 @@
 
 .workspace-active-indicator {
 	position: absolute;
-	left: 0.5em;
+	left: 0.8em;
 	top: 50%;
 	transform: translateY(-50%);
 	fill: var(--interactive-accent);
@@ -445,6 +445,59 @@
 	font-style: italic;
 	text-align: center;
 	padding: 2em;
+}
+
+.workspace-editor-group-header {
+	display: flex;
+	align-items: center;
+	gap: 0.4em;
+	padding: 0.6em 0;
+	font-size: 0.85em;
+	font-weight: var(--font-weight-semibold);
+	color: var(--text-muted);
+	letter-spacing: 0.03em;
+	border-bottom: 1px solid var(--background-modifier-border);
+	margin-top: 0.8em;
+}
+
+.workspace-editor-group-header:first-child {
+	margin-top: 0;
+}
+
+.workspace-editor-group-chevron {
+	display: inline-flex;
+	align-items: center;
+	fill: var(--text-muted);
+	cursor: pointer;
+	transition: fill 0.15s;
+}
+
+.workspace-editor-group-chevron:hover {
+	fill: var(--text-accent-hover);
+}
+
+.workspace-editor-group-chevron svg {
+	width: 16px;
+	height: 16px;
+}
+
+.workspace-editor-group-icon {
+	display: inline-flex;
+	align-items: center;
+}
+
+.workspace-editor-group-icon svg {
+	width: 1em;
+	height: 1em;
+}
+
+.workspace-editor-group-name {
+	flex: 1;
+}
+
+.workspace-editor-group-count {
+	color: var(--text-faint);
+	font-size: 0.9em;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
