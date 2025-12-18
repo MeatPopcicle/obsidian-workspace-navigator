@@ -4,7 +4,7 @@
 
 import { Plugin, Notice, setIcon } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
-import { WorkspaceSwitcherModal } from './workspace-modal';
+import { WorkspaceSwitcherModal, WorkspacePickerModal } from './workspace-modal';
 import { WorkspaceEditorModal } from './workspace-editor';
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
 import { createConfirmationDialog } from './confirm-modal';
@@ -379,6 +379,67 @@ export default class WorkspaceNavigator extends Plugin {
 				// Also copy to clipboard
 				await navigator.clipboard.writeText(report);
 				new Notice('Also copied to clipboard!');
+			}
+		});
+
+		// Send note to another workspace (without switching)
+		this.addCommand({
+			id: 'send-note-to-workspace',
+			name: 'Send current note to another workspace',
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!activeFile) {
+					new Notice('No active file');
+					return;
+				}
+
+				new WorkspacePickerModal(
+					this.app,
+					this,
+					activeFile.path,
+					false,  // don't follow
+					async (targetWorkspace) => {
+						const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, activeFile.path);
+						if (success) {
+							await this.saveSettings();
+							new Notice(`Sent "${activeFile.basename}" to workspace "${targetWorkspace}"`);
+						} else {
+							new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+						}
+					}
+				).open();
+			}
+		});
+
+		// Send note to another workspace and switch to it
+		this.addCommand({
+			id: 'send-note-to-workspace-and-switch',
+			name: 'Send current note to another workspace and switch',
+			callback: () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!activeFile) {
+					new Notice('No active file');
+					return;
+				}
+
+				new WorkspacePickerModal(
+					this.app,
+					this,
+					activeFile.path,
+					true,  // follow
+					async (targetWorkspace) => {
+						const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, activeFile.path);
+						if (success) {
+							await this.saveSettings();
+							new Notice(`Sent "${activeFile.basename}" to workspace "${targetWorkspace}"`);
+							// Switch to the target workspace
+							await this.loadWorkspace(targetWorkspace);
+							new Notice(`Switched to workspace: ${targetWorkspace}`);
+						} else {
+							new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+						}
+					}
+				).open();
 			}
 		});
 

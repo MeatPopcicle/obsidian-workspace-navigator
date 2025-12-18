@@ -782,6 +782,136 @@ export class WorkspaceManager {
 	}
 
 	// ───────────────────────────────────────────────────────────────────
+	// Cross-Workspace Note Search
+	// ───────────────────────────────────────────────────────────────────
+
+	/**
+	 * Extract all open file paths from a workspace layout
+	 * Recursively traverses the layout structure to find all leaves with file state
+	 */
+	getOpenFilesInLayout(layout: any): string[] {
+		const files: string[] = [];
+
+		const traverse = (node: any) => {
+			if (!node) return;
+
+			// Check if this node has a file state (leaf with open file)
+			if (node.state?.file) {
+				files.push(node.state.file);
+			}
+
+			// Traverse children array (for splits)
+			if (node.children && Array.isArray(node.children)) {
+				for (const child of node.children) {
+					traverse(child);
+				}
+			}
+
+			// Traverse main area
+			if (node.main) {
+				traverse(node.main);
+			}
+
+			// Traverse left/right sidebars
+			if (node.left) traverse(node.left);
+			if (node.right) traverse(node.right);
+		};
+
+		traverse(layout);
+		return files;
+	}
+
+	/**
+	 * Get all open files in a specific workspace
+	 */
+	getOpenFilesInWorkspace(workspaceName: string): string[] {
+		const workspace = this.getWorkspace(workspaceName);
+		if (!workspace?.layout) return [];
+		return this.getOpenFilesInLayout(workspace.layout);
+	}
+
+	/**
+	 * Find all workspaces that have a specific file open
+	 * @param filePath The file path to search for
+	 * @param excludeWorkspace Optional workspace to exclude (e.g., current workspace)
+	 * @returns Array of workspace names that have the file open
+	 */
+	getWorkspacesWithFile(filePath: string, excludeWorkspace?: string): string[] {
+		const workspaces: string[] = [];
+
+		for (const name of this.getWorkspaceNames()) {
+			if (excludeWorkspace && name === excludeWorkspace) continue;
+
+			const openFiles = this.getOpenFilesInWorkspace(name);
+			if (openFiles.includes(filePath)) {
+				workspaces.push(name);
+			}
+		}
+
+		return workspaces;
+	}
+
+	/**
+	 * Add a file to a workspace's layout (in the main editor area)
+	 * This modifies the stored layout so the file will be open when the workspace is loaded
+	 */
+	addFileToWorkspace(workspaceName: string, filePath: string): boolean {
+		const workspace = this.getWorkspace(workspaceName);
+		if (!workspace?.layout) return false;
+
+		// Find the main editor area and add a new leaf
+		const addToMain = (node: any): boolean => {
+			if (!node) return false;
+
+			// If this is a tabs container in the main area, add the file as a new tab
+			if (node.type === 'tabs' && node.children && Array.isArray(node.children)) {
+				// Create a new leaf for the file
+				const newLeaf = {
+					id: this.generateLeafId(),
+					type: 'leaf',
+					state: {
+						type: 'markdown',
+						state: {
+							file: filePath,
+							mode: 'source',
+							source: false
+						}
+					}
+				};
+				node.children.push(newLeaf);
+				// Set as active tab
+				node.currentTab = node.children.length - 1;
+				return true;
+			}
+
+			// Traverse children
+			if (node.children && Array.isArray(node.children)) {
+				for (const child of node.children) {
+					if (addToMain(child)) return true;
+				}
+			}
+
+			return false;
+		};
+
+		// Try to add to main area first
+		if (workspace.layout.main && addToMain(workspace.layout.main)) {
+			this.logger.log(`Added file "${filePath}" to workspace "${workspaceName}"`);
+			return true;
+		}
+
+		this.logger.log(`Failed to add file "${filePath}" to workspace "${workspaceName}"`);
+		return false;
+	}
+
+	/**
+	 * Generate a unique leaf ID (similar to Obsidian's format)
+	 */
+	private generateLeafId(): string {
+		return Math.random().toString(36).substring(2, 15);
+	}
+
+	// ───────────────────────────────────────────────────────────────────
 	// Storage Management
 	// ───────────────────────────────────────────────────────────────────
 

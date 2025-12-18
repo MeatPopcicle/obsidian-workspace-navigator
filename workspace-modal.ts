@@ -485,6 +485,94 @@ export class GroupStylePickerModal extends Modal {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Workspace Picker Modal (for "Send note to workspace" feature)
+// ───────────────────────────────────────────────────────────────────────────────
+
+export class WorkspacePickerModal extends FuzzySuggestModal<string> {
+	plugin:    WorkspaceNavigator;
+	filePath:  string;
+	follow:    boolean;
+	onSelect:  (workspaceName: string) => void;
+
+	constructor(
+		app: App,
+		plugin: WorkspaceNavigator,
+		filePath: string,
+		follow: boolean,
+		onSelect: (workspaceName: string) => void
+	) {
+		super(app);
+		this.plugin   = plugin;
+		this.filePath = filePath;
+		this.follow   = follow;
+		this.onSelect = onSelect;
+
+		const fileName = filePath.split('/').pop() || 'file';
+		const action = follow ? 'Send & switch' : 'Send';
+		this.setPlaceholder(`${action}: "${fileName}" to workspace...`);
+	}
+
+	getItems(): string[] {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const activeWorkspace = workspaceManager.getActiveWorkspace();
+
+		// Return all workspaces except the current one
+		return workspaceManager.getWorkspaceNames().filter(name => name !== activeWorkspace);
+	}
+
+	getItemText(workspace: string): string {
+		return workspace;
+	}
+
+	renderSuggestion(item: FuzzyMatch<string>, el: HTMLElement): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const workspaceName = item.item;
+
+		el.addClass('workspace-picker-item');
+
+		// Check if this workspace already has the file open
+		const openFiles = workspaceManager.getOpenFilesInWorkspace(workspaceName);
+		const alreadyHasFile = openFiles.includes(this.filePath);
+
+		// Add icon if workspace has custom icon
+		const icon = workspaceManager.getWorkspaceIcon(workspaceName);
+		if (icon) {
+			const iconSpan = el.createSpan('workspace-picker-icon');
+			setIcon(iconSpan, icon);
+			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
+			if (iconColor) iconSpan.style.color = iconColor;
+		}
+
+		// Workspace name
+		const nameSpan = el.createSpan('workspace-picker-name');
+		nameSpan.textContent = workspaceName;
+
+		// Apply name styling
+		const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
+		if (nameStyle.color) nameSpan.style.color = nameStyle.color;
+		if (nameStyle.bold) nameSpan.style.fontWeight = 'bold';
+		if (nameStyle.italic) nameSpan.style.fontStyle = 'italic';
+
+		// Show indicator if file is already in this workspace
+		if (alreadyHasFile) {
+			const indicator = el.createSpan('workspace-picker-has-file');
+			indicator.textContent = '(already open)';
+		}
+
+		// Show group if applicable
+		const group = workspaceManager.getWorkspaceGroup(workspaceName);
+		if (group) {
+			const groupSpan = el.createSpan('workspace-picker-group');
+			groupSpan.textContent = group;
+		}
+	}
+
+	onChooseItem(workspace: string, evt: MouseEvent | KeyboardEvent): void {
+		this.onSelect(workspace);
+	}
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
 // Workspace Modal Class
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -493,6 +581,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	workspaces:         string[];
 	popper:             PopperInstance | null = null;
 	private lastRenderedGroup: string | null | undefined = undefined;
+	private currentFilePath: string | null = null;
+	private workspacesWithCurrentFile: Set<string> = new Set();
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -610,6 +700,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Reset group tracking for headers
 		this.lastRenderedGroup = undefined;
+
+		// Capture current file and find workspaces that have it open
+		const activeFile = this.app.workspace.getActiveFile();
+		this.currentFilePath = activeFile?.path || null;
+		this.workspacesWithCurrentFile.clear();
+
+		if (this.currentFilePath) {
+			const workspaceManager = this.plugin.getWorkspaceManager();
+			const activeWorkspace = workspaceManager.getActiveWorkspace();
+			const workspacesWithFile = workspaceManager.getWorkspacesWithFile(
+				this.currentFilePath,
+				activeWorkspace || undefined  // Exclude current workspace
+			);
+			for (const ws of workspacesWithFile) {
+				this.workspacesWithCurrentFile.add(ws);
+			}
+		}
 
 		// Hide search box if disabled in settings
 		if (!this.plugin.settings.showSearchBox) {
@@ -791,6 +898,16 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			activeIndicator.setAttribute('aria-label', 'Active workspace');
 			activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
 			el.addClass('is-active');
+		}
+
+		// Add "has current file" indicator
+		if (this.workspacesWithCurrentFile.has(workspaceName)) {
+			const fileIndicator = el.createDiv('workspace-has-file-indicator');
+			const fileName = this.currentFilePath?.split('/').pop() || 'file';
+			fileIndicator.setAttribute('aria-label', `Has "${fileName}" open`);
+			fileIndicator.setAttribute('title', `Has "${fileName}" open`);
+			setIcon(fileIndicator, 'file-text');
+			el.addClass('has-current-file');
 		}
 
 		// Create delete button
