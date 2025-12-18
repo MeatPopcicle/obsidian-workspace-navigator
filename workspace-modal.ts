@@ -751,6 +751,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const groups = workspaceManager.getGroups();
 		const result: string[] = [];
+		const hasNamedGroups = groups.length > 0;
 
 		// Add workspaces by group (groups sorted alphabetically)
 		for (const group of groups) {
@@ -766,7 +767,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Add ungrouped workspaces at the end
 		const ungrouped = workspaceManager.getWorkspacesByGroup(null);
 		if (ungrouped.length > 0) {
-			if (workspaceManager.isGroupCollapsed('\x00nogroup')) {
+			// Only show "No Group" header/placeholder if there are named groups
+			if (hasNamedGroups && workspaceManager.isGroupCollapsed('\x00nogroup')) {
 				// Add placeholder for collapsed "No Group"
 				result.push('\x00collapsed:\x00nogroup');
 			} else {
@@ -832,17 +834,24 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Check if we need to add a group header
 		const currentGroup = workspaceManager.getWorkspaceGroup(workspaceName);
+		const hasNamedGroups = workspaceManager.getGroups().length > 0;
+
 		if (currentGroup !== this.lastRenderedGroup) {
 			this.lastRenderedGroup = currentGroup;
 
-			const header = document.createElement('div');
-			header.addClass('workspace-group-header');
+			// Only show "No Group" header if there are named groups
+			const shouldShowHeader = currentGroup !== null || hasNamedGroups;
 
-			// Use '\x00nogroup' as internal key for "No Group"
-			const groupKey = currentGroup || '\x00nogroup';
-			this.renderGroupHeader(header, groupKey, false);
+			if (shouldShowHeader) {
+				const header = document.createElement('div');
+				header.addClass('workspace-group-header');
 
-			el.parentElement?.insertBefore(header, el);
+				// Use '\x00nogroup' as internal key for "No Group"
+				const groupKey = currentGroup || '\x00nogroup';
+				this.renderGroupHeader(header, groupKey, false);
+
+				el.parentElement?.insertBefore(header, el);
+			}
 		}
 
 		// Add data attribute for rename functionality
@@ -853,25 +862,20 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textContent = el.textContent || '';
 		el.empty();
 
-		// Add workspace icon column and styling if enabled
+		// Add workspace icon if one is set and styles are enabled
 		const showStyles = this.plugin.settings.showStyleButton;
 
-		// Always create icon column when styles enabled (for alignment)
 		if (showStyles) {
 			const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
 			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 
-			// Always create the column with icon or invisible placeholder
-			const iconSpan = el.createSpan('workspace-icon-column');
+			// Only create icon column if workspace has an icon
 			if (icon) {
+				const iconSpan = el.createSpan('workspace-icon-column');
 				setIcon(iconSpan, icon);
 				if (iconColor) {
 					iconSpan.style.color = iconColor;
 				}
-			} else {
-				// Invisible placeholder icon (takes up space but not visible)
-				setIcon(iconSpan, 'circle');
-				iconSpan.style.color = 'transparent';
 			}
 		}
 
@@ -1389,6 +1393,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			await this.plugin.saveSettings();
 
 			// Update the suggestions list and status bar
+			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
 			this.plugin.updateStatusBar();
 
