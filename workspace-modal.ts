@@ -862,20 +862,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textContent = el.textContent || '';
 		el.empty();
 
-		// Add workspace icon if one is set and styles are enabled
+		// Add workspace icon column (with custom icon or default)
 		const showStyles = this.plugin.settings.showStyleButton;
 
 		if (showStyles) {
 			const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
 			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 
-			// Only create icon column if workspace has an icon
+			const iconSpan = el.createSpan('workspace-icon-column');
 			if (icon) {
-				const iconSpan = el.createSpan('workspace-icon-column');
 				setIcon(iconSpan, icon);
 				if (iconColor) {
 					iconSpan.style.color = iconColor;
 				}
+			} else {
+				// Default icon for workspaces without a custom icon
+				setIcon(iconSpan, 'layout-grid');
+				iconSpan.style.opacity = '0.4';
 			}
 		}
 
