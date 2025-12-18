@@ -507,3 +507,28 @@
 	padding: 0.1em 0.4em;
 	border-radius: 4px;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Tab Indicators (file open in other workspaces)                               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.workspace-tab-indicator {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 14px;
+	height: 14px;
+	margin-right: 4px;
+	padding: 0 2px;
+	font-size: 10px;
+	font-weight: bold;
+	color: var(--text-on-accent);
+	background-color: var(--interactive-accent);
+	border-radius: 3px;
+	cursor: help;
+}
+
+.workspace-tab-indicator svg {
+	width: 10px;
+	height: 10px;
+}

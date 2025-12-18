@@ -66,9 +66,10 @@ export default class WorkspaceNavigator extends Plugin {
 		// Register file menu (right-click on tab) context menu
 		this.registerFileMenu();
 
-		// Set up status bar
+		// Set up status bar and tab indicators
 		this.app.workspace.onLayoutReady(() => {
 			this.updateStatusBar();
+			this.updateTabIndicators();
 			this.registerWorkspaceEvents();
 
 			// Set initial workspace data attribute if there's an active workspace
@@ -577,6 +578,7 @@ export default class WorkspaceNavigator extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on('layout-change', () => {
 				this.updateStatusBar();
+				this.updateTabIndicators();
 
 				// Auto-save on layout change if enabled
 				if (this.settings.autoSaveOnLayoutChange) {
@@ -802,5 +804,61 @@ export default class WorkspaceNavigator extends Plugin {
 			const displayName   = workspaceName || 'No workspace';
 			textEl.setText(displayName);
 		}
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Tab Indicators (show when file is open in other workspaces)
+	// ─────────────────────────────────────────────────────────────────
+
+	updateTabIndicators() {
+		const activeWorkspace = this.workspaceManager.getActiveWorkspace();
+		if (!activeWorkspace) return;
+
+		// Iterate through all leaves
+		this.app.workspace.iterateAllLeaves((leaf: any) => {
+			// Only process markdown leaves with a file
+			const file = leaf.view?.file;
+			if (!file) return;
+
+			const tabHeader = leaf.tabHeaderEl;
+			if (!tabHeader) return;
+
+			// Check if this file is open in other workspaces
+			const otherWorkspaces = this.workspaceManager.getWorkspacesWithFile(
+				file.path,
+				activeWorkspace
+			);
+
+			// Remove existing indicator
+			const existingIndicator = tabHeader.querySelector('.workspace-tab-indicator');
+			if (existingIndicator) {
+				existingIndicator.remove();
+			}
+
+			// Add indicator if file is in other workspaces
+			if (otherWorkspaces.length > 0) {
+				const indicator = document.createElement('div');
+				indicator.addClass('workspace-tab-indicator');
+
+				// Show count if more than one
+				if (otherWorkspaces.length > 1) {
+					indicator.textContent = otherWorkspaces.length.toString();
+					indicator.setAttribute('aria-label', `Open in ${otherWorkspaces.length} other workspaces: ${otherWorkspaces.join(', ')}`);
+				} else {
+					setIcon(indicator, 'layers');
+					indicator.setAttribute('aria-label', `Also open in: ${otherWorkspaces[0]}`);
+				}
+
+				indicator.setAttribute('title', `Also open in: ${otherWorkspaces.join(', ')}`);
+
+				// Insert after the icon, before the title
+				const tabHeaderInner = tabHeader.querySelector('.workspace-tab-header-inner');
+				if (tabHeaderInner) {
+					tabHeaderInner.insertBefore(indicator, tabHeaderInner.firstChild);
+				} else {
+					tabHeader.appendChild(indicator);
+				}
+			}
+		});
 	}
 }
