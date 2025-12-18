@@ -1340,7 +1340,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Create the new workspace from current layout
 		const saveFolderState = this.plugin.settings.rememberNavigationLayout;
-		await workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+		const isNew = await workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+
+		// Apply default group if configured and this is a new workspace
+		if (isNew && this.plugin.settings.defaultGroup) {
+			workspaceManager.setWorkspaceGroup(workspaceName, this.plugin.settings.defaultGroup);
+		}
+
 		await this.plugin.saveSettings();
 
 		new Notice(`Created workspace: ${workspaceName}`);

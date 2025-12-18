@@ -23,6 +23,7 @@ export interface WorkspaceNavigatorSettings {
 
 	// Workspace management
 	showDeleteConfirmation:          boolean;
+	defaultGroup:                    string;
 
 	// Auto-save options
 	autoSaveOnSwitch:                boolean;
@@ -43,6 +44,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showStyleButton:                 false,
 	showSearchBox:                   true,
 	showDeleteConfirmation:          true,
+	defaultGroup:                    '',
 	autoSaveOnSwitch:                false,
 	autoSaveOnLayoutChange:          false,
 	sortWorkspacesAlphabetically:    true,
@@ -168,6 +170,22 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					this.plugin.settings.showDeleteConfirmation = value;
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(containerEl)
+			.setName('Default group for new workspaces')
+			.setDesc('Automatically assign new workspaces to this group')
+			.addDropdown(dropdown => {
+				const groups = this.plugin.getWorkspaceManager().getGroups();
+				dropdown.addOption('', '(None)');
+				for (const group of groups) {
+					dropdown.addOption(group, group);
+				}
+				dropdown.setValue(this.plugin.settings.defaultGroup);
+				dropdown.onChange(async (value) => {
+					this.plugin.settings.defaultGroup = value;
+					await this.plugin.saveSettings();
+				});
+			});
 
 		new Setting(containerEl)
 			.setName('Sort workspaces alphabetically')

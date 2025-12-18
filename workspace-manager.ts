@@ -454,15 +454,16 @@ export class WorkspaceManager {
 
 	/**
 	 * Save current workspace layout
+	 * @returns true if this was a new workspace, false if updating existing
 	 */
-	async saveWorkspace(name: string, saveFolderState: boolean = false): Promise<void> {
+	async saveWorkspace(name: string, saveFolderState: boolean = false): Promise<boolean> {
 		this.logger.log(`\n### SAVE WORKSPACE: "${name}"`);
 		this.logger.log(`- Save folder state: ${saveFolderState}`);
 
 		if (!name || name.trim() === '') {
 			this.logger.log('❌ ERROR: Workspace name cannot be empty');
 			new Notice('Workspace name cannot be empty');
-			return;
+			return false;
 		}
 
 		try {
@@ -516,7 +517,8 @@ export class WorkspaceManager {
 				this.logger.log(`- Folder state NOT saved (saveFolderState=false)`);
 			}
 
-			// Store workspace data (preserve existing metadata)
+			// Store workspace data (preserve existing metadata for existing workspaces)
+			const isNewWorkspace = !this.storage.workspaces[name];
 			const existingMetadata = this.storage.workspaces[name]?.metadata;
 			this.storage.workspaces[name] = {
 				layout: layout,
@@ -530,6 +532,9 @@ export class WorkspaceManager {
 
 			this.logger.log(`✅ Successfully saved workspace "${name}"`);
 			await this.logger.save();
+
+			// Return whether this was a new workspace (for default group assignment)
+			return isNewWorkspace;
 
 		} catch (error) {
 			this.logger.log(`❌ ERROR saving workspace: ${error.message}`);
