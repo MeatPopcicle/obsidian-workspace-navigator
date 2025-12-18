@@ -131,24 +131,6 @@
 	pointer-events: none;
 }
 
-.workspace-has-file-indicator {
-	position: absolute;
-	right: 6em;
-	top: 50%;
-	transform: translateY(-50%);
-	color: var(--text-accent);
-	pointer-events: none;
-}
-
-.workspace-has-file-indicator svg {
-	width: 16px;
-	height: 16px;
-}
-
-.workspace-suggestion-item.has-current-file {
-	background-color: hsla(var(--accent-hsl), 0.08);
-}
-
 .workspace-delete-btn,
 .workspace-duplicate-btn,
 .workspace-rename-btn,
@@ -490,9 +472,14 @@
 }
 
 .workspace-picker-has-file {
-	color: var(--text-muted);
-	font-size: 0.85em;
-	font-style: italic;
+	display: inline-flex;
+	align-items: center;
+	color: var(--text-accent);
+}
+
+.workspace-picker-has-file svg {
+	width: 16px;
+	height: 16px;
 }
 
 .workspace-picker-disabled {
