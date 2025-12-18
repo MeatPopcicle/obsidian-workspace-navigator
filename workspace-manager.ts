@@ -795,12 +795,17 @@ export class WorkspaceManager {
 		const traverse = (node: any) => {
 			if (!node) return;
 
-			// Check if this node has a file state (leaf with open file)
+			// Check various places where file path might be stored
+			// Obsidian stores it as state.state.file for markdown views
+			if (node.state?.state?.file) {
+				files.push(node.state.state.file);
+			}
+			// Also check direct state.file (older format or other view types)
 			if (node.state?.file) {
 				files.push(node.state.file);
 			}
 
-			// Traverse children array (for splits)
+			// Traverse children array (for splits/tabs)
 			if (node.children && Array.isArray(node.children)) {
 				for (const child of node.children) {
 					traverse(child);

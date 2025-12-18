@@ -534,6 +534,10 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 		const openFiles = workspaceManager.getOpenFilesInWorkspace(workspaceName);
 		const alreadyHasFile = openFiles.includes(this.filePath);
 
+		if (alreadyHasFile) {
+			el.addClass('workspace-picker-disabled');
+		}
+
 		// Add icon if workspace has custom icon
 		const icon = workspaceManager.getWorkspaceIcon(workspaceName);
 		if (icon) {
@@ -568,6 +572,14 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 	}
 
 	onChooseItem(workspace: string, evt: MouseEvent | KeyboardEvent): void {
+		// Check if file is already open in this workspace
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const openFiles = workspaceManager.getOpenFilesInWorkspace(workspace);
+		if (openFiles.includes(this.filePath)) {
+			new Notice(`File is already open in "${workspace}"`);
+			return;
+		}
+
 		this.onSelect(workspace);
 	}
 }
@@ -587,6 +599,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
 		this.plugin = plugin;
+
+		// Populate workspaces with current file BEFORE modal renders
+		this.populateWorkspacesWithCurrentFile();
+
 		this.setPlaceholder('Type workspace name...');
 
 		// Add instructions if enabled
@@ -607,6 +623,28 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// ═══════════════════════════════════════════════════════════════
 		this.scope = new Scope();
 		this.setupScope();
+	}
+
+	/**
+	 * Find workspaces that have the current file open
+	 * Must be called in constructor before modal renders
+	 */
+	populateWorkspacesWithCurrentFile(): void {
+		const activeFile = this.app.workspace.getActiveFile();
+		this.currentFilePath = activeFile?.path || null;
+		this.workspacesWithCurrentFile.clear();
+
+		if (this.currentFilePath) {
+			const workspaceManager = this.plugin.getWorkspaceManager();
+			const activeWorkspace = workspaceManager.getActiveWorkspace();
+			const workspacesWithFile = workspaceManager.getWorkspacesWithFile(
+				this.currentFilePath,
+				activeWorkspace || undefined  // Exclude current workspace
+			);
+			for (const ws of workspacesWithFile) {
+				this.workspacesWithCurrentFile.add(ws);
+			}
+		}
 	}
 
 	setupScope(): void {

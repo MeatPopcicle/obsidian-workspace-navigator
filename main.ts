@@ -63,6 +63,9 @@ export default class WorkspaceNavigator extends Plugin {
 		// Register commands
 		this.registerCommands();
 
+		// Register file menu (right-click on tab) context menu
+		this.registerFileMenu();
+
 		// Set up status bar
 		this.app.workspace.onLayoutReady(() => {
 			this.updateStatusBar();
@@ -445,6 +448,82 @@ export default class WorkspaceNavigator extends Plugin {
 
 		// Register workspace-specific switch commands
 		this.registerWorkspaceCommands();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// File Context Menu (Right-click on tab)
+	// ─────────────────────────────────────────────────────────────────
+
+	registerFileMenu() {
+		// Add "Send to workspace" submenu to file tab context menu
+		this.registerEvent(
+			this.app.workspace.on('file-menu', (menu, file, source, leaf) => {
+				// Only show if we have other workspaces to send to
+				const activeWorkspace = this.workspaceManager.getActiveWorkspace();
+				const otherWorkspaces = this.workspaceManager.getWorkspaceNames()
+					.filter(name => name !== activeWorkspace);
+
+				if (otherWorkspaces.length === 0) return;
+
+				menu.addSeparator();
+
+				// Add submenu for "Send to workspace" (move - closes tab here)
+				menu.addItem((item) => {
+					item.setTitle('Send to workspace')
+						.setIcon('send')
+						.onClick(() => {
+							new WorkspacePickerModal(
+								this.app,
+								this,
+								file.path,
+								false,
+								async (targetWorkspace) => {
+									const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, file.path);
+									if (success) {
+										// Close the tab in current workspace
+										if (leaf) {
+											leaf.detach();
+										}
+										await this.saveSettings();
+										new Notice(`Moved "${file.name}" to workspace "${targetWorkspace}"`);
+									} else {
+										new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+									}
+								}
+							).open();
+						});
+				});
+
+				// Add submenu for "Send to workspace and switch"
+				menu.addItem((item) => {
+					item.setTitle('Send to workspace and switch')
+						.setIcon('arrow-right-to-line')
+						.onClick(() => {
+							new WorkspacePickerModal(
+								this.app,
+								this,
+								file.path,
+								true,
+								async (targetWorkspace) => {
+									const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, file.path);
+									if (success) {
+										// Close the tab in current workspace
+										if (leaf) {
+											leaf.detach();
+										}
+										await this.saveSettings();
+										new Notice(`Moved "${file.name}" to workspace "${targetWorkspace}"`);
+										// Switch to workspace
+										await this.loadWorkspace(targetWorkspace);
+									} else {
+										new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+									}
+								}
+							).open();
+						});
+				});
+			})
+		);
 	}
 
 	// ─────────────────────────────────────────────────────────────────
