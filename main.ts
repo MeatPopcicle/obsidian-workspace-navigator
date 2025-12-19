@@ -52,8 +52,6 @@ export default class WorkspaceNavigator extends Plugin {
 	// ─────────────────────────────────────────────────────────────────
 
 	async onload() {
-		console.log(`[Workspace Navigator v${this.manifest.version}] Plugin loaded`);
-
 		// Load settings
 		await this.loadSettings();
 
@@ -81,8 +79,6 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	async onunload() {
-		console.log('Unloading Workspace Navigator plugin');
-
 		// Save development log before unloading
 		await this.workspaceManager.saveLog();
 

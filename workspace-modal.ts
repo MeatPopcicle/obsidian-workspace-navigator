@@ -679,11 +679,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	useSelectedItem(evt: KeyboardEvent): boolean {
 		const targetEl = (evt as any).composedPath ? (evt as any).composedPath()[0] as HTMLElement : evt.target as HTMLElement;
 
-		console.log('[useSelectedItem] targetEl:', targetEl?.tagName, 'contentEditable:', targetEl?.contentEditable);
-
 		// If we're editing a contentEditable element, handle rename
 		if (targetEl && targetEl.contentEditable === 'true') {
-			console.log('[useSelectedItem] Calling handleRename');
 			this.handleRename(targetEl);
 			return false;
 		}
@@ -1002,8 +999,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		const oldName = el.dataset.workspaceName;
 		const newName = textSpan.textContent?.trim();
-
-		console.log('[Rename] oldName:', oldName, 'newName:', newName);
 
 		if (!oldName || !newName || oldName === newName) {
 			textSpan.textContent = oldName || '';

@@ -2214,9 +2214,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
   }
   useSelectedItem(evt) {
     const targetEl = evt.composedPath ? evt.composedPath()[0] : evt.target;
-    console.log("[useSelectedItem] targetEl:", targetEl == null ? void 0 : targetEl.tagName, "contentEditable:", targetEl == null ? void 0 : targetEl.contentEditable);
     if (targetEl && targetEl.contentEditable === "true") {
-      console.log("[useSelectedItem] Calling handleRename");
       this.handleRename(targetEl);
       return false;
     }
@@ -2448,7 +2446,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
       return;
     const oldName = el.dataset.workspaceName;
     const newName = (_a = textSpan.textContent) == null ? void 0 : _a.trim();
-    console.log("[Rename] oldName:", oldName, "newName:", newName);
     if (!oldName || !newName || oldName === newName) {
       textSpan.textContent = oldName || "";
       textSpan.contentEditable = "false";
@@ -4018,7 +4015,6 @@ var WorkspaceNavigator = class extends import_obsidian6.Plugin {
   // Plugin Lifecycle
   // ─────────────────────────────────────────────────────────────────
   async onload() {
-    console.log(`[Workspace Navigator v${this.manifest.version}] Plugin loaded`);
     await this.loadSettings();
     this.addSettingTab(new WorkspaceNavigatorSettingTab(this.app, this));
     this.registerCommands();
@@ -4034,7 +4030,6 @@ var WorkspaceNavigator = class extends import_obsidian6.Plugin {
     });
   }
   async onunload() {
-    console.log("Unloading Workspace Navigator plugin");
     await this.workspaceManager.saveLog();
     this.updateWorkspaceDataAttribute(null);
     if (this.autoSaveTimeout) {
