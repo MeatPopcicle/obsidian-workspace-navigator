@@ -1329,9 +1329,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			container.appendChild(countSpan);
 		}
 
-		// Style button (palette)
+		// Style button (palette) - positioned at right: 3.3em
 		const styleBtn = document.createElement('span');
-		styleBtn.addClass('workspace-group-edit-btn');
+		styleBtn.addClass('workspace-group-edit-btn', 'workspace-group-style-btn');
 		styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
 		styleBtn.setAttribute('title', 'Edit group style');
 		styleBtn.addEventListener('click', (evt) => {
@@ -1340,9 +1340,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		});
 		container.appendChild(styleBtn);
 
-		// Rename button (pencil)
+		// Rename button (pencil) - positioned at right: 2em
 		const renameBtn = document.createElement('span');
-		renameBtn.addClass('workspace-group-edit-btn');
+		renameBtn.addClass('workspace-group-edit-btn', 'workspace-group-rename-btn');
 		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
 		renameBtn.setAttribute('title', isNoGroup ? 'Name this group' : 'Rename group');
 		renameBtn.addEventListener('click', (evt) => {
@@ -1351,15 +1351,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		});
 		container.appendChild(renameBtn);
 
-		// Delete button (trash) - functional for named groups, placeholder for "No Group"
+		// Delete button (trash) - positioned at right: 0.7em
 		const deleteBtn = document.createElement('span');
-		deleteBtn.addClass('workspace-group-edit-btn');
+		deleteBtn.addClass('workspace-group-edit-btn', 'workspace-group-delete-btn');
 		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
 		if (isNoGroup) {
 			// Grayed-out placeholder for alignment
 			deleteBtn.addClass('workspace-group-edit-btn-disabled');
 		} else {
-			deleteBtn.addClass('workspace-group-delete-btn');
 			deleteBtn.setAttribute('title', 'Delete group (ungroup workspaces)');
 			deleteBtn.addEventListener('click', (evt) => {
 				evt.stopPropagation();

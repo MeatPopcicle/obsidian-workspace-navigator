@@ -33,20 +33,17 @@
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 .workspace-group-header {
+	position: relative;
 	display: flex;
 	align-items: center;
-	gap: 0.4em;
-	padding: 0.5em 0.6em 0.3em 1em;
+	gap: 6px;
+	padding: 8px 6rem 5px 16px;
+	margin-top: -5px;
 	font-size: 0.75em;
 	font-weight: var(--font-weight-semibold);
 	color: var(--text-muted);
 	letter-spacing: 0.05em;
 	border-bottom: 1px solid var(--background-modifier-border);
-	margin-top: 0.3em;
-}
-
-.workspace-group-header:first-child {
-	margin-top: 0;
 }
 
 .workspace-group-icon {
@@ -82,24 +79,45 @@
 }
 
 .workspace-group-edit-btn {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
 	display: inline-flex;
 	align-items: center;
 	fill: var(--text-muted);
 	cursor: pointer;
+	padding: 2px;
 	transition: fill 0.15s;
+}
+
+/* Position group buttons to match workspace buttons: delete=0.7em, rename=2em, style=3.3em */
+.workspace-group-style-btn {
+	right: 3.3em;
+}
+
+.workspace-group-rename-btn {
+	right: 2em;
+}
+
+.workspace-group-delete-btn {
+	right: 0.7em;
 }
 
 .workspace-group-edit-btn:hover {
 	fill: var(--text-accent-hover);
 }
 
-.workspace-group-delete-btn:hover {
+.workspace-group-delete-btn:hover:not(.workspace-group-edit-btn-disabled) {
 	fill: var(--text-error);
 }
 
 .workspace-group-edit-btn-disabled {
 	opacity: 0.25;
 	cursor: default;
+}
+
+.workspace-group-edit-btn-disabled:hover {
+	fill: var(--text-muted);
 }
 
 .workspace-color-none {
