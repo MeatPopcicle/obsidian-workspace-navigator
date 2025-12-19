@@ -911,14 +911,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.deleteWorkspace(workspaceName);
 		});
 
-		// Create duplicate button
-		const duplicateBtn = el.createDiv('workspace-duplicate-btn');
-		duplicateBtn.setAttribute('aria-label', 'Duplicate workspace');
-		duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .552-.45 1-1.007 1H4.007A1.001 1.001 0 0 1 3 21l.003-14c0-.552.45-1 1.007-1H7zM5.003 8L5 20h10V8H5.003zM9 6h8v10h2V4H9v2z"/></svg>`;
-		duplicateBtn.addEventListener('click', (evt) => {
-			evt.stopPropagation();
-			this.duplicateWorkspace(workspaceName);
-		});
+		// Note: Duplicate button removed from UI but duplicateWorkspace() method still available
+		// Can be re-enabled by uncommenting this block:
+		// const duplicateBtn = el.createDiv('workspace-duplicate-btn');
+		// duplicateBtn.setAttribute('aria-label', 'Duplicate workspace');
+		// duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .552-.45 1-1.007 1H4.007A1.001 1.001 0 0 1 3 21l.003-14c0-.552.45-1 1.007-1H7zM5.003 8L5 20h10V8H5.003zM9 6h8v10h2V4H9v2z"/></svg>`;
+		// duplicateBtn.addEventListener('click', (evt) => {
+		// 	evt.stopPropagation();
+		// 	this.duplicateWorkspace(workspaceName);
+		// });
 
 		// Create rename button
 		const renameBtn = el.createDiv('workspace-rename-btn');
@@ -1349,6 +1350,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.onGroupRenameClick(container, textSpan, groupName);
 		});
 		container.appendChild(renameBtn);
+
+		// Delete button (trash) - functional for named groups, placeholder for "No Group"
+		const deleteBtn = document.createElement('span');
+		deleteBtn.addClass('workspace-group-edit-btn');
+		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+		if (isNoGroup) {
+			// Grayed-out placeholder for alignment
+			deleteBtn.addClass('workspace-group-edit-btn-disabled');
+		} else {
+			deleteBtn.addClass('workspace-group-delete-btn');
+			deleteBtn.setAttribute('title', 'Delete group (ungroup workspaces)');
+			deleteBtn.addEventListener('click', (evt) => {
+				evt.stopPropagation();
+				this.onGroupDelete(groupName);
+			});
+		}
+		container.appendChild(deleteBtn);
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -1359,6 +1377,34 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		workspaceManager.toggleGroupCollapsed(groupName);
 		await this.plugin.saveSettings();
+
+		// Refresh the suggestions
+		this.lastRenderedGroup = undefined;
+		(this as any).updateSuggestions();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Handle group delete (ungroup all workspaces in the group)
+	// ─────────────────────────────────────────────────────────────────
+
+	async onGroupDelete(groupName: string): Promise<void> {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
+
+		// Remove group assignment from all workspaces in this group
+		for (const workspace of workspacesInGroup) {
+			workspaceManager.setWorkspaceGroup(workspace, null);
+		}
+
+		// Clear any group-level styling
+		workspaceManager.setGroupIcon(groupName, null);
+		workspaceManager.setGroupIconColor(groupName, null);
+		workspaceManager.setGroupColor(groupName, null);
+		workspaceManager.setGroupCollapsed(groupName, false);
+
+		await this.plugin.saveSettings();
+
+		new Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
 
 		// Refresh the suggestions
 		this.lastRenderedGroup = undefined;

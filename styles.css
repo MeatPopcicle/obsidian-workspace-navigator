@@ -36,7 +36,7 @@
 	display: flex;
 	align-items: center;
 	gap: 0.4em;
-	padding: 0.5em 1em 0.3em;
+	padding: 0.5em 0.6em 0.3em 1em;
 	font-size: 0.75em;
 	font-weight: var(--font-weight-semibold);
 	color: var(--text-muted);
@@ -93,6 +93,15 @@
 	fill: var(--text-accent-hover);
 }
 
+.workspace-group-delete-btn:hover {
+	fill: var(--text-error);
+}
+
+.workspace-group-edit-btn-disabled {
+	opacity: 0.25;
+	cursor: default;
+}
+
 .workspace-color-none {
 	display: flex;
 	align-items: center;
@@ -112,7 +121,7 @@
 
 .workspace-suggestion-item {
 	position: relative;
-	padding: 5px 8.5rem 5px 2rem !important;
+	padding: 5px 6rem 5px 2rem !important;
 	min-height: 1.8em;
 	display: flex;
 	align-items: center;
@@ -149,24 +158,16 @@
 	right: 0.7em;
 }
 
-.workspace-duplicate-btn {
+.workspace-rename-btn {
 	right: 2em;
 }
 
-.workspace-rename-btn {
-	right: 3.3em;
-}
-
 .workspace-icon-btn {
-	right: 4.6em;
+	right: 3.3em;
 }
 
 .workspace-delete-btn:hover {
 	fill: var(--text-error);
-}
-
-.workspace-duplicate-btn:hover {
-	fill: var(--interactive-accent);
 }
 
 .workspace-rename-btn:hover {
@@ -227,9 +228,8 @@
 }
 
 
-/* Hide delete/duplicate/active icons during rename, but keep rename button visible */
+/* Hide delete/active icons during rename, but keep rename button visible */
 .workspace-suggestion-item.is-renaming .workspace-delete-btn,
-.workspace-suggestion-item.is-renaming .workspace-duplicate-btn,
 .workspace-suggestion-item.is-renaming .workspace-active-indicator {
 	display: none;
 }
