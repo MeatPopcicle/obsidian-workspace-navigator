@@ -2164,6 +2164,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     this.popper = null;
     this.lastRenderedGroup = void 0;
     this.draggedWorkspace = null;
+    this.draggedGroup = null;
     this.draggedElement = null;
     this.dragGhost = null;
     this.plugin = plugin;
@@ -2262,7 +2263,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
   // ─────────────────────────────────────────────────────────────────
   setupDragHandlers() {
     const onMouseMove = (evt) => {
-      if (!this.draggedWorkspace || !this.dragGhost)
+      if (!this.dragGhost)
+        return;
+      if (!this.draggedWorkspace && !this.draggedGroup)
         return;
       this.dragGhost.style.left = `${evt.clientX + 10}px`;
       this.dragGhost.style.top = `${evt.clientY - 10}px`;
@@ -2272,6 +2275,26 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
       this.modalEl.querySelectorAll(".drop-target-above, .drop-target-below, .drag-over").forEach((e) => {
         e.removeClass("drop-target-above", "drop-target-below", "drag-over");
       });
+      if (this.draggedGroup) {
+        const groupHeader2 = target == null ? void 0 : target.closest(".workspace-group-header");
+        if (groupHeader2 && groupHeader2 !== this.draggedElement) {
+          const rect = groupHeader2.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          const insertBefore = evt.clientY < midY;
+          if (insertBefore) {
+            groupHeader2.addClass("drop-target-above");
+          } else {
+            groupHeader2.addClass("drop-target-below");
+          }
+          this._dropTarget = {
+            group: groupHeader2.dataset.groupName,
+            insertBefore
+          };
+        } else {
+          this._dropTarget = null;
+        }
+        return;
+      }
       const workspaceItem = target == null ? void 0 : target.closest(".workspace-suggestion-item");
       const groupHeader = target == null ? void 0 : target.closest(".workspace-group-header");
       if (workspaceItem && workspaceItem !== this.draggedElement) {
@@ -2295,11 +2318,28 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
       }
     };
     const onMouseUp = async (evt) => {
-      if (!this.draggedWorkspace)
-        return;
       const workspaceManager = this.plugin.getWorkspaceManager();
       const useManualOrder = this.plugin.settings.manualSortOrder;
       let moved = false;
+      if (this.draggedGroup) {
+        const dropTarget2 = this._dropTarget;
+        if ((dropTarget2 == null ? void 0 : dropTarget2.group) && useManualOrder && dropTarget2.group !== this.draggedGroup) {
+          const position = dropTarget2.insertBefore ? "before" : "after";
+          workspaceManager.moveGroupRelativeTo(this.draggedGroup, dropTarget2.group, position);
+          await this.plugin.saveSettings();
+          moved = true;
+        }
+        if (moved) {
+          this.lastRenderedGroup = void 0;
+          this.updateSuggestions();
+        }
+        this.cleanupDrag();
+        return;
+      }
+      if (!this.draggedWorkspace) {
+        this.cleanupDrag();
+        return;
+      }
       const dropTarget = this._dropTarget;
       if (dropTarget == null ? void 0 : dropTarget.workspace) {
         const targetGroup = workspaceManager.getWorkspaceGroup(dropTarget.workspace);
@@ -2376,6 +2416,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
       this.dragGhost = null;
     }
     this.draggedWorkspace = null;
+    this.draggedGroup = null;
     this.draggedElement = null;
     this._dropTarget = null;
     document.body.removeClass("workspace-dragging");
@@ -2403,10 +2444,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
   // ─────────────────────────────────────────────────────────────────
   getItems() {
     const workspaceManager = this.plugin.getWorkspaceManager();
-    const groups = workspaceManager.getGroups();
+    const useManualOrder = this.plugin.settings.manualSortOrder;
+    const groups = workspaceManager.getGroupsOrdered(useManualOrder);
     const result = [];
     const hasNamedGroups = groups.length > 0;
-    const useManualOrder = this.plugin.settings.manualSortOrder;
     for (const group of groups) {
       if (workspaceManager.isGroupCollapsed(group)) {
         result.push(`\0collapsed:${group}`);
@@ -2796,7 +2837,27 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const isNoGroup = groupName === "\0nogroup";
     const displayName = isNoGroup ? "No Group" : groupName;
+    const useManualOrder = this.plugin.settings.manualSortOrder;
+    const hasMultipleGroups = workspaceManager.getGroups().length > 1;
     container.dataset.groupName = groupName;
+    if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+      const dragHandle = document.createElement("span");
+      dragHandle.addClass("workspace-group-drag-handle");
+      (0, import_obsidian3.setIcon)(dragHandle, "grip-vertical");
+      dragHandle.setAttribute("title", "Drag to reorder group");
+      dragHandle.addEventListener("mousedown", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.draggedGroup = groupName;
+        this.draggedElement = container;
+        container.addClass("is-dragging");
+        document.body.addClass("workspace-dragging");
+        this.createDragGhost(container, displayName);
+        this.dragGhost.style.left = `${evt.clientX + 10}px`;
+        this.dragGhost.style.top = `${evt.clientY - 10}px`;
+      });
+      container.appendChild(dragHandle);
+    }
     const chevron = document.createElement("span");
     chevron.addClass("workspace-group-chevron");
     chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
@@ -3024,6 +3085,7 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     super(app);
     this.collapsedGroups = /* @__PURE__ */ new Set();
     this.draggedWorkspace = null;
+    this.draggedGroup = null;
     this.draggedElement = null;
     this.dragGhost = null;
     this.plugin = plugin;
@@ -3057,7 +3119,7 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
   setupDragHandlers() {
     const onMouseMove = (evt) => {
       var _a;
-      if (!this.draggedWorkspace)
+      if (!this.draggedWorkspace && !this.draggedGroup)
         return;
       if (this.dragGhost) {
         this.dragGhost.style.left = `${evt.clientX + 10}px`;
@@ -3073,6 +3135,26 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
       this.modalEl.querySelectorAll(".drag-over, .drop-target-above, .drop-target-below").forEach((e) => {
         e.removeClass("drag-over", "drop-target-above", "drop-target-below");
       });
+      if (this.draggedGroup) {
+        const groupHeader2 = target == null ? void 0 : target.closest(".workspace-editor-group-header");
+        if (groupHeader2 && groupHeader2 !== this.draggedElement) {
+          const rect = groupHeader2.getBoundingClientRect();
+          const midY = rect.top + rect.height / 2;
+          const insertBefore = evt.clientY < midY;
+          if (insertBefore) {
+            groupHeader2.addClass("drop-target-above");
+          } else {
+            groupHeader2.addClass("drop-target-below");
+          }
+          this._dropTarget = {
+            group: groupHeader2.dataset.groupName,
+            insertBefore
+          };
+        } else {
+          this._dropTarget = null;
+        }
+        return;
+      }
       const settingItem = target == null ? void 0 : target.closest(".setting-item");
       const groupHeader = target == null ? void 0 : target.closest(".workspace-editor-group-header");
       if (settingItem && settingItem !== this.draggedElement) {
@@ -3100,11 +3182,27 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
       }
     };
     const onMouseUp = async (evt) => {
-      if (!this.draggedWorkspace)
-        return;
       const workspaceManager = this.plugin.getWorkspaceManager();
       const useManualOrder = this.plugin.settings.manualSortOrder;
       let moved = false;
+      if (this.draggedGroup) {
+        const dropTarget2 = this._dropTarget;
+        if ((dropTarget2 == null ? void 0 : dropTarget2.group) && useManualOrder && dropTarget2.group !== this.draggedGroup) {
+          const position = dropTarget2.insertBefore ? "before" : "after";
+          workspaceManager.moveGroupRelativeTo(this.draggedGroup, dropTarget2.group, position);
+          await this.plugin.saveSettings();
+          moved = true;
+        }
+        if (moved) {
+          this.onOpen();
+        }
+        this.cleanupDrag();
+        return;
+      }
+      if (!this.draggedWorkspace) {
+        this.cleanupDrag();
+        return;
+      }
       const dropTarget = this._dropTarget;
       if (dropTarget == null ? void 0 : dropTarget.workspace) {
         const targetGroup = workspaceManager.getWorkspaceGroup(dropTarget.workspace);
@@ -3180,6 +3278,7 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
       this.dragGhost = null;
     }
     this.draggedWorkspace = null;
+    this.draggedGroup = null;
     this.draggedElement = null;
     this._dropTarget = null;
     document.body.removeClass("workspace-dragging");
@@ -3230,9 +3329,9 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
       return;
     }
     const listEl = containerEl.createDiv("workspace-editor-list");
-    const groups = workspaceManager.getGroups();
-    const hasNamedGroups = groups.length > 0;
     const useManualOrder = this.plugin.settings.manualSortOrder;
+    const groups = workspaceManager.getGroupsOrdered(useManualOrder);
+    const hasNamedGroups = groups.length > 0;
     if (hasNamedGroups) {
       for (const group of groups) {
         this.renderGroupSection(listEl, group, activeWorkspace);
@@ -3258,8 +3357,27 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     const isCollapsed = this.collapsedGroups.has(groupKey);
     const useManualOrder = this.plugin.settings.manualSortOrder;
     const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
+    const isNoGroup = group === null;
+    const hasMultipleGroups = workspaceManager.getGroups().length > 1;
     const header = containerEl.createDiv("workspace-editor-group-header");
     header.dataset.groupName = groupKey;
+    if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+      const dragHandle = header.createSpan("workspace-group-drag-handle");
+      (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
+      dragHandle.addEventListener("mousedown", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.draggedGroup = group;
+        this.draggedElement = header;
+        header.addClass("is-dragging");
+        document.body.addClass("workspace-dragging");
+        this.createDragGhost(displayName);
+        if (this.dragGhost) {
+          this.dragGhost.style.left = `${evt.clientX + 10}px`;
+          this.dragGhost.style.top = `${evt.clientY - 10}px`;
+        }
+      });
+    }
     const chevron = header.createSpan("workspace-editor-group-chevron");
     chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
     chevron.addEventListener("click", () => {
@@ -3600,7 +3718,7 @@ var WorkspaceManager = class {
     }
   }
   /**
-   * Get all unique group names
+   * Get all unique group names (alphabetically sorted)
    */
   getGroups() {
     const groups = /* @__PURE__ */ new Set();
@@ -3613,6 +3731,28 @@ var WorkspaceManager = class {
     return Array.from(groups).sort(
       (a, b) => a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" })
     );
+  }
+  /**
+   * Get all unique group names with manual order applied
+   */
+  getGroupsOrdered(useManualOrder) {
+    const groups = this.getGroups();
+    if (!useManualOrder) {
+      return groups;
+    }
+    const savedOrder = this.storage.groupOrder || [];
+    if (savedOrder.length === 0) {
+      return groups;
+    }
+    const orderMap = new Map(savedOrder.map((name, idx) => [name, idx]));
+    return groups.sort((a, b) => {
+      const orderA = orderMap.has(a) ? orderMap.get(a) : Infinity;
+      const orderB = orderMap.has(b) ? orderMap.get(b) : Infinity;
+      if (orderA === orderB) {
+        return a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" });
+      }
+      return orderA - orderB;
+    });
   }
   /**
    * Get workspaces by group (null for ungrouped)
@@ -3740,6 +3880,52 @@ var WorkspaceManager = class {
     const newState = !this.isGroupCollapsed(group);
     this.setGroupCollapsed(group, newState);
     return newState;
+  }
+  // ───────────────────────────────────────────────────────────────────
+  // Group Order Management (for manual sorting)
+  // ───────────────────────────────────────────────────────────────────
+  /**
+   * Get saved group order
+   */
+  getGroupOrder() {
+    return this.storage.groupOrder || [];
+  }
+  /**
+   * Set group order
+   */
+  setGroupOrder(order2) {
+    this.storage.groupOrder = order2;
+  }
+  /**
+   * Move group to a specific position relative to another group
+   */
+  moveGroupRelativeTo(groupName, targetGroup, position) {
+    let order2 = this.getGroupOrder();
+    if (order2.length === 0) {
+      order2 = [...this.getGroups()];
+    }
+    const currentIndex = order2.indexOf(groupName);
+    if (currentIndex !== -1) {
+      order2.splice(currentIndex, 1);
+    }
+    let targetIndex = order2.indexOf(targetGroup);
+    if (targetIndex === -1) {
+      targetIndex = order2.length;
+    } else if (position === "after") {
+      targetIndex++;
+    }
+    order2.splice(targetIndex, 0, groupName);
+    this.setGroupOrder(order2);
+    this.logger.log(`Moved group "${groupName}" ${position} "${targetGroup}"`);
+  }
+  /**
+   * Clean up group order data (remove deleted groups, add missing ones)
+   */
+  cleanupGroupOrder() {
+    if (!this.storage.groupOrder)
+      return;
+    const existingGroups = new Set(this.getGroups());
+    this.storage.groupOrder = this.storage.groupOrder.filter((name) => existingGroups.has(name));
   }
   // ───────────────────────────────────────────────────────────────────
   // Workspace Order Management (for manual sorting)

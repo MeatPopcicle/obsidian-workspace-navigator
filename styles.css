@@ -53,6 +53,39 @@
 	border-color: var(--interactive-accent);
 }
 
+/* Drag-and-drop: group header drop indicators */
+.workspace-group-header.drop-target-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-group-header.drop-target-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
+}
+
+/* Drag-and-drop: group header being dragged */
+.workspace-group-header.is-dragging {
+	opacity: 0.3;
+}
+
+/* Drag handle for reordering groups */
+.workspace-group-drag-handle {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	opacity: 0.3;
+	transition: opacity 0.15s;
+	margin-right: 4px;
+}
+
+.workspace-group-drag-handle:hover {
+	opacity: 0.8;
+}
+
+.workspace-group-drag-handle svg {
+	width: 14px;
+	height: 14px;
+}
+
 .workspace-group-icon {
 	display: inline-flex;
 	align-items: center;
@@ -159,6 +192,11 @@
 .workspace-suggestion-item.is-active .workspace-drag-handle {
 	opacity: 1;
 	color: var(--interactive-accent);
+	font-weight: bold;
+}
+
+.workspace-suggestion-item.is-active .workspace-drag-handle svg {
+	stroke-width: 2.5;
 }
 
 /* Drag-and-drop: workspace item being dragged */
@@ -624,6 +662,19 @@
 }
 
 .workspace-editor-list .setting-item.drop-target-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
+}
+
+/* Workspace editor group header drag-drop */
+.workspace-editor-group-header.is-dragging {
+	opacity: 0.3;
+}
+
+.workspace-editor-group-header.drop-target-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-editor-group-header.drop-target-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 

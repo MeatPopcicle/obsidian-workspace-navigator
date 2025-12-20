@@ -15,6 +15,7 @@ export class WorkspaceEditorModal extends Modal {
 	plugin:           WorkspaceNavigator;
 	collapsedGroups:  Set<string> = new Set();
 	draggedWorkspace: string | null = null;
+	draggedGroup:     string | null = null;
 	draggedElement:   HTMLElement | null = null;
 	dragGhost:        HTMLElement | null = null;
 
@@ -67,7 +68,7 @@ export class WorkspaceEditorModal extends Modal {
 
 	private setupDragHandlers(): void {
 		const onMouseMove = (evt: MouseEvent) => {
-			if (!this.draggedWorkspace) return;
+			if (!this.draggedWorkspace && !this.draggedGroup) return;
 
 			// Move ghost to follow cursor
 			if (this.dragGhost) {
@@ -88,6 +89,30 @@ export class WorkspaceEditorModal extends Modal {
 			this.modalEl.querySelectorAll('.drag-over, .drop-target-above, .drop-target-below').forEach(e => {
 				e.removeClass('drag-over', 'drop-target-above', 'drop-target-below');
 			});
+
+			// If dragging a group, only show indicators on other group headers
+			if (this.draggedGroup) {
+				const groupHeader = target?.closest('.workspace-editor-group-header') as HTMLElement;
+				if (groupHeader && groupHeader !== this.draggedElement) {
+					const rect = groupHeader.getBoundingClientRect();
+					const midY = rect.top + rect.height / 2;
+					const insertBefore = evt.clientY < midY;
+
+					if (insertBefore) {
+						groupHeader.addClass('drop-target-above');
+					} else {
+						groupHeader.addClass('drop-target-below');
+					}
+
+					(this as any)._dropTarget = {
+						group: groupHeader.dataset.groupName,
+						insertBefore: insertBefore
+					};
+				} else {
+					(this as any)._dropTarget = null;
+				}
+				return;
+			}
 
 			// Check if hovering over a workspace setting item
 			const settingItem = target?.closest('.setting-item') as HTMLElement;
@@ -123,11 +148,33 @@ export class WorkspaceEditorModal extends Modal {
 		};
 
 		const onMouseUp = async (evt: MouseEvent) => {
-			if (!this.draggedWorkspace) return;
-
 			const workspaceManager = this.plugin.getWorkspaceManager();
 			const useManualOrder = this.plugin.settings.manualSortOrder;
 			let moved = false;
+
+			// Handle group dragging
+			if (this.draggedGroup) {
+				const dropTarget = (this as any)._dropTarget;
+				if (dropTarget?.group && useManualOrder && dropTarget.group !== this.draggedGroup) {
+					const position = dropTarget.insertBefore ? 'before' : 'after';
+					workspaceManager.moveGroupRelativeTo(this.draggedGroup, dropTarget.group, position);
+					await this.plugin.saveSettings();
+					moved = true;
+				}
+
+				if (moved) {
+					this.onOpen();
+				}
+
+				this.cleanupDrag();
+				return;
+			}
+
+			// Handle workspace dragging
+			if (!this.draggedWorkspace) {
+				this.cleanupDrag();
+				return;
+			}
 
 			// Check if we have a drop target (dropping near a workspace)
 			const dropTarget = (this as any)._dropTarget;
@@ -227,6 +274,7 @@ export class WorkspaceEditorModal extends Modal {
 			this.dragGhost = null;
 		}
 		this.draggedWorkspace = null;
+		this.draggedGroup = null;
 		this.draggedElement = null;
 		(this as any)._dropTarget = null;
 		document.body.removeClass('workspace-dragging');
@@ -303,10 +351,9 @@ export class WorkspaceEditorModal extends Modal {
 		const listEl = containerEl.createDiv('workspace-editor-list');
 
 		// Get groups and check if we should show grouping
-		const groups = workspaceManager.getGroups();
-		const hasNamedGroups = groups.length > 0;
-
 		const useManualOrder = this.plugin.settings.manualSortOrder;
+		const groups = workspaceManager.getGroupsOrdered(useManualOrder);
+		const hasNamedGroups = groups.length > 0;
 
 		if (hasNamedGroups) {
 			// Render workspaces organized by group
@@ -339,10 +386,32 @@ export class WorkspaceEditorModal extends Modal {
 		const isCollapsed = this.collapsedGroups.has(groupKey);
 		const useManualOrder = this.plugin.settings.manualSortOrder;
 		const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
+		const isNoGroup = group === null;
+		const hasMultipleGroups = workspaceManager.getGroups().length > 1;
 
 		// Group header
 		const header = containerEl.createDiv('workspace-editor-group-header');
 		header.dataset.groupName = groupKey;
+
+		// Add drag handle for reordering groups (only if manual order is enabled and multiple groups exist)
+		if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+			const dragHandle = header.createSpan('workspace-group-drag-handle');
+			setIcon(dragHandle, 'grip-vertical');
+
+			dragHandle.addEventListener('mousedown', (evt) => {
+				evt.preventDefault();
+				evt.stopPropagation();
+				this.draggedGroup = group;
+				this.draggedElement = header;
+				header.addClass('is-dragging');
+				document.body.addClass('workspace-dragging');
+				this.createDragGhost(displayName);
+				if (this.dragGhost) {
+					this.dragGhost.style.left = `${evt.clientX + 10}px`;
+					this.dragGhost.style.top = `${evt.clientY - 10}px`;
+				}
+			});
+		}
 
 		// Collapse/expand chevron
 		const chevron = header.createSpan('workspace-editor-group-chevron');

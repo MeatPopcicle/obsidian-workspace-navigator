@@ -108,6 +108,8 @@ export interface WorkspacesStorage {
 	collapsedGroups?: Record<string, boolean>;
 	/** Manual workspace order per group (group name -> ordered workspace names) */
 	workspaceOrder?: Record<string, string[]>;
+	/** Manual group order (ordered group names) */
+	groupOrder?: string[];
 }
 
 /**
@@ -198,7 +200,7 @@ export class WorkspaceManager {
 	}
 
 	/**
-	 * Get all unique group names
+	 * Get all unique group names (alphabetically sorted)
 	 */
 	getGroups(): string[] {
 		const groups = new Set<string>();
@@ -211,6 +213,34 @@ export class WorkspaceManager {
 		return Array.from(groups).sort((a, b) =>
 			a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 		);
+	}
+
+	/**
+	 * Get all unique group names with manual order applied
+	 */
+	getGroupsOrdered(useManualOrder: boolean): string[] {
+		const groups = this.getGroups(); // Get alphabetically sorted groups
+
+		if (!useManualOrder) {
+			return groups;
+		}
+
+		const savedOrder = this.storage.groupOrder || [];
+		if (savedOrder.length === 0) {
+			return groups;
+		}
+
+		// Sort by saved order, putting unknown groups at the end
+		const orderMap = new Map(savedOrder.map((name, idx) => [name, idx]));
+		return groups.sort((a, b) => {
+			const orderA = orderMap.has(a) ? orderMap.get(a)! : Infinity;
+			const orderB = orderMap.has(b) ? orderMap.get(b)! : Infinity;
+			if (orderA === orderB) {
+				// Both unknown, sort alphabetically
+				return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+			}
+			return orderA - orderB;
+		});
 	}
 
 	/**
@@ -358,6 +388,67 @@ export class WorkspaceManager {
 		const newState = !this.isGroupCollapsed(group);
 		this.setGroupCollapsed(group, newState);
 		return newState;
+	}
+
+	// ───────────────────────────────────────────────────────────────────
+	// Group Order Management (for manual sorting)
+	// ───────────────────────────────────────────────────────────────────
+
+	/**
+	 * Get saved group order
+	 */
+	getGroupOrder(): string[] {
+		return this.storage.groupOrder || [];
+	}
+
+	/**
+	 * Set group order
+	 */
+	setGroupOrder(order: string[]): void {
+		this.storage.groupOrder = order;
+	}
+
+	/**
+	 * Move group to a specific position relative to another group
+	 */
+	moveGroupRelativeTo(groupName: string, targetGroup: string, position: 'before' | 'after'): void {
+		// Get current order (or initialize from alphabetical)
+		let order = this.getGroupOrder();
+		if (order.length === 0) {
+			order = [...this.getGroups()];
+		}
+
+		// Remove group from current position
+		const currentIndex = order.indexOf(groupName);
+		if (currentIndex !== -1) {
+			order.splice(currentIndex, 1);
+		}
+
+		// Find target position
+		let targetIndex = order.indexOf(targetGroup);
+		if (targetIndex === -1) {
+			targetIndex = order.length;
+		} else if (position === 'after') {
+			targetIndex++;
+		}
+
+		// Insert at new position
+		order.splice(targetIndex, 0, groupName);
+		this.setGroupOrder(order);
+
+		this.logger.log(`Moved group "${groupName}" ${position} "${targetGroup}"`);
+	}
+
+	/**
+	 * Clean up group order data (remove deleted groups, add missing ones)
+	 */
+	cleanupGroupOrder(): void {
+		if (!this.storage.groupOrder) return;
+
+		const existingGroups = new Set(this.getGroups());
+
+		// Remove groups that no longer exist
+		this.storage.groupOrder = this.storage.groupOrder.filter(name => existingGroups.has(name));
 	}
 
 	// ───────────────────────────────────────────────────────────────────
