@@ -306,6 +306,8 @@ export class WorkspaceEditorModal extends Modal {
 		const groups = workspaceManager.getGroups();
 		const hasNamedGroups = groups.length > 0;
 
+		const useManualOrder = this.plugin.settings.manualSortOrder;
+
 		if (hasNamedGroups) {
 			// Render workspaces organized by group
 			for (const group of groups) {
@@ -313,13 +315,14 @@ export class WorkspaceEditorModal extends Modal {
 			}
 
 			// Render ungrouped workspaces at the end
-			const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+			const ungrouped = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
 			if (ungrouped.length > 0) {
 				this.renderGroupSection(listEl, null, activeWorkspace);
 			}
 		} else {
-			// No groups - render flat list
-			for (const name of workspaces) {
+			// No groups - render flat list with manual order support
+			const orderedWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
+			for (const name of orderedWorkspaces) {
 				this.renderWorkspaceItem(listEl, name, name === activeWorkspace);
 			}
 		}

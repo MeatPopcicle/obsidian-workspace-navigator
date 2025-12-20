@@ -77,7 +77,6 @@ var DEFAULT_SETTINGS = {
   defaultGroup: "",
   autoSaveOnSwitch: false,
   autoSaveOnLayoutChange: false,
-  sortWorkspacesAlphabetically: true,
   manualSortOrder: false,
   debugMode: false
 };
@@ -89,35 +88,43 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Navigation Layout Settings" });
-    new import_obsidian2.Setting(containerEl).setName("Remember navigation layout per workspace").setDesc("When enabled, each workspace remembers its own navigation panel state including: sidebar open/closed, active tab, and folder expansion state (which directories are expanded/collapsed in the file explorer). When disabled, navigation state is maintained from the previous workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.rememberNavigationLayout).onChange(async (value) => {
+    containerEl.createEl("h2", { text: "Layout Memory" });
+    new import_obsidian2.Setting(containerEl).setName("Remember navigation layout per workspace").setDesc("Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When disabled, navigation state carries over from the previous workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.rememberNavigationLayout).onChange(async (value) => {
       this.plugin.settings.rememberNavigationLayout = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Maintain layout across workspaces").setDesc('Keep the current navigation layout when switching workspaces instead of loading the saved layout. This option only works when "Remember navigation layout" is enabled.').addToggle((toggle) => toggle.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Maintain layout across workspaces").setDesc('Keep current navigation layout when switching instead of loading saved layout. Only works when "Remember navigation layout" is enabled.').addToggle((toggle) => toggle.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces).onChange(async (value) => {
       this.plugin.settings.maintainLayoutAcrossWorkspaces = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "General Settings" });
-    new import_obsidian2.Setting(containerEl).setName("Show status bar indicator").setDesc("Display the current workspace name in the status bar").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Auto-save on workspace switch").setDesc("Automatically save the current workspace layout before switching to another.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnSwitch).onChange(async (value) => {
+      this.plugin.settings.autoSaveOnSwitch = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Auto-save on layout change").setDesc("Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnLayoutChange).onChange(async (value) => {
+      this.plugin.settings.autoSaveOnLayoutChange = value;
+      await this.plugin.saveSettings();
+    }));
+    containerEl.createEl("h2", { text: "Switcher Appearance" });
+    new import_obsidian2.Setting(containerEl).setName("Show status bar indicator").setDesc("Display the current workspace name in the status bar.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
       this.plugin.settings.showStatusBar = value;
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Show instructions in modal").setDesc("Display keyboard shortcuts at the bottom of the workspace switcher modal").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
-      this.plugin.settings.showInstructions = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Show search box in modal").setDesc("Display the search/filter box in the workspace switcher modal").addToggle((toggle) => toggle.setValue(this.plugin.settings.showSearchBox).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Show search box").setDesc("Display the search/filter box in the workspace switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showSearchBox).onChange(async (value) => {
       this.plugin.settings.showSearchBox = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Show style button in modal").setDesc("Display the style button (icon, color, formatting) for each workspace in the switcher modal. Styles are retained when disabled.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleButton).onChange(async (value) => {
+    new import_obsidian2.Setting(containerEl).setName("Show keyboard shortcuts").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
+      this.plugin.settings.showInstructions = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Show style controls").setDesc("Display style button (icon, color, formatting) for each workspace. Styles are retained when hidden.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleButton).onChange(async (value) => {
       this.plugin.settings.showStyleButton = value;
       this.plugin.updateStatusBar();
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
+    new import_obsidian2.Setting(containerEl).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
       createConfirmationDialog(this.app, {
         title: "Reset All Styles?",
         text: "This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.",
@@ -130,11 +137,16 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         }
       });
     }));
-    new import_obsidian2.Setting(containerEl).setName("Show workspace delete confirmation").setDesc("Display a confirmation dialog before deleting a workspace").addToggle((toggle) => toggle.setValue(this.plugin.settings.showDeleteConfirmation).onChange(async (value) => {
-      this.plugin.settings.showDeleteConfirmation = value;
+    containerEl.createEl("h2", { text: "Workspace Behavior" });
+    const getSortDescription = (isManual) => {
+      return isManual ? "Currently: Manual order \u2014 drag workspaces to reorder within groups." : "Currently: Alphabetical order (A-Z, 0-9).";
+    };
+    const sortSetting = new import_obsidian2.Setting(containerEl).setName("Manual sort order").setDesc(getSortDescription(this.plugin.settings.manualSortOrder)).addToggle((toggle) => toggle.setValue(this.plugin.settings.manualSortOrder).onChange(async (value) => {
+      this.plugin.settings.manualSortOrder = value;
       await this.plugin.saveSettings();
+      sortSetting.setDesc(getSortDescription(value));
     }));
-    new import_obsidian2.Setting(containerEl).setName("Default group for new workspaces").setDesc("Automatically assign new workspaces to this group").addDropdown((dropdown) => {
+    new import_obsidian2.Setting(containerEl).setName("Default group for new workspaces").setDesc("Automatically assign new workspaces to this group.").addDropdown((dropdown) => {
       const groups = this.plugin.getWorkspaceManager().getGroups();
       dropdown.addOption("", "(None)");
       for (const group of groups) {
@@ -146,24 +158,8 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian2.Setting(containerEl).setName("Sort workspaces alphabetically").setDesc("Display workspaces in alphabetical/numerical order. Disabled when manual sort order is enabled.").addToggle((toggle) => toggle.setValue(this.plugin.settings.sortWorkspacesAlphabetically).setDisabled(this.plugin.settings.manualSortOrder).onChange(async (value) => {
-      this.plugin.settings.sortWorkspacesAlphabetically = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Manual sort order").setDesc("Enable drag-and-drop reordering of workspaces within groups. When enabled, alphabetical sorting is disabled.").addToggle((toggle) => toggle.setValue(this.plugin.settings.manualSortOrder).onChange(async (value) => {
-      this.plugin.settings.manualSortOrder = value;
-      if (value) {
-        this.plugin.settings.sortWorkspacesAlphabetically = false;
-      }
-      await this.plugin.saveSettings();
-      this.display();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Auto-save on workspace switch").setDesc("Automatically save the current workspace before switching to another").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnSwitch).onChange(async (value) => {
-      this.plugin.settings.autoSaveOnSwitch = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Auto-save on layout change").setDesc("Automatically save the current workspace whenever the layout changes (e.g., when you open/close panels, rearrange panes, expand/collapse folders). Note: This can result in frequent saves.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnLayoutChange).onChange(async (value) => {
-      this.plugin.settings.autoSaveOnLayoutChange = value;
+    new import_obsidian2.Setting(containerEl).setName("Confirm before deleting").setDesc("Show a confirmation dialog before deleting a workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showDeleteConfirmation).onChange(async (value) => {
+      this.plugin.settings.showDeleteConfirmation = value;
       await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "Import / Export" });
@@ -2532,9 +2528,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     }
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     if (activeWorkspace && workspaceName === activeWorkspace) {
-      const activeIndicator = el.createDiv("workspace-active-indicator");
-      activeIndicator.setAttribute("aria-label", "Active workspace");
-      activeIndicator.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M10 15.172l9.192-9.193 1.415 1.414L10 18l-6.364-6.364 1.414-1.414z"/></svg>`;
       el.addClass("is-active");
     }
     const deleteBtn = el.createDiv("workspace-delete-btn");
@@ -3239,16 +3232,18 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     const listEl = containerEl.createDiv("workspace-editor-list");
     const groups = workspaceManager.getGroups();
     const hasNamedGroups = groups.length > 0;
+    const useManualOrder = this.plugin.settings.manualSortOrder;
     if (hasNamedGroups) {
       for (const group of groups) {
         this.renderGroupSection(listEl, group, activeWorkspace);
       }
-      const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+      const ungrouped = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
       if (ungrouped.length > 0) {
         this.renderGroupSection(listEl, null, activeWorkspace);
       }
     } else {
-      for (const name of workspaces) {
+      const orderedWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
+      for (const name of orderedWorkspaces) {
         this.renderWorkspaceItem(listEl, name, name === activeWorkspace);
       }
     }
@@ -4688,7 +4683,7 @@ All workspaces:`, this.workspaceManager.getWorkspaceNames());
 `;
         report += `- **Auto-save on switch:** ${this.settings.autoSaveOnSwitch}
 `;
-        report += `- **Sort alphabetically:** ${this.settings.sortWorkspacesAlphabetically}
+        report += `- **Manual sort order:** ${this.settings.manualSortOrder}
 `;
         report += `- **Debug mode:** ${this.settings.debugMode}
 

@@ -30,7 +30,6 @@ export interface WorkspaceNavigatorSettings {
 	autoSaveOnLayoutChange:          boolean;
 
 	// Sorting preferences
-	sortWorkspacesAlphabetically:    boolean;
 	manualSortOrder:                 boolean;
 
 	// Debug mode
@@ -48,7 +47,6 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	defaultGroup:                    '',
 	autoSaveOnSwitch:                false,
 	autoSaveOnLayoutChange:          false,
-	sortWorkspacesAlphabetically:    true,
 	manualSortOrder:                 false,
 	debugMode:                       false,
 };
@@ -70,14 +68,14 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 		containerEl.empty();
 
 		// ─────────────────────────────────────────────────────────────────
-		// Navigation Layout Settings
+		// Layout Memory
 		// ─────────────────────────────────────────────────────────────────
 
-		containerEl.createEl('h2', { text: 'Navigation Layout Settings' });
+		containerEl.createEl('h2', { text: 'Layout Memory' });
 
 		new Setting(containerEl)
 			.setName('Remember navigation layout per workspace')
-			.setDesc('When enabled, each workspace remembers its own navigation panel state including: sidebar open/closed, active tab, and folder expansion state (which directories are expanded/collapsed in the file explorer). When disabled, navigation state is maintained from the previous workspace.')
+			.setDesc('Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When disabled, navigation state carries over from the previous workspace.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.rememberNavigationLayout)
 				.onChange(async (value) => {
@@ -87,7 +85,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Maintain layout across workspaces')
-			.setDesc('Keep the current navigation layout when switching workspaces instead of loading the saved layout. This option only works when "Remember navigation layout" is enabled.')
+			.setDesc('Keep current navigation layout when switching instead of loading saved layout. Only works when "Remember navigation layout" is enabled.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces)
 				.onChange(async (value) => {
@@ -95,15 +93,35 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
+		new Setting(containerEl)
+			.setName('Auto-save on workspace switch')
+			.setDesc('Automatically save the current workspace layout before switching to another.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoSaveOnSwitch)
+				.onChange(async (value) => {
+					this.plugin.settings.autoSaveOnSwitch = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Auto-save on layout change')
+			.setDesc('Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoSaveOnLayoutChange)
+				.onChange(async (value) => {
+					this.plugin.settings.autoSaveOnLayoutChange = value;
+					await this.plugin.saveSettings();
+				}));
+
 		// ─────────────────────────────────────────────────────────────────
-		// General Settings
+		// Switcher Appearance
 		// ─────────────────────────────────────────────────────────────────
 
-		containerEl.createEl('h2', { text: 'General Settings' });
+		containerEl.createEl('h2', { text: 'Switcher Appearance' });
 
 		new Setting(containerEl)
 			.setName('Show status bar indicator')
-			.setDesc('Display the current workspace name in the status bar')
+			.setDesc('Display the current workspace name in the status bar.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.showStatusBar)
 				.onChange(async (value) => {
@@ -113,18 +131,8 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Show instructions in modal')
-			.setDesc('Display keyboard shortcuts at the bottom of the workspace switcher modal')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showInstructions)
-				.onChange(async (value) => {
-					this.plugin.settings.showInstructions = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Show search box in modal')
-			.setDesc('Display the search/filter box in the workspace switcher modal')
+			.setName('Show search box')
+			.setDesc('Display the search/filter box in the workspace switcher modal.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.showSearchBox)
 				.onChange(async (value) => {
@@ -133,8 +141,18 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Show style button in modal')
-			.setDesc('Display the style button (icon, color, formatting) for each workspace in the switcher modal. Styles are retained when disabled.')
+			.setName('Show keyboard shortcuts')
+			.setDesc('Display keyboard shortcut hints at the bottom of the switcher modal.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showInstructions)
+				.onChange(async (value) => {
+					this.plugin.settings.showInstructions = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Show style controls')
+			.setDesc('Display style button (icon, color, formatting) for each workspace. Styles are retained when hidden.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.showStyleButton)
 				.onChange(async (value) => {
@@ -145,7 +163,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Reset all workspace styles')
-			.setDesc('Clear all icons, colors, and formatting from all workspaces')
+			.setDesc('Clear all icons, colors, and formatting from all workspaces.')
 			.addButton(button => button
 				.setButtonText('Reset Styles')
 				.setWarning()
@@ -163,19 +181,34 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					});
 				}));
 
-		new Setting(containerEl)
-			.setName('Show workspace delete confirmation')
-			.setDesc('Display a confirmation dialog before deleting a workspace')
+		// ─────────────────────────────────────────────────────────────────
+		// Workspace Behavior
+		// ─────────────────────────────────────────────────────────────────
+
+		containerEl.createEl('h2', { text: 'Workspace Behavior' });
+
+		// Dynamic description for sort order toggle
+		const getSortDescription = (isManual: boolean) => {
+			return isManual
+				? 'Currently: Manual order — drag workspaces to reorder within groups.'
+				: 'Currently: Alphabetical order (A-Z, 0-9).';
+		};
+
+		const sortSetting = new Setting(containerEl)
+			.setName('Manual sort order')
+			.setDesc(getSortDescription(this.plugin.settings.manualSortOrder))
 			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showDeleteConfirmation)
+				.setValue(this.plugin.settings.manualSortOrder)
 				.onChange(async (value) => {
-					this.plugin.settings.showDeleteConfirmation = value;
+					this.plugin.settings.manualSortOrder = value;
 					await this.plugin.saveSettings();
+					// Update description dynamically
+					sortSetting.setDesc(getSortDescription(value));
 				}));
 
 		new Setting(containerEl)
 			.setName('Default group for new workspaces')
-			.setDesc('Automatically assign new workspaces to this group')
+			.setDesc('Automatically assign new workspaces to this group.')
 			.addDropdown(dropdown => {
 				const groups = this.plugin.getWorkspaceManager().getGroups();
 				dropdown.addOption('', '(None)');
@@ -190,48 +223,12 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 			});
 
 		new Setting(containerEl)
-			.setName('Sort workspaces alphabetically')
-			.setDesc('Display workspaces in alphabetical/numerical order. Disabled when manual sort order is enabled.')
+			.setName('Confirm before deleting')
+			.setDesc('Show a confirmation dialog before deleting a workspace.')
 			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.sortWorkspacesAlphabetically)
-				.setDisabled(this.plugin.settings.manualSortOrder)
+				.setValue(this.plugin.settings.showDeleteConfirmation)
 				.onChange(async (value) => {
-					this.plugin.settings.sortWorkspacesAlphabetically = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Manual sort order')
-			.setDesc('Enable drag-and-drop reordering of workspaces within groups. When enabled, alphabetical sorting is disabled.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.manualSortOrder)
-				.onChange(async (value) => {
-					this.plugin.settings.manualSortOrder = value;
-					if (value) {
-						this.plugin.settings.sortWorkspacesAlphabetically = false;
-					}
-					await this.plugin.saveSettings();
-					// Refresh settings display to update disabled state
-					this.display();
-				}));
-
-		new Setting(containerEl)
-			.setName('Auto-save on workspace switch')
-			.setDesc('Automatically save the current workspace before switching to another')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.autoSaveOnSwitch)
-				.onChange(async (value) => {
-					this.plugin.settings.autoSaveOnSwitch = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Auto-save on layout change')
-			.setDesc('Automatically save the current workspace whenever the layout changes (e.g., when you open/close panels, rearrange panes, expand/collapse folders). Note: This can result in frequent saves.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.autoSaveOnLayoutChange)
-				.onChange(async (value) => {
-					this.plugin.settings.autoSaveOnLayoutChange = value;
+					this.plugin.settings.showDeleteConfirmation = value;
 					await this.plugin.saveSettings();
 				}));
 

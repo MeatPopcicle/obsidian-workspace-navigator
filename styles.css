@@ -146,7 +146,7 @@
 
 .workspace-suggestion-item {
 	position: relative;
-	padding: 5px 6rem 5px 2rem !important;
+	padding: 5px 6rem 5px 1.6rem !important;
 	min-height: 1.8em;
 	display: flex;
 	align-items: center;
@@ -154,6 +154,11 @@
 
 .workspace-suggestion-item.is-active {
 	font-weight: var(--font-weight-semibold);
+}
+
+.workspace-suggestion-item.is-active .workspace-drag-handle {
+	opacity: 1;
+	color: var(--interactive-accent);
 }
 
 /* Drag-and-drop: workspace item being dragged */
@@ -220,15 +225,6 @@
 
 .workspace-suggestion-item.drop-target-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
-}
-
-.workspace-active-indicator {
-	position: absolute;
-	left: 0.8em;
-	top: 50%;
-	transform: translateY(-50%);
-	fill: var(--interactive-accent);
-	pointer-events: none;
 }
 
 .workspace-delete-btn,
@@ -319,9 +315,8 @@
 }
 
 
-/* Hide delete/active icons during rename, but keep rename button visible */
-.workspace-suggestion-item.is-renaming .workspace-delete-btn,
-.workspace-suggestion-item.is-renaming .workspace-active-indicator {
+/* Hide delete button during rename, but keep rename button visible */
+.workspace-suggestion-item.is-renaming .workspace-delete-btn {
 	display: none;
 }
 

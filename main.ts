@@ -325,7 +325,7 @@ export default class WorkspaceNavigator extends Plugin {
 				report += `- **Remember navigation layout:** ${this.settings.rememberNavigationLayout}\n`;
 				report += `- **Maintain layout across workspaces:** ${this.settings.maintainLayoutAcrossWorkspaces}\n`;
 				report += `- **Auto-save on switch:** ${this.settings.autoSaveOnSwitch}\n`;
-				report += `- **Sort alphabetically:** ${this.settings.sortWorkspacesAlphabetically}\n`;
+				report += `- **Manual sort order:** ${this.settings.manualSortOrder}\n`;
 				report += `- **Debug mode:** ${this.settings.debugMode}\n\n`;
 
 				// Current state
