@@ -1527,8 +1527,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Store group name on container for drop handling
 		container.dataset.groupName = groupName;
 
-		// Add drag handle for reordering groups (only if manual order is enabled and multiple groups exist)
-		if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+		// Add drag handle for reordering groups (only if manual order is enabled and there are groups)
+		const hasGroups = workspaceManager.getGroups().length > 0;
+		if (this.plugin.settings.debugMode) {
+			console.log(`[GroupHeader] "${displayName}" - useManualOrder=${useManualOrder}, hasGroups=${hasGroups}, isNoGroup=${isNoGroup}, showHandle=${useManualOrder && hasGroups && !isNoGroup}`);
+		}
+		if (useManualOrder && hasGroups && !isNoGroup) {
 			const dragHandle = document.createElement('span');
 			dragHandle.addClass('workspace-group-drag-handle');
 			setIcon(dragHandle, 'grip-vertical');

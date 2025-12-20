@@ -393,8 +393,12 @@ export class WorkspaceEditorModal extends Modal {
 		const header = containerEl.createDiv('workspace-editor-group-header');
 		header.dataset.groupName = groupKey;
 
-		// Add drag handle for reordering groups (only if manual order is enabled and multiple groups exist)
-		if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+		// Add drag handle for reordering groups (only if manual order is enabled and there are groups)
+		const hasGroups = workspaceManager.getGroups().length > 0;
+		if (this.plugin.settings.debugMode) {
+			console.log(`[EditorGroupHeader] "${displayName}" - useManualOrder=${useManualOrder}, hasGroups=${hasGroups}, isNoGroup=${isNoGroup}, showHandle=${useManualOrder && hasGroups && !isNoGroup}`);
+		}
+		if (useManualOrder && hasGroups && !isNoGroup) {
 			const dragHandle = header.createSpan('workspace-group-drag-handle');
 			setIcon(dragHandle, 'grip-vertical');
 

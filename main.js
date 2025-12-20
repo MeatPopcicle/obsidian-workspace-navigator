@@ -2840,7 +2840,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     const useManualOrder = this.plugin.settings.manualSortOrder;
     const hasMultipleGroups = workspaceManager.getGroups().length > 1;
     container.dataset.groupName = groupName;
-    if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+    const hasGroups = workspaceManager.getGroups().length > 0;
+    if (this.plugin.settings.debugMode) {
+      console.log(`[GroupHeader] "${displayName}" - useManualOrder=${useManualOrder}, hasGroups=${hasGroups}, isNoGroup=${isNoGroup}, showHandle=${useManualOrder && hasGroups && !isNoGroup}`);
+    }
+    if (useManualOrder && hasGroups && !isNoGroup) {
       const dragHandle = document.createElement("span");
       dragHandle.addClass("workspace-group-drag-handle");
       (0, import_obsidian3.setIcon)(dragHandle, "grip-vertical");
@@ -3361,7 +3365,11 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     const hasMultipleGroups = workspaceManager.getGroups().length > 1;
     const header = containerEl.createDiv("workspace-editor-group-header");
     header.dataset.groupName = groupKey;
-    if (useManualOrder && hasMultipleGroups && !isNoGroup) {
+    const hasGroups = workspaceManager.getGroups().length > 0;
+    if (this.plugin.settings.debugMode) {
+      console.log(`[EditorGroupHeader] "${displayName}" - useManualOrder=${useManualOrder}, hasGroups=${hasGroups}, isNoGroup=${isNoGroup}, showHandle=${useManualOrder && hasGroups && !isNoGroup}`);
+    }
+    if (useManualOrder && hasGroups && !isNoGroup) {
       const dragHandle = header.createSpan("workspace-group-drag-handle");
       (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
       dragHandle.addEventListener("mousedown", (evt) => {
