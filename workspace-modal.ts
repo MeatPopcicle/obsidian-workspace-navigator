@@ -594,6 +594,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	workspaces:         string[];
 	popper:             PopperInstance | null = null;
 	private lastRenderedGroup: string | null | undefined = undefined;
+	private draggedWorkspace: string | null = null;
+	private draggedElement:   HTMLElement | null = null;
+	private dragGhost:        HTMLElement | null = null;
+	private dropIndicator:    HTMLElement | null = null;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -726,11 +730,165 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				modifiers: [{ name: 'offset', options: { offset: [0, 10] } }]
 			});
 		}
+
+		// Set up global mouse handlers for drag-and-drop
+		this.setupDragHandlers();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Drag-and-drop handlers
+	// ─────────────────────────────────────────────────────────────────
+
+	private setupDragHandlers(): void {
+		const onMouseMove = (evt: MouseEvent) => {
+			if (!this.draggedWorkspace || !this.dragGhost) return;
+
+			// Move ghost to follow cursor
+			this.dragGhost.style.left = `${evt.clientX + 10}px`;
+			this.dragGhost.style.top = `${evt.clientY - 10}px`;
+
+			// Hide ghost temporarily to find element underneath
+			this.dragGhost.style.pointerEvents = 'none';
+			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
+			this.dragGhost.style.pointerEvents = '';
+
+			// Remove previous drop indicator
+			this.dropIndicator?.remove();
+			this.dropIndicator = null;
+
+			// Check if over a workspace item or group header
+			const workspaceItem = target?.closest('.workspace-suggestion-item') as HTMLElement;
+			const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
+
+			if (workspaceItem && workspaceItem !== this.draggedElement) {
+				// Show drop indicator above or below the workspace item
+				const rect = workspaceItem.getBoundingClientRect();
+				const midY = rect.top + rect.height / 2;
+				const insertBefore = evt.clientY < midY;
+
+				this.dropIndicator = document.createElement('div');
+				this.dropIndicator.addClass('workspace-drop-indicator');
+
+				if (insertBefore) {
+					workspaceItem.parentElement?.insertBefore(this.dropIndicator, workspaceItem);
+				} else {
+					workspaceItem.parentElement?.insertBefore(this.dropIndicator, workspaceItem.nextSibling);
+				}
+
+				// Store drop target info
+				this.dropIndicator.dataset.targetWorkspace = workspaceItem.dataset.workspaceName;
+				this.dropIndicator.dataset.insertBefore = insertBefore ? 'true' : 'false';
+			} else if (groupHeader) {
+				// Highlight group header
+				this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+				groupHeader.addClass('drag-over');
+			} else {
+				this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+			}
+		};
+
+		const onMouseUp = async (evt: MouseEvent) => {
+			if (!this.draggedWorkspace) return;
+
+			const workspaceManager = this.plugin.getWorkspaceManager();
+			let moved = false;
+
+			// Check if we have a drop indicator (dropping near a workspace)
+			if (this.dropIndicator) {
+				const targetWorkspaceName = this.dropIndicator.dataset.targetWorkspace;
+				if (targetWorkspaceName) {
+					// Get the group of the target workspace
+					const targetGroup = workspaceManager.getWorkspaceGroup(targetWorkspaceName);
+					const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+
+					if (currentGroup !== targetGroup) {
+						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+						await this.plugin.saveSettings();
+
+						const groupDisplay = targetGroup || 'No Group';
+						new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+						moved = true;
+					}
+				}
+			} else {
+				// Check if dropped on a group header
+				this.dragGhost!.style.pointerEvents = 'none';
+				const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
+				this.dragGhost!.style.pointerEvents = '';
+
+				const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
+				if (groupHeader && groupHeader.dataset.groupName) {
+					const groupName = groupHeader.dataset.groupName;
+					const isNoGroup = groupName === '\x00nogroup';
+					const targetGroup = isNoGroup ? null : groupName;
+					const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+
+					if (currentGroup !== targetGroup) {
+						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+						await this.plugin.saveSettings();
+
+						const groupDisplay = targetGroup || 'No Group';
+						new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+						moved = true;
+					}
+				}
+			}
+
+			// Refresh if moved
+			if (moved) {
+				this.lastRenderedGroup = undefined;
+				(this as any).updateSuggestions();
+			}
+
+			// Clean up drag state
+			this.cleanupDrag();
+		};
+
+		// Store handlers for cleanup
+		(this as any)._dragMouseMove = onMouseMove;
+		(this as any)._dragMouseUp = onMouseUp;
+
+		document.addEventListener('mousemove', onMouseMove);
+		document.addEventListener('mouseup', onMouseUp);
+	}
+
+	private createDragGhost(el: HTMLElement, workspaceName: string): void {
+		this.dragGhost = document.createElement('div');
+		this.dragGhost.addClass('workspace-drag-ghost');
+		this.dragGhost.textContent = workspaceName;
+		document.body.appendChild(this.dragGhost);
+	}
+
+	private cleanupDrag(): void {
+		if (this.draggedElement) {
+			this.draggedElement.removeClass('is-dragging');
+		}
+		if (this.dragGhost) {
+			this.dragGhost.remove();
+			this.dragGhost = null;
+		}
+		if (this.dropIndicator) {
+			this.dropIndicator.remove();
+			this.dropIndicator = null;
+		}
+		this.draggedWorkspace = null;
+		this.draggedElement = null;
+		document.body.removeClass('workspace-dragging');
+		this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
 	}
 
 	onClose(): void {
 		// Pop custom scope
 		(this.app as any).keymap.popScope(this.scope);
+
+		// Cleanup drag handlers
+		if ((this as any)._dragMouseMove) {
+			document.removeEventListener('mousemove', (this as any)._dragMouseMove);
+		}
+		if ((this as any)._dragMouseUp) {
+			document.removeEventListener('mouseup', (this as any)._dragMouseUp);
+		}
+		this.cleanupDrag();
 
 		// Cleanup popper instance
 		if (this.popper) {
@@ -858,6 +1016,28 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Wrap the text content in a span for rename functionality
 		const textContent = el.textContent || '';
 		el.empty();
+
+		// Add drag handle for moving workspace between groups (only show if groups exist)
+		const hasGroups = workspaceManager.getGroups().length > 0;
+
+		if (hasGroups) {
+			const dragHandle = el.createDiv('workspace-drag-handle');
+			dragHandle.setAttribute('aria-label', 'Drag to move to group');
+			setIcon(dragHandle, 'grip-vertical');
+
+			dragHandle.addEventListener('mousedown', (evt) => {
+				evt.preventDefault();
+				evt.stopPropagation();
+				this.draggedWorkspace = workspaceName;
+				this.draggedElement = el;
+				el.addClass('is-dragging');
+				document.body.addClass('workspace-dragging');
+				this.createDragGhost(el, workspaceName);
+				// Position ghost at cursor
+				this.dragGhost!.style.left = `${evt.clientX + 10}px`;
+				this.dragGhost!.style.top = `${evt.clientY - 10}px`;
+			});
+		}
 
 		// Add workspace icon column (with custom icon or default)
 		const showStyles = this.plugin.settings.showStyleButton;
@@ -1269,6 +1449,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const isNoGroup = groupName === '\x00nogroup';
 		const displayName = isNoGroup ? 'No Group' : groupName;
+
+		// Store group name on container for drop handling
+		container.dataset.groupName = groupName;
 
 		// Collapse/expand chevron
 		const chevron = document.createElement('span');

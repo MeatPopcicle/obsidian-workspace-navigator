@@ -2158,6 +2158,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     super(app);
     this.popper = null;
     this.lastRenderedGroup = void 0;
+    this.draggedWorkspace = null;
+    this.draggedElement = null;
+    this.dragGhost = null;
+    this.dropIndicator = null;
     this.plugin = plugin;
     this.setPlaceholder("Type workspace name...");
     if (plugin.settings.showInstructions) {
@@ -2247,9 +2251,125 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
         modifiers: [{ name: "offset", options: { offset: [0, 10] } }]
       });
     }
+    this.setupDragHandlers();
+  }
+  // ─────────────────────────────────────────────────────────────────
+  // Drag-and-drop handlers
+  // ─────────────────────────────────────────────────────────────────
+  setupDragHandlers() {
+    const onMouseMove = (evt) => {
+      var _a, _b, _c;
+      if (!this.draggedWorkspace || !this.dragGhost)
+        return;
+      this.dragGhost.style.left = `${evt.clientX + 10}px`;
+      this.dragGhost.style.top = `${evt.clientY - 10}px`;
+      this.dragGhost.style.pointerEvents = "none";
+      const target = document.elementFromPoint(evt.clientX, evt.clientY);
+      this.dragGhost.style.pointerEvents = "";
+      (_a = this.dropIndicator) == null ? void 0 : _a.remove();
+      this.dropIndicator = null;
+      const workspaceItem = target == null ? void 0 : target.closest(".workspace-suggestion-item");
+      const groupHeader = target == null ? void 0 : target.closest(".workspace-group-header");
+      if (workspaceItem && workspaceItem !== this.draggedElement) {
+        const rect = workspaceItem.getBoundingClientRect();
+        const midY = rect.top + rect.height / 2;
+        const insertBefore = evt.clientY < midY;
+        this.dropIndicator = document.createElement("div");
+        this.dropIndicator.addClass("workspace-drop-indicator");
+        if (insertBefore) {
+          (_b = workspaceItem.parentElement) == null ? void 0 : _b.insertBefore(this.dropIndicator, workspaceItem);
+        } else {
+          (_c = workspaceItem.parentElement) == null ? void 0 : _c.insertBefore(this.dropIndicator, workspaceItem.nextSibling);
+        }
+        this.dropIndicator.dataset.targetWorkspace = workspaceItem.dataset.workspaceName;
+        this.dropIndicator.dataset.insertBefore = insertBefore ? "true" : "false";
+      } else if (groupHeader) {
+        this.modalEl.querySelectorAll(".drag-over").forEach((e) => e.removeClass("drag-over"));
+        groupHeader.addClass("drag-over");
+      } else {
+        this.modalEl.querySelectorAll(".drag-over").forEach((e) => e.removeClass("drag-over"));
+      }
+    };
+    const onMouseUp = async (evt) => {
+      if (!this.draggedWorkspace)
+        return;
+      const workspaceManager = this.plugin.getWorkspaceManager();
+      let moved = false;
+      if (this.dropIndicator) {
+        const targetWorkspaceName = this.dropIndicator.dataset.targetWorkspace;
+        if (targetWorkspaceName) {
+          const targetGroup = workspaceManager.getWorkspaceGroup(targetWorkspaceName);
+          const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+          if (currentGroup !== targetGroup) {
+            workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+            await this.plugin.saveSettings();
+            const groupDisplay = targetGroup || "No Group";
+            new import_obsidian3.Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+            moved = true;
+          }
+        }
+      } else {
+        this.dragGhost.style.pointerEvents = "none";
+        const target = document.elementFromPoint(evt.clientX, evt.clientY);
+        this.dragGhost.style.pointerEvents = "";
+        const groupHeader = target == null ? void 0 : target.closest(".workspace-group-header");
+        if (groupHeader && groupHeader.dataset.groupName) {
+          const groupName = groupHeader.dataset.groupName;
+          const isNoGroup = groupName === "\0nogroup";
+          const targetGroup = isNoGroup ? null : groupName;
+          const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+          if (currentGroup !== targetGroup) {
+            workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+            await this.plugin.saveSettings();
+            const groupDisplay = targetGroup || "No Group";
+            new import_obsidian3.Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+            moved = true;
+          }
+        }
+      }
+      if (moved) {
+        this.lastRenderedGroup = void 0;
+        this.updateSuggestions();
+      }
+      this.cleanupDrag();
+    };
+    this._dragMouseMove = onMouseMove;
+    this._dragMouseUp = onMouseUp;
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+  createDragGhost(el, workspaceName) {
+    this.dragGhost = document.createElement("div");
+    this.dragGhost.addClass("workspace-drag-ghost");
+    this.dragGhost.textContent = workspaceName;
+    document.body.appendChild(this.dragGhost);
+  }
+  cleanupDrag() {
+    if (this.draggedElement) {
+      this.draggedElement.removeClass("is-dragging");
+    }
+    if (this.dragGhost) {
+      this.dragGhost.remove();
+      this.dragGhost = null;
+    }
+    if (this.dropIndicator) {
+      this.dropIndicator.remove();
+      this.dropIndicator = null;
+    }
+    this.draggedWorkspace = null;
+    this.draggedElement = null;
+    document.body.removeClass("workspace-dragging");
+    this.modalEl.querySelectorAll(".drag-over").forEach((e) => e.removeClass("drag-over"));
   }
   onClose() {
     this.app.keymap.popScope(this.scope);
+    if (this._dragMouseMove) {
+      document.removeEventListener("mousemove", this._dragMouseMove);
+    }
+    if (this._dragMouseUp) {
+      document.removeEventListener("mouseup", this._dragMouseUp);
+    }
+    this.cleanupDrag();
     if (this.popper) {
       this.popper.destroy();
       this.popper = null;
@@ -2340,6 +2460,23 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     el.addClass("workspace-suggestion-item");
     const textContent = el.textContent || "";
     el.empty();
+    const hasGroups = workspaceManager.getGroups().length > 0;
+    if (hasGroups) {
+      const dragHandle = el.createDiv("workspace-drag-handle");
+      dragHandle.setAttribute("aria-label", "Drag to move to group");
+      (0, import_obsidian3.setIcon)(dragHandle, "grip-vertical");
+      dragHandle.addEventListener("mousedown", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.draggedWorkspace = workspaceName;
+        this.draggedElement = el;
+        el.addClass("is-dragging");
+        document.body.addClass("workspace-dragging");
+        this.createDragGhost(el, workspaceName);
+        this.dragGhost.style.left = `${evt.clientX + 10}px`;
+        this.dragGhost.style.top = `${evt.clientY - 10}px`;
+      });
+    }
     const showStyles = this.plugin.settings.showStyleButton;
     if (showStyles) {
       const icon = workspaceManager.getWorkspaceIcon(workspaceName);
@@ -2639,6 +2776,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const isNoGroup = groupName === "\0nogroup";
     const displayName = isNoGroup ? "No Group" : groupName;
+    container.dataset.groupName = groupName;
     const chevron = document.createElement("span");
     chevron.addClass("workspace-group-chevron");
     chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
@@ -2865,6 +3003,8 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
   constructor(app, plugin) {
     super(app);
     this.collapsedGroups = /* @__PURE__ */ new Set();
+    this.draggedWorkspace = null;
+    this.draggedElement = null;
     this.plugin = plugin;
   }
   onOpen() {
@@ -2877,10 +3017,67 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     this.renderNewWorkspaceSection(contentEl);
     contentEl.createEl("hr");
     this.renderWorkspaceList(contentEl);
+    this.setupDragHandlers();
   }
   onClose() {
     const { contentEl } = this;
+    this.cleanupDrag();
+    if (this._dragMouseMove) {
+      document.removeEventListener("mousemove", this._dragMouseMove);
+    }
+    if (this._dragMouseUp) {
+      document.removeEventListener("mouseup", this._dragMouseUp);
+    }
     contentEl.empty();
+  }
+  // ─────────────────────────────────────────────────────────────────
+  // Drag-and-drop handlers
+  // ─────────────────────────────────────────────────────────────────
+  setupDragHandlers() {
+    const onMouseMove = (evt) => {
+      if (!this.draggedWorkspace)
+        return;
+      const target = document.elementFromPoint(evt.clientX, evt.clientY);
+      this.modalEl.querySelectorAll(".drag-over").forEach((e) => e.removeClass("drag-over"));
+      const groupHeader = target == null ? void 0 : target.closest(".workspace-editor-group-header");
+      if (groupHeader) {
+        groupHeader.addClass("drag-over");
+      }
+    };
+    const onMouseUp = async (evt) => {
+      if (!this.draggedWorkspace)
+        return;
+      const target = document.elementFromPoint(evt.clientX, evt.clientY);
+      const groupHeader = target == null ? void 0 : target.closest(".workspace-editor-group-header");
+      if (groupHeader && groupHeader.dataset.groupName) {
+        const workspaceManager = this.plugin.getWorkspaceManager();
+        const groupName = groupHeader.dataset.groupName;
+        const isNoGroup = groupName === "\0nogroup";
+        const targetGroup = isNoGroup ? null : groupName;
+        const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+        if (currentGroup !== targetGroup) {
+          workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+          await this.plugin.saveSettings();
+          const groupDisplay = targetGroup || "No Group";
+          new import_obsidian4.Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+          this.onOpen();
+        }
+      }
+      this.cleanupDrag();
+    };
+    this._dragMouseMove = onMouseMove;
+    this._dragMouseUp = onMouseUp;
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }
+  cleanupDrag() {
+    if (this.draggedElement) {
+      this.draggedElement.removeClass("is-dragging");
+    }
+    this.draggedWorkspace = null;
+    this.draggedElement = null;
+    document.body.removeClass("workspace-dragging");
+    this.modalEl.querySelectorAll(".drag-over").forEach((e) => e.removeClass("drag-over"));
   }
   // ─────────────────────────────────────────────────────────────────
   // New Workspace Section
@@ -2951,6 +3148,7 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     const isCollapsed = this.collapsedGroups.has(groupKey);
     const workspaces = workspaceManager.getWorkspacesByGroup(group);
     const header = containerEl.createDiv("workspace-editor-group-header");
+    header.dataset.groupName = groupKey;
     const chevron = header.createSpan("workspace-editor-group-chevron");
     chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
     chevron.addEventListener("click", () => {
@@ -2988,6 +3186,22 @@ var WorkspaceEditorModal = class extends import_obsidian4.Modal {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const setting = new import_obsidian4.Setting(containerEl);
     const showStyles = this.plugin.settings.showStyleButton;
+    const hasGroups = workspaceManager.getGroups().length > 0;
+    if (hasGroups) {
+      const dragHandle = document.createElement("span");
+      dragHandle.addClass("workspace-editor-drag-handle");
+      (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
+      dragHandle.setAttribute("aria-label", "Drag to move to group");
+      dragHandle.addEventListener("mousedown", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.draggedWorkspace = name;
+        this.draggedElement = setting.settingEl;
+        setting.settingEl.addClass("is-dragging");
+        document.body.addClass("workspace-dragging");
+      });
+      setting.settingEl.insertBefore(dragHandle, setting.settingEl.firstChild);
+    }
     const nameEl = document.createDocumentFragment();
     if (showStyles) {
       const icon = workspaceManager.getWorkspaceIcon(name);

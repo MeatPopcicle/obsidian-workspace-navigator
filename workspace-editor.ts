@@ -12,8 +12,10 @@ import { StylePickerModal, WorkspaceStyleResult } from './workspace-modal';
 // ───────────────────────────────────────────────────────────────────────────────
 
 export class WorkspaceEditorModal extends Modal {
-	plugin:          WorkspaceNavigator;
-	collapsedGroups: Set<string> = new Set();
+	plugin:           WorkspaceNavigator;
+	collapsedGroups:  Set<string> = new Set();
+	draggedWorkspace: string | null = null;
+	draggedElement:   HTMLElement | null = null;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -40,11 +42,91 @@ export class WorkspaceEditorModal extends Modal {
 
 		// Workspace list
 		this.renderWorkspaceList(contentEl);
+
+		// Set up drag handlers
+		this.setupDragHandlers();
 	}
 
 	onClose() {
 		const { contentEl } = this;
+		this.cleanupDrag();
+		// Remove event listeners
+		if ((this as any)._dragMouseMove) {
+			document.removeEventListener('mousemove', (this as any)._dragMouseMove);
+		}
+		if ((this as any)._dragMouseUp) {
+			document.removeEventListener('mouseup', (this as any)._dragMouseUp);
+		}
 		contentEl.empty();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Drag-and-drop handlers
+	// ─────────────────────────────────────────────────────────────────
+
+	private setupDragHandlers(): void {
+		const onMouseMove = (evt: MouseEvent) => {
+			if (!this.draggedWorkspace) return;
+
+			// Find element under cursor
+			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
+
+			// Remove all drag-over states first
+			this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+
+			// Check if hovering over a group header
+			const groupHeader = target?.closest('.workspace-editor-group-header') as HTMLElement;
+			if (groupHeader) {
+				groupHeader.addClass('drag-over');
+			}
+		};
+
+		const onMouseUp = async (evt: MouseEvent) => {
+			if (!this.draggedWorkspace) return;
+
+			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
+			const groupHeader = target?.closest('.workspace-editor-group-header') as HTMLElement;
+
+			if (groupHeader && groupHeader.dataset.groupName) {
+				const workspaceManager = this.plugin.getWorkspaceManager();
+				const groupName = groupHeader.dataset.groupName;
+				const isNoGroup = groupName === '\x00nogroup';
+				const targetGroup = isNoGroup ? null : groupName;
+				const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+
+				// Only update if group is different
+				if (currentGroup !== targetGroup) {
+					workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+					await this.plugin.saveSettings();
+
+					const groupDisplay = targetGroup || 'No Group';
+					new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+
+					// Refresh the list
+					this.onOpen();
+				}
+			}
+
+			// Clean up drag state
+			this.cleanupDrag();
+		};
+
+		// Store handlers for cleanup
+		(this as any)._dragMouseMove = onMouseMove;
+		(this as any)._dragMouseUp = onMouseUp;
+
+		document.addEventListener('mousemove', onMouseMove);
+		document.addEventListener('mouseup', onMouseUp);
+	}
+
+	private cleanupDrag(): void {
+		if (this.draggedElement) {
+			this.draggedElement.removeClass('is-dragging');
+		}
+		this.draggedWorkspace = null;
+		this.draggedElement = null;
+		document.body.removeClass('workspace-dragging');
+		this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -150,6 +232,7 @@ export class WorkspaceEditorModal extends Modal {
 
 		// Group header
 		const header = containerEl.createDiv('workspace-editor-group-header');
+		header.dataset.groupName = groupKey;
 
 		// Collapse/expand chevron
 		const chevron = header.createSpan('workspace-editor-group-chevron');
@@ -200,6 +283,27 @@ export class WorkspaceEditorModal extends Modal {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const setting    = new Setting(containerEl);
 		const showStyles = this.plugin.settings.showStyleButton;
+		const hasGroups  = workspaceManager.getGroups().length > 0;
+
+		// Add drag handle if groups exist
+		if (hasGroups) {
+			const dragHandle = document.createElement('span');
+			dragHandle.addClass('workspace-editor-drag-handle');
+			setIcon(dragHandle, 'grip-vertical');
+			dragHandle.setAttribute('aria-label', 'Drag to move to group');
+
+			dragHandle.addEventListener('mousedown', (evt) => {
+				evt.preventDefault();
+				evt.stopPropagation();
+				this.draggedWorkspace = name;
+				this.draggedElement = setting.settingEl;
+				setting.settingEl.addClass('is-dragging');
+				document.body.addClass('workspace-dragging');
+			});
+
+			// Insert drag handle at the beginning of the setting
+			setting.settingEl.insertBefore(dragHandle, setting.settingEl.firstChild);
+		}
 
 		// Build name with icon and styling (only if enabled)
 		const nameEl = document.createDocumentFragment();

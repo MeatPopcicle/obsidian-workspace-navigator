@@ -44,6 +44,13 @@
 	color: var(--text-muted);
 	letter-spacing: 0.05em;
 	border-bottom: 1px solid var(--background-modifier-border);
+	transition: background-color 0.15s, border-color 0.15s;
+}
+
+/* Drag-and-drop: group header as drop target */
+.workspace-group-header.drag-over {
+	background-color: hsla(var(--interactive-accent-hsl), 0.15);
+	border-color: var(--interactive-accent);
 }
 
 .workspace-group-icon {
@@ -147,6 +154,57 @@
 
 .workspace-suggestion-item.is-active {
 	font-weight: var(--font-weight-semibold);
+}
+
+/* Drag-and-drop: workspace item being dragged */
+.workspace-suggestion-item.is-dragging {
+	opacity: 0.3;
+}
+
+/* Drag handle for moving workspace between groups */
+.workspace-drag-handle {
+	position: absolute;
+	left: 0.3em;
+	top: 50%;
+	transform: translateY(-50%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 1.2em;
+	height: 1.2em;
+	opacity: 0.3;
+	transition: opacity 0.15s;
+}
+
+.workspace-drag-handle:hover {
+	opacity: 0.8;
+}
+
+.workspace-drag-handle svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Drag ghost - follows cursor */
+.workspace-drag-ghost {
+	position: fixed;
+	z-index: 10000;
+	padding: 6px 12px;
+	background: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	border-radius: 4px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	font-size: var(--font-ui-small);
+	pointer-events: none;
+	white-space: nowrap;
+}
+
+/* Drop indicator line */
+.workspace-drop-indicator {
+	height: 2px;
+	background: var(--interactive-accent);
+	margin: 0;
+	border-radius: 1px;
 }
 
 .workspace-active-indicator {
@@ -516,6 +574,38 @@
 .workspace-editor-group-count {
 	color: var(--text-faint);
 	font-size: 0.9em;
+}
+
+/* Drag-and-drop for workspace editor */
+.workspace-editor-group-header {
+	transition: background-color 0.15s, border-color 0.15s;
+}
+
+.workspace-editor-group-header.drag-over {
+	background-color: hsla(var(--interactive-accent-hsl), 0.15);
+	border-color: var(--interactive-accent);
+}
+
+.workspace-editor-drag-handle {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	margin-right: 8px;
+	opacity: 0.3;
+	transition: opacity 0.15s;
+}
+
+.workspace-editor-drag-handle:hover {
+	opacity: 0.8;
+}
+
+.workspace-editor-drag-handle svg {
+	width: 14px;
+	height: 14px;
+}
+
+.workspace-editor-list .setting-item.is-dragging {
+	opacity: 0.5;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
