@@ -597,7 +597,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	private draggedWorkspace: string | null = null;
 	private draggedElement:   HTMLElement | null = null;
 	private dragGhost:        HTMLElement | null = null;
-	private dropIndicator:    HTMLElement | null = null;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -752,38 +751,38 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
 			this.dragGhost.style.pointerEvents = '';
 
-			// Remove previous drop indicator
-			this.dropIndicator?.remove();
-			this.dropIndicator = null;
+			// Remove previous drop-target classes
+			this.modalEl.querySelectorAll('.drop-target-above, .drop-target-below, .drag-over').forEach(e => {
+				e.removeClass('drop-target-above', 'drop-target-below', 'drag-over');
+			});
 
 			// Check if over a workspace item or group header
 			const workspaceItem = target?.closest('.workspace-suggestion-item') as HTMLElement;
 			const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
 
 			if (workspaceItem && workspaceItem !== this.draggedElement) {
-				// Show drop indicator above or below the workspace item
+				// Show drop indicator as border on target row
 				const rect = workspaceItem.getBoundingClientRect();
 				const midY = rect.top + rect.height / 2;
 				const insertBefore = evt.clientY < midY;
 
-				this.dropIndicator = document.createElement('div');
-				this.dropIndicator.addClass('workspace-drop-indicator');
-
 				if (insertBefore) {
-					workspaceItem.parentElement?.insertBefore(this.dropIndicator, workspaceItem);
+					workspaceItem.addClass('drop-target-above');
 				} else {
-					workspaceItem.parentElement?.insertBefore(this.dropIndicator, workspaceItem.nextSibling);
+					workspaceItem.addClass('drop-target-below');
 				}
 
 				// Store drop target info
-				this.dropIndicator.dataset.targetWorkspace = workspaceItem.dataset.workspaceName;
-				this.dropIndicator.dataset.insertBefore = insertBefore ? 'true' : 'false';
+				(this as any)._dropTarget = {
+					workspace: workspaceItem.dataset.workspaceName,
+					insertBefore: insertBefore
+				};
 			} else if (groupHeader) {
 				// Highlight group header
-				this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
 				groupHeader.addClass('drag-over');
+				(this as any)._dropTarget = null;
 			} else {
-				this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+				(this as any)._dropTarget = null;
 			}
 		};
 
@@ -791,30 +790,45 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			if (!this.draggedWorkspace) return;
 
 			const workspaceManager = this.plugin.getWorkspaceManager();
+			const useManualOrder = this.plugin.settings.manualSortOrder;
 			let moved = false;
 
-			// Check if we have a drop indicator (dropping near a workspace)
-			if (this.dropIndicator) {
-				const targetWorkspaceName = this.dropIndicator.dataset.targetWorkspace;
-				if (targetWorkspaceName) {
-					// Get the group of the target workspace
-					const targetGroup = workspaceManager.getWorkspaceGroup(targetWorkspaceName);
-					const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+			// Check if we have a drop target (dropping near a workspace)
+			const dropTarget = (this as any)._dropTarget;
+			if (dropTarget?.workspace) {
+				// Get the group of the target workspace
+				const targetGroup = workspaceManager.getWorkspaceGroup(dropTarget.workspace);
+				const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
 
-					if (currentGroup !== targetGroup) {
+				if (currentGroup !== targetGroup) {
+					// Moving between groups
+					const position = dropTarget.insertBefore ? 'before' : 'after';
+					if (useManualOrder) {
+						workspaceManager.moveWorkspaceRelativeTo(this.draggedWorkspace, dropTarget.workspace, position);
+					} else {
 						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
-						await this.plugin.saveSettings();
-
-						const groupDisplay = targetGroup || 'No Group';
-						new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
-						moved = true;
 					}
+					await this.plugin.saveSettings();
+
+					const groupDisplay = targetGroup || 'No Group';
+					new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+					moved = true;
+				} else if (useManualOrder && this.draggedWorkspace !== dropTarget.workspace) {
+					// Reordering within the same group
+					const position = dropTarget.insertBefore ? 'before' : 'after';
+					workspaceManager.moveWorkspaceRelativeTo(this.draggedWorkspace, dropTarget.workspace, position);
+					await this.plugin.saveSettings();
+					moved = true;
 				}
 			} else {
 				// Check if dropped on a group header
-				this.dragGhost!.style.pointerEvents = 'none';
+				if (this.dragGhost) {
+					this.dragGhost.style.pointerEvents = 'none';
+				}
 				const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
-				this.dragGhost!.style.pointerEvents = '';
+				if (this.dragGhost) {
+					this.dragGhost.style.pointerEvents = '';
+				}
 
 				const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
 				if (groupHeader && groupHeader.dataset.groupName) {
@@ -855,7 +869,18 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	private createDragGhost(el: HTMLElement, workspaceName: string): void {
 		this.dragGhost = document.createElement('div');
 		this.dragGhost.addClass('workspace-drag-ghost');
-		this.dragGhost.textContent = workspaceName;
+
+		// Add grip handle icon
+		const handleSpan = document.createElement('span');
+		handleSpan.addClass('workspace-drag-ghost-handle');
+		setIcon(handleSpan, 'grip-vertical');
+		this.dragGhost.appendChild(handleSpan);
+
+		// Add workspace name
+		const nameSpan = document.createElement('span');
+		nameSpan.textContent = workspaceName;
+		this.dragGhost.appendChild(nameSpan);
+
 		document.body.appendChild(this.dragGhost);
 	}
 
@@ -867,14 +892,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.dragGhost.remove();
 			this.dragGhost = null;
 		}
-		if (this.dropIndicator) {
-			this.dropIndicator.remove();
-			this.dropIndicator = null;
-		}
 		this.draggedWorkspace = null;
 		this.draggedElement = null;
+		(this as any)._dropTarget = null;
 		document.body.removeClass('workspace-dragging');
-		this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+		this.modalEl.querySelectorAll('.drag-over, .drop-target-above, .drop-target-below').forEach(e => {
+			e.removeClass('drag-over', 'drop-target-above', 'drop-target-below');
+		});
 	}
 
 	onClose(): void {
@@ -907,6 +931,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const groups = workspaceManager.getGroups();
 		const result: string[] = [];
 		const hasNamedGroups = groups.length > 0;
+		const useManualOrder = this.plugin.settings.manualSortOrder;
 
 		// Add workspaces by group (groups sorted alphabetically)
 		for (const group of groups) {
@@ -914,13 +939,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				// Add a placeholder for collapsed group (will render header only)
 				result.push(`\x00collapsed:${group}`);
 			} else {
-				const workspaces = workspaceManager.getWorkspacesByGroup(group);
+				const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
 				result.push(...workspaces);
 			}
 		}
 
 		// Add ungrouped workspaces at the end
-		const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+		const ungrouped = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
 		if (ungrouped.length > 0) {
 			// Only show "No Group" header/placeholder if there are named groups
 			if (hasNamedGroups && workspaceManager.isGroupCollapsed('\x00nogroup')) {

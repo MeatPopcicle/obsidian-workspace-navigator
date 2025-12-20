@@ -189,6 +189,9 @@
 .workspace-drag-ghost {
 	position: fixed;
 	z-index: 10000;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 	padding: 6px 12px;
 	background: var(--background-primary);
 	border: 1px solid var(--interactive-accent);
@@ -199,12 +202,24 @@
 	white-space: nowrap;
 }
 
-/* Drop indicator line */
-.workspace-drop-indicator {
-	height: 2px;
-	background: var(--interactive-accent);
-	margin: 0;
-	border-radius: 1px;
+.workspace-drag-ghost-handle {
+	display: flex;
+	align-items: center;
+	opacity: 0.5;
+}
+
+.workspace-drag-ghost-handle svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Drop indicator - border on target row */
+.workspace-suggestion-item.drop-target-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-suggestion-item.drop-target-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 .workspace-active-indicator {
@@ -606,6 +621,15 @@
 
 .workspace-editor-list .setting-item.is-dragging {
 	opacity: 0.5;
+}
+
+/* Drop target indicators for setting items */
+.workspace-editor-list .setting-item.drop-target-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-editor-list .setting-item.drop-target-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */

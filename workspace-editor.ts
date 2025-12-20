@@ -16,6 +16,7 @@ export class WorkspaceEditorModal extends Modal {
 	collapsedGroups:  Set<string> = new Set();
 	draggedWorkspace: string | null = null;
 	draggedElement:   HTMLElement | null = null;
+	dragGhost:        HTMLElement | null = null;
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -68,43 +69,123 @@ export class WorkspaceEditorModal extends Modal {
 		const onMouseMove = (evt: MouseEvent) => {
 			if (!this.draggedWorkspace) return;
 
-			// Find element under cursor
+			// Move ghost to follow cursor
+			if (this.dragGhost) {
+				this.dragGhost.style.left = `${evt.clientX + 10}px`;
+				this.dragGhost.style.top = `${evt.clientY - 10}px`;
+			}
+
+			// Hide ghost temporarily to find element underneath
+			if (this.dragGhost) {
+				this.dragGhost.style.pointerEvents = 'none';
+			}
 			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
+			if (this.dragGhost) {
+				this.dragGhost.style.pointerEvents = '';
+			}
 
-			// Remove all drag-over states first
-			this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+			// Remove all drag states first
+			this.modalEl.querySelectorAll('.drag-over, .drop-target-above, .drop-target-below').forEach(e => {
+				e.removeClass('drag-over', 'drop-target-above', 'drop-target-below');
+			});
 
-			// Check if hovering over a group header
+			// Check if hovering over a workspace setting item
+			const settingItem = target?.closest('.setting-item') as HTMLElement;
 			const groupHeader = target?.closest('.workspace-editor-group-header') as HTMLElement;
-			if (groupHeader) {
+
+			if (settingItem && settingItem !== this.draggedElement) {
+				// Show drop indicator
+				const rect = settingItem.getBoundingClientRect();
+				const midY = rect.top + rect.height / 2;
+				const insertBefore = evt.clientY < midY;
+
+				if (insertBefore) {
+					settingItem.addClass('drop-target-above');
+				} else {
+					settingItem.addClass('drop-target-below');
+				}
+
+				// Get workspace name from the setting
+				const nameSpan = settingItem.querySelector('.setting-item-name span:last-child') as HTMLElement;
+				const workspaceName = nameSpan?.textContent?.replace(' ✓', '').trim();
+				if (workspaceName) {
+					(this as any)._dropTarget = {
+						workspace: workspaceName,
+						insertBefore: insertBefore
+					};
+				}
+			} else if (groupHeader) {
 				groupHeader.addClass('drag-over');
+				(this as any)._dropTarget = null;
+			} else {
+				(this as any)._dropTarget = null;
 			}
 		};
 
 		const onMouseUp = async (evt: MouseEvent) => {
 			if (!this.draggedWorkspace) return;
 
-			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
-			const groupHeader = target?.closest('.workspace-editor-group-header') as HTMLElement;
+			const workspaceManager = this.plugin.getWorkspaceManager();
+			const useManualOrder = this.plugin.settings.manualSortOrder;
+			let moved = false;
 
-			if (groupHeader && groupHeader.dataset.groupName) {
-				const workspaceManager = this.plugin.getWorkspaceManager();
-				const groupName = groupHeader.dataset.groupName;
-				const isNoGroup = groupName === '\x00nogroup';
-				const targetGroup = isNoGroup ? null : groupName;
+			// Check if we have a drop target (dropping near a workspace)
+			const dropTarget = (this as any)._dropTarget;
+			if (dropTarget?.workspace) {
+				const targetGroup = workspaceManager.getWorkspaceGroup(dropTarget.workspace);
 				const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
 
-				// Only update if group is different
 				if (currentGroup !== targetGroup) {
-					workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+					// Moving between groups
+					const position = dropTarget.insertBefore ? 'before' : 'after';
+					if (useManualOrder) {
+						workspaceManager.moveWorkspaceRelativeTo(this.draggedWorkspace, dropTarget.workspace, position);
+					} else {
+						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+					}
 					await this.plugin.saveSettings();
 
 					const groupDisplay = targetGroup || 'No Group';
 					new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
-
-					// Refresh the list
-					this.onOpen();
+					moved = true;
+				} else if (useManualOrder && this.draggedWorkspace !== dropTarget.workspace) {
+					// Reordering within the same group
+					const position = dropTarget.insertBefore ? 'before' : 'after';
+					workspaceManager.moveWorkspaceRelativeTo(this.draggedWorkspace, dropTarget.workspace, position);
+					await this.plugin.saveSettings();
+					moved = true;
 				}
+			} else {
+				// Check if dropped on a group header
+				if (this.dragGhost) {
+					this.dragGhost.style.pointerEvents = 'none';
+				}
+				const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
+				if (this.dragGhost) {
+					this.dragGhost.style.pointerEvents = '';
+				}
+
+				const groupHeader = target?.closest('.workspace-editor-group-header') as HTMLElement;
+				if (groupHeader && groupHeader.dataset.groupName) {
+					const groupName = groupHeader.dataset.groupName;
+					const isNoGroup = groupName === '\x00nogroup';
+					const targetGroup = isNoGroup ? null : groupName;
+					const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
+
+					if (currentGroup !== targetGroup) {
+						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+						await this.plugin.saveSettings();
+
+						const groupDisplay = targetGroup || 'No Group';
+						new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+						moved = true;
+					}
+				}
+			}
+
+			// Refresh if moved
+			if (moved) {
+				this.onOpen();
 			}
 
 			// Clean up drag state
@@ -119,14 +200,39 @@ export class WorkspaceEditorModal extends Modal {
 		document.addEventListener('mouseup', onMouseUp);
 	}
 
+	private createDragGhost(workspaceName: string): void {
+		this.dragGhost = document.createElement('div');
+		this.dragGhost.addClass('workspace-drag-ghost');
+
+		// Add grip handle icon
+		const handleSpan = document.createElement('span');
+		handleSpan.addClass('workspace-drag-ghost-handle');
+		setIcon(handleSpan, 'grip-vertical');
+		this.dragGhost.appendChild(handleSpan);
+
+		// Add workspace name
+		const nameSpan = document.createElement('span');
+		nameSpan.textContent = workspaceName;
+		this.dragGhost.appendChild(nameSpan);
+
+		document.body.appendChild(this.dragGhost);
+	}
+
 	private cleanupDrag(): void {
 		if (this.draggedElement) {
 			this.draggedElement.removeClass('is-dragging');
 		}
+		if (this.dragGhost) {
+			this.dragGhost.remove();
+			this.dragGhost = null;
+		}
 		this.draggedWorkspace = null;
 		this.draggedElement = null;
+		(this as any)._dropTarget = null;
 		document.body.removeClass('workspace-dragging');
-		this.modalEl.querySelectorAll('.drag-over').forEach(e => e.removeClass('drag-over'));
+		this.modalEl.querySelectorAll('.drag-over, .drop-target-above, .drop-target-below').forEach(e => {
+			e.removeClass('drag-over', 'drop-target-above', 'drop-target-below');
+		});
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -228,7 +334,8 @@ export class WorkspaceEditorModal extends Modal {
 		const groupKey = group || '\x00nogroup';
 		const displayName = group || 'No Group';
 		const isCollapsed = this.collapsedGroups.has(groupKey);
-		const workspaces = workspaceManager.getWorkspacesByGroup(group);
+		const useManualOrder = this.plugin.settings.manualSortOrder;
+		const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
 
 		// Group header
 		const header = containerEl.createDiv('workspace-editor-group-header');
@@ -285,12 +392,13 @@ export class WorkspaceEditorModal extends Modal {
 		const showStyles = this.plugin.settings.showStyleButton;
 		const hasGroups  = workspaceManager.getGroups().length > 0;
 
-		// Add drag handle if groups exist
-		if (hasGroups) {
+		// Add drag handle if groups exist or manual sort is enabled
+		const useManualOrder = this.plugin.settings.manualSortOrder;
+		if (hasGroups || useManualOrder) {
 			const dragHandle = document.createElement('span');
 			dragHandle.addClass('workspace-editor-drag-handle');
 			setIcon(dragHandle, 'grip-vertical');
-			dragHandle.setAttribute('aria-label', 'Drag to move to group');
+			dragHandle.setAttribute('aria-label', 'Drag to reorder or move to group');
 
 			dragHandle.addEventListener('mousedown', (evt) => {
 				evt.preventDefault();
@@ -299,6 +407,12 @@ export class WorkspaceEditorModal extends Modal {
 				this.draggedElement = setting.settingEl;
 				setting.settingEl.addClass('is-dragging');
 				document.body.addClass('workspace-dragging');
+				this.createDragGhost(name);
+				// Position ghost at cursor
+				if (this.dragGhost) {
+					this.dragGhost.style.left = `${evt.clientX + 10}px`;
+					this.dragGhost.style.top = `${evt.clientY - 10}px`;
+				}
 			});
 
 			// Insert drag handle at the beginning of the setting

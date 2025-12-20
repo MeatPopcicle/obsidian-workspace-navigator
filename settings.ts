@@ -31,6 +31,7 @@ export interface WorkspaceNavigatorSettings {
 
 	// Sorting preferences
 	sortWorkspacesAlphabetically:    boolean;
+	manualSortOrder:                 boolean;
 
 	// Debug mode
 	debugMode:                       boolean;
@@ -48,6 +49,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	autoSaveOnSwitch:                false,
 	autoSaveOnLayoutChange:          false,
 	sortWorkspacesAlphabetically:    true,
+	manualSortOrder:                 false,
 	debugMode:                       false,
 };
 
@@ -189,12 +191,28 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Sort workspaces alphabetically')
-			.setDesc('Display workspaces in alphabetical/numerical order in the switcher modal')
+			.setDesc('Display workspaces in alphabetical/numerical order. Disabled when manual sort order is enabled.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.sortWorkspacesAlphabetically)
+				.setDisabled(this.plugin.settings.manualSortOrder)
 				.onChange(async (value) => {
 					this.plugin.settings.sortWorkspacesAlphabetically = value;
 					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Manual sort order')
+			.setDesc('Enable drag-and-drop reordering of workspaces within groups. When enabled, alphabetical sorting is disabled.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.manualSortOrder)
+				.onChange(async (value) => {
+					this.plugin.settings.manualSortOrder = value;
+					if (value) {
+						this.plugin.settings.sortWorkspacesAlphabetically = false;
+					}
+					await this.plugin.saveSettings();
+					// Refresh settings display to update disabled state
+					this.display();
 				}));
 
 		new Setting(containerEl)

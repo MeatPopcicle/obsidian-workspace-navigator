@@ -106,6 +106,8 @@ export interface WorkspacesStorage {
 	groupColors?: Record<string, string>;
 	/** Collapsed groups (group name -> true if collapsed) */
 	collapsedGroups?: Record<string, boolean>;
+	/** Manual workspace order per group (group name -> ordered workspace names) */
+	workspaceOrder?: Record<string, string[]>;
 }
 
 /**
@@ -356,6 +358,159 @@ export class WorkspaceManager {
 		const newState = !this.isGroupCollapsed(group);
 		this.setGroupCollapsed(group, newState);
 		return newState;
+	}
+
+	// ───────────────────────────────────────────────────────────────────
+	// Workspace Order Management (for manual sorting)
+	// ───────────────────────────────────────────────────────────────────
+
+	/**
+	 * Get the order key for a group (use "__ungrouped__" for null group)
+	 */
+	private getOrderKey(group: string | null): string {
+		return group || '__ungrouped__';
+	}
+
+	/**
+	 * Get workspace order for a group
+	 */
+	getWorkspaceOrder(group: string | null): string[] {
+		const key = this.getOrderKey(group);
+		return this.storage.workspaceOrder?.[key] || [];
+	}
+
+	/**
+	 * Set workspace order for a group
+	 */
+	setWorkspaceOrder(group: string | null, order: string[]): void {
+		if (!this.storage.workspaceOrder) {
+			this.storage.workspaceOrder = {};
+		}
+		const key = this.getOrderKey(group);
+		this.storage.workspaceOrder[key] = order;
+	}
+
+	/**
+	 * Get workspaces by group with manual order applied
+	 * Falls back to alphabetical if no manual order is set
+	 */
+	getWorkspacesByGroupOrdered(group: string | null, useManualOrder: boolean): string[] {
+		const workspaces = this.getWorkspacesByGroup(group);
+
+		if (!useManualOrder) {
+			return workspaces; // Already sorted alphabetically
+		}
+
+		const savedOrder = this.getWorkspaceOrder(group);
+		if (savedOrder.length === 0) {
+			return workspaces; // No saved order, use alphabetical
+		}
+
+		// Sort by saved order, putting unknown workspaces at the end
+		const orderMap = new Map(savedOrder.map((name, idx) => [name, idx]));
+		return workspaces.sort((a, b) => {
+			const orderA = orderMap.has(a) ? orderMap.get(a)! : Infinity;
+			const orderB = orderMap.has(b) ? orderMap.get(b)! : Infinity;
+			if (orderA === orderB) {
+				// Both unknown, sort alphabetically
+				return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+			}
+			return orderA - orderB;
+		});
+	}
+
+	/**
+	 * Reorder a workspace within its group
+	 * @param workspaceName The workspace to move
+	 * @param targetIndex The new index within the group
+	 */
+	reorderWorkspace(workspaceName: string, targetIndex: number): void {
+		const group = this.getWorkspaceGroup(workspaceName);
+		const workspaces = this.getWorkspacesByGroup(group);
+
+		// Get current order (or initialize from alphabetical)
+		let order = this.getWorkspaceOrder(group);
+		if (order.length === 0) {
+			order = [...workspaces];
+		}
+
+		// Remove workspace from current position
+		const currentIndex = order.indexOf(workspaceName);
+		if (currentIndex !== -1) {
+			order.splice(currentIndex, 1);
+		}
+
+		// Insert at new position
+		const clampedIndex = Math.max(0, Math.min(targetIndex, order.length));
+		order.splice(clampedIndex, 0, workspaceName);
+
+		// Save new order
+		this.setWorkspaceOrder(group, order);
+		this.logger.log(`Reordered "${workspaceName}" to index ${clampedIndex} in group "${group || '(ungrouped)'}"`);
+	}
+
+	/**
+	 * Move workspace to a specific position relative to another workspace
+	 * @param workspaceName The workspace to move
+	 * @param targetWorkspace The workspace to position relative to
+	 * @param position 'before' or 'after' the target
+	 */
+	moveWorkspaceRelativeTo(workspaceName: string, targetWorkspace: string, position: 'before' | 'after'): void {
+		const targetGroup = this.getWorkspaceGroup(targetWorkspace);
+		const sourceGroup = this.getWorkspaceGroup(workspaceName);
+
+		// If moving between groups, update the group first
+		if (sourceGroup !== targetGroup) {
+			this.setWorkspaceGroup(workspaceName, targetGroup);
+			// Remove from old group's order
+			const oldOrder = this.getWorkspaceOrder(sourceGroup);
+			const oldIndex = oldOrder.indexOf(workspaceName);
+			if (oldIndex !== -1) {
+				oldOrder.splice(oldIndex, 1);
+				this.setWorkspaceOrder(sourceGroup, oldOrder);
+			}
+		}
+
+		// Get target group's order
+		let order = this.getWorkspaceOrder(targetGroup);
+		if (order.length === 0) {
+			order = [...this.getWorkspacesByGroup(targetGroup)];
+		}
+
+		// Remove workspace from current position in this group
+		const currentIndex = order.indexOf(workspaceName);
+		if (currentIndex !== -1) {
+			order.splice(currentIndex, 1);
+		}
+
+		// Find target position
+		let targetIndex = order.indexOf(targetWorkspace);
+		if (targetIndex === -1) {
+			targetIndex = order.length;
+		} else if (position === 'after') {
+			targetIndex++;
+		}
+
+		// Insert at new position
+		order.splice(targetIndex, 0, workspaceName);
+		this.setWorkspaceOrder(targetGroup, order);
+
+		this.logger.log(`Moved "${workspaceName}" ${position} "${targetWorkspace}" in group "${targetGroup || '(ungrouped)'}"`);
+	}
+
+	/**
+	 * Clean up workspace order data (remove deleted workspaces, add missing ones)
+	 */
+	cleanupWorkspaceOrder(): void {
+		if (!this.storage.workspaceOrder) return;
+
+		const allWorkspaces = new Set(Object.keys(this.storage.workspaces));
+
+		for (const key of Object.keys(this.storage.workspaceOrder)) {
+			const order = this.storage.workspaceOrder[key];
+			// Remove workspaces that no longer exist
+			this.storage.workspaceOrder[key] = order.filter(name => allWorkspaces.has(name));
+		}
 	}
 
 	/**
