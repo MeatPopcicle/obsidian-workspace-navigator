@@ -185,18 +185,28 @@
 	align-items: center;
 }
 
+/* Indent workspace items that are inside a group */
+.workspace-suggestion-item.in-group {
+	padding-left: 2.4rem !important;
+}
+
+.workspace-suggestion-item.in-group .workspace-drag-handle {
+	left: 1.1rem;
+}
+
 .workspace-suggestion-item.is-active {
 	font-weight: var(--font-weight-semibold);
 }
 
+/* Active workspace handle - more prominent */
 .workspace-suggestion-item.is-active .workspace-drag-handle {
 	opacity: 1;
 	color: var(--interactive-accent);
-	font-weight: bold;
 }
 
 .workspace-suggestion-item.is-active .workspace-drag-handle svg {
-	stroke-width: 2.5;
+	stroke-width: 3;
+	filter: drop-shadow(0 0 2px var(--interactive-accent));
 }
 
 /* Drag-and-drop: workspace item being dragged */

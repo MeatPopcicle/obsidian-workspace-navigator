@@ -2522,6 +2522,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian3.FuzzySuggestModal {
     }
     el.dataset.workspaceName = workspaceName;
     el.addClass("workspace-suggestion-item");
+    const currentGroupForClass = workspaceManager.getWorkspaceGroup(workspaceName);
+    if (currentGroupForClass) {
+      el.addClass("in-group");
+    }
     const textContent = el.textContent || "";
     el.empty();
     const hasGroups = workspaceManager.getGroups().length > 0;

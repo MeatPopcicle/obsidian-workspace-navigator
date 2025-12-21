@@ -1088,6 +1088,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
 
+		// Add class for indentation if workspace is in a group
+		const currentGroupForClass = workspaceManager.getWorkspaceGroup(workspaceName);
+		if (currentGroupForClass) {
+			el.addClass('in-group');
+		}
+
 		// Wrap the text content in a span for rename functionality
 		const textContent = el.textContent || '';
 		el.empty();
