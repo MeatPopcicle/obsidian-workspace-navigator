@@ -1093,15 +1093,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (hasNamedGroups) {
 			el.addClass('in-group');
 
-			// Check position in group for card styling (first/last for rounded corners)
+			// Check if this is the last workspace in the group (for card bottom styling)
 			const useManualOrder  = this.plugin.settings.manualSortOrder;
 			const groupWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(currentGroup, useManualOrder);
-			const isFirstInGroup  = groupWorkspaces[0] === workspaceName;
 			const isLastInGroup   = groupWorkspaces[groupWorkspaces.length - 1] === workspaceName;
-
-			if (isFirstInGroup) {
-				el.addClass('in-group-first');
-			}
 			if (isLastInGroup) {
 				el.addClass('in-group-last');
 			}

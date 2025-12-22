@@ -57,15 +57,16 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     container.style.display         = 'flex';
     container.style.alignItems      = 'center';
     container.style.gap             = '6px';
-    container.style.padding         = '8px 6rem 8px 1.6rem';  // Match base workspace padding
+    container.style.padding         = '8px 6rem 8px 16px';
     container.style.marginTop       = '8px';
-    container.style.marginBottom    = '2px';
-    container.style.fontSize        = '0.85em';
+    container.style.fontSize        = '0.75em';
     container.style.fontWeight      = '600';
     container.style.color           = 'var(--text-muted)';
     container.style.letterSpacing   = '0.05em';
-    // Standalone header - not connected to card
-    container.style.borderBottom    = '1px solid var(--background-modifier-border)';
+    container.style.backgroundColor = 'var(--background-secondary)';
+    container.style.borderRadius    = '6px 6px 0 0';  // Card top: rounded top corners only
+    container.style.border          = '1px solid var(--background-modifier-border)';
+    container.style.borderBottom    = 'none';  // No bottom border - continues into card body
 
     // Store group name on container for drop handling
     container.dataset.groupName = groupName;
