@@ -1688,15 +1688,16 @@ function renderGroupHeader(container, config) {
   container.style.display = "flex";
   container.style.alignItems = "center";
   container.style.gap = "6px";
-  container.style.padding = "8px 6rem 5px 16px";
-  container.style.marginTop = "-5px";
+  container.style.padding = "8px 6rem 8px 16px";
+  container.style.marginTop = "8px";
   container.style.fontSize = "0.75em";
   container.style.fontWeight = "600";
   container.style.color = "var(--text-muted)";
   container.style.letterSpacing = "0.05em";
   container.style.backgroundColor = "var(--background-secondary)";
-  container.style.borderRadius = "4px";
-  container.style.borderBottom = "1px solid var(--background-modifier-border)";
+  container.style.borderRadius = "6px 6px 0 0";
+  container.style.border = "1px solid var(--background-modifier-border)";
+  container.style.borderBottom = "none";
   container.dataset.groupName = groupName;
   if (useManualOrder && hasGroups && !isNoGroup && onDragStart) {
     const dragHandle = document.createElement("span");
@@ -2698,6 +2699,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const currentGroupForClass = workspaceManager.getWorkspaceGroup(workspaceName);
     if (currentGroupForClass) {
       el.addClass("in-group");
+      const useManualOrder = this.plugin.settings.manualSortOrder;
+      const groupWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(currentGroupForClass, useManualOrder);
+      const isLastInGroup = groupWorkspaces[groupWorkspaces.length - 1] === workspaceName;
+      if (isLastInGroup) {
+        el.addClass("in-group-last");
+      }
     }
     const textContent = el.textContent || "";
     el.empty();

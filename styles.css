@@ -183,13 +183,24 @@
 	align-items: center;
 }
 
-/* Indent workspace items that are inside a group */
+/* Card-style grouping: workspace items inside a group */
 .workspace-suggestion-item.in-group {
 	padding-left: 2.4rem !important;
+	background-color: var(--background-secondary);
+	border-left: 1px solid var(--background-modifier-border);
+	border-right: 1px solid var(--background-modifier-border);
+	margin-top: 0 !important;
 }
 
 .workspace-suggestion-item.in-group .workspace-drag-handle {
 	left: 1.1rem;
+}
+
+/* Last item in group card - close the card with bottom border and rounded corners */
+.workspace-suggestion-item.in-group-last {
+	border-bottom: 1px solid var(--background-modifier-border);
+	border-radius: 0 0 6px 6px;
+	margin-bottom: 4px;
 }
 
 .workspace-suggestion-item.is-active {

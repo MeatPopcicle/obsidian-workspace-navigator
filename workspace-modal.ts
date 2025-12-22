@@ -1089,10 +1089,18 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
 
-		// Add class for indentation if workspace is in a group
+		// Add class for indentation if workspace is in a group (card styling)
 		const currentGroupForClass = workspaceManager.getWorkspaceGroup(workspaceName);
 		if (currentGroupForClass) {
 			el.addClass('in-group');
+
+			// Check if this is the last workspace in the group (for card bottom styling)
+			const useManualOrder      = this.plugin.settings.manualSortOrder;
+			const groupWorkspaces     = workspaceManager.getWorkspacesByGroupOrdered(currentGroupForClass, useManualOrder);
+			const isLastInGroup       = groupWorkspaces[groupWorkspaces.length - 1] === workspaceName;
+			if (isLastInGroup) {
+				el.addClass('in-group-last');
+			}
 		}
 
 		// Wrap the text content in a span for rename functionality
