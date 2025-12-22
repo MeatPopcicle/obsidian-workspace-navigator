@@ -134,17 +134,19 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     container.appendChild(chevron);
 
     // ─────────────────────────────────────────────────────────────────
-    // Group icon (if set)
+    // Group icon (always show - default if not set)
     // ─────────────────────────────────────────────────────────────────
 
     const groupIcon = isNoGroup
         ? workspaceManager.getGroupIcon(NO_GROUP_KEY)
         : workspaceManager.getGroupIcon(groupName);
+
+    const iconSpan = document.createElement('span');
+    iconSpan.className     = 'workspace-group-icon';
+    iconSpan.style.display = 'inline-flex';
+    iconSpan.style.alignItems = 'center';
+
     if (groupIcon) {
-        const iconSpan = document.createElement('span');
-        iconSpan.className     = 'workspace-group-icon';
-        iconSpan.style.display = 'inline-flex';
-        iconSpan.style.alignItems = 'center';
         setIcon(iconSpan, groupIcon);
         const iconColor = isNoGroup
             ? workspaceManager.getGroupIconColor(NO_GROUP_KEY)
@@ -152,8 +154,12 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         if (iconColor) {
             iconSpan.style.color = iconColor;
         }
-        container.appendChild(iconSpan);
+    } else {
+        // Default icon for groups without a custom icon
+        setIcon(iconSpan, 'folder');
+        iconSpan.style.opacity = '0.4';
     }
+    container.appendChild(iconSpan);
 
     // ─────────────────────────────────────────────────────────────────
     // Group name text

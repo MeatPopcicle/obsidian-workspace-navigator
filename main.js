@@ -1747,18 +1747,21 @@ function renderGroupHeader(container, config) {
   });
   container.appendChild(chevron);
   const groupIcon = isNoGroup ? workspaceManager.getGroupIcon(NO_GROUP_KEY) : workspaceManager.getGroupIcon(groupName);
+  const iconSpan = document.createElement("span");
+  iconSpan.className = "workspace-group-icon";
+  iconSpan.style.display = "inline-flex";
+  iconSpan.style.alignItems = "center";
   if (groupIcon) {
-    const iconSpan = document.createElement("span");
-    iconSpan.className = "workspace-group-icon";
-    iconSpan.style.display = "inline-flex";
-    iconSpan.style.alignItems = "center";
     (0, import_obsidian3.setIcon)(iconSpan, groupIcon);
     const iconColor = isNoGroup ? workspaceManager.getGroupIconColor(NO_GROUP_KEY) : workspaceManager.getGroupIconColor(groupName);
     if (iconColor) {
       iconSpan.style.color = iconColor;
     }
-    container.appendChild(iconSpan);
+  } else {
+    (0, import_obsidian3.setIcon)(iconSpan, "folder");
+    iconSpan.style.opacity = "0.4";
   }
+  container.appendChild(iconSpan);
   const textSpan = document.createElement("span");
   textSpan.className = "workspace-group-text";
   textSpan.style.flex = "1";
