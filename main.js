@@ -1695,6 +1695,7 @@ function renderGroupHeader(container, config) {
   container.style.color = "var(--text-muted)";
   container.style.letterSpacing = "0.05em";
   container.style.backgroundColor = "var(--background-secondary)";
+  container.style.borderRadius = "6px 6px 0 0";
   container.style.border = "1px solid var(--background-modifier-border)";
   container.style.borderBottom = "none";
   container.dataset.groupName = groupName;

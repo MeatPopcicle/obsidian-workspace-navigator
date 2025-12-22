@@ -64,6 +64,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     container.style.color           = 'var(--text-muted)';
     container.style.letterSpacing   = '0.05em';
     container.style.backgroundColor = 'var(--background-secondary)';
+    container.style.borderRadius    = '6px 6px 0 0';  // Card top: rounded top corners only
     container.style.border          = '1px solid var(--background-modifier-border)';
     container.style.borderBottom    = 'none';  // No bottom border - continues into card body
 
