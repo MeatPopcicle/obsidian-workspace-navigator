@@ -216,10 +216,9 @@
 	cursor: grabbing;
 }
 
-/* Last item in group card - close the card with bottom border and rounded corners */
+/* Last item in group card - close the card with bottom border */
 .workspace-suggestion-item.in-group-last {
 	border-bottom: 1px solid var(--background-modifier-border);
-	border-radius: 0 0 6px 6px;
 	margin-bottom: 4px;
 }
 
