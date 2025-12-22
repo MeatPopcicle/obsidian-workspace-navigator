@@ -183,18 +183,18 @@
 	align-items: center;
 }
 
-/* Card-style grouping: workspace items inside a group */
+/* Card-style grouping: workspace items inside a group - no indent, aligned columns */
 .workspace-suggestion-item.in-group {
-	padding-left: 2.4rem !important;
+	padding-left: 1.6rem !important;  /* Same as ungrouped - no indent */
 	background-color: var(--background-secondary);
 	border-left: 1px solid var(--background-modifier-border);
 	border-right: 1px solid var(--background-modifier-border);
 	margin-top: 0 !important;
 }
 
-/* Aligned handles: all handles at same x-position regardless of nesting */
+/* Handles stay at same position */
 .workspace-suggestion-item.in-group .workspace-drag-handle {
-	left: 0.3em;  /* Same as non-grouped items */
+	left: 0.3em;
 }
 
 /* Last item in group card - close the card with bottom border and rounded corners */
