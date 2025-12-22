@@ -1699,7 +1699,7 @@ function renderGroupHeader(container, config) {
   container.style.border = "1px solid var(--background-modifier-border)";
   container.style.borderBottom = "none";
   container.dataset.groupName = groupName;
-  if (useManualOrder && hasGroups && !isNoGroup && onDragStart) {
+  if (useManualOrder && hasGroups) {
     const dragHandle = document.createElement("span");
     dragHandle.className = "workspace-group-drag-handle";
     dragHandle.style.position = "absolute";
@@ -1711,21 +1711,26 @@ function renderGroupHeader(container, config) {
     dragHandle.style.justifyContent = "center";
     dragHandle.style.width = "1.2em";
     dragHandle.style.height = "1.2em";
-    dragHandle.style.opacity = "0.3";
-    dragHandle.style.cursor = "grab";
     (0, import_obsidian3.setIcon)(dragHandle, "grip-vertical");
-    dragHandle.setAttribute("title", "Drag to reorder group");
-    dragHandle.addEventListener("mousedown", (evt) => {
-      evt.preventDefault();
-      evt.stopPropagation();
-      onDragStart(evt, groupName, container);
-    });
-    dragHandle.addEventListener("mouseenter", () => {
-      dragHandle.style.opacity = "0.8";
-    });
-    dragHandle.addEventListener("mouseleave", () => {
+    if (isNoGroup) {
+      dragHandle.style.opacity = "0.15";
+      dragHandle.style.cursor = "default";
+    } else if (onDragStart) {
       dragHandle.style.opacity = "0.3";
-    });
+      dragHandle.style.cursor = "grab";
+      dragHandle.setAttribute("title", "Drag to reorder group");
+      dragHandle.addEventListener("mousedown", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        onDragStart(evt, groupName, container);
+      });
+      dragHandle.addEventListener("mouseenter", () => {
+        dragHandle.style.opacity = "0.8";
+      });
+      dragHandle.addEventListener("mouseleave", () => {
+        dragHandle.style.opacity = "0.3";
+      });
+    }
     container.appendChild(dragHandle);
   }
   const chevron = document.createElement("span");

@@ -75,7 +75,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     // Drag handle (for group reordering)
     // ─────────────────────────────────────────────────────────────────
 
-    if (useManualOrder && hasGroups && !isNoGroup && onDragStart) {
+    if (useManualOrder && hasGroups) {
         const dragHandle = document.createElement('span');
         dragHandle.className = 'workspace-group-drag-handle';
         // Absolutely position handle - aligned with workspace handles
@@ -88,19 +88,27 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         dragHandle.style.justifyContent = 'center';
         dragHandle.style.width          = '1.2em';
         dragHandle.style.height         = '1.2em';
-        dragHandle.style.opacity        = '0.3';
-        dragHandle.style.cursor         = 'grab';
         setIcon(dragHandle, 'grip-vertical');
-        dragHandle.setAttribute('title', 'Drag to reorder group');
 
-        dragHandle.addEventListener('mousedown', (evt) => {
-            evt.preventDefault();
-            evt.stopPropagation();
-            onDragStart(evt, groupName, container);
-        });
+        if (isNoGroup) {
+            // Greyed out placeholder for visual balance - not functional
+            dragHandle.style.opacity = '0.15';
+            dragHandle.style.cursor  = 'default';
+        } else if (onDragStart) {
+            // Functional handle for named groups
+            dragHandle.style.opacity = '0.3';
+            dragHandle.style.cursor  = 'grab';
+            dragHandle.setAttribute('title', 'Drag to reorder group');
 
-        dragHandle.addEventListener('mouseenter', () => { dragHandle.style.opacity = '0.8'; });
-        dragHandle.addEventListener('mouseleave', () => { dragHandle.style.opacity = '0.3'; });
+            dragHandle.addEventListener('mousedown', (evt) => {
+                evt.preventDefault();
+                evt.stopPropagation();
+                onDragStart(evt, groupName, container);
+            });
+
+            dragHandle.addEventListener('mouseenter', () => { dragHandle.style.opacity = '0.8'; });
+            dragHandle.addEventListener('mouseleave', () => { dragHandle.style.opacity = '0.3'; });
+        }
 
         container.appendChild(dragHandle);
     }
