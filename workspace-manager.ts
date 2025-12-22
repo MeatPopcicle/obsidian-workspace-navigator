@@ -961,6 +961,18 @@ export class WorkspaceManager {
 			this.logger.log(`- Updated active workspace to "${newName}"`);
 		}
 
+		// Update workspace order to preserve position (for manual sort order)
+		if (this.storage.workspaceOrder) {
+			for (const key of Object.keys(this.storage.workspaceOrder)) {
+				const order: string[] = this.storage.workspaceOrder[key];
+				const index = order.indexOf(oldName);
+				if (index !== -1) {
+					order[index] = newName;
+					this.logger.log(`- Updated workspace order in group "${key}"`);
+				}
+			}
+		}
+
 		// Trigger workspace rename event
 		this.app.workspace.trigger('workspace-rename', newName, oldName);
 

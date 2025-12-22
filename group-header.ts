@@ -60,13 +60,20 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     container.style.padding         = '8px 6rem 8px 16px';
     container.style.marginTop       = '8px';
     container.style.fontSize        = '0.75em';
-    container.style.fontWeight      = '600';
+    container.style.fontWeight      = 'normal';
     container.style.color           = 'var(--text-muted)';
     container.style.letterSpacing   = '0.05em';
-    container.style.backgroundColor = 'var(--background-secondary)';
-    container.style.borderRadius    = '6px 6px 0 0';  // Card top: rounded top corners only
+    container.style.backgroundColor = 'var(--background-primary-alt)';
     container.style.border          = '1px solid var(--background-modifier-border)';
-    container.style.borderBottom    = 'none';  // No bottom border - continues into card body
+
+    if (isCollapsed) {
+        // Collapsed: full card with rounded corners all around
+        container.style.borderRadius = '6px';
+    } else {
+        // Expanded: card top only, workspaces continue below
+        container.style.borderRadius    = '6px 6px 0 0';
+        container.style.borderBottom    = 'none';
+    }
 
     // Store group name on container for drop handling
     container.dataset.groupName = groupName;

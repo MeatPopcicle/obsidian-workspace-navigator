@@ -189,7 +189,8 @@
 	background-color: var(--background-secondary);
 	border-left: 1px solid var(--background-modifier-border);
 	border-right: 1px solid var(--background-modifier-border);
-	margin-top: 0 !important;
+	border-radius: 0 !important;  /* Override Obsidian's default suggestion item rounding */
+	margin: 0 !important;  /* Remove gaps between rows */
 }
 
 /* Hide visual handles - drag from entire row instead */
@@ -219,8 +220,8 @@
 /* Last item in group card - close the card with bottom border and rounded corners */
 .workspace-suggestion-item.in-group-last {
 	border-bottom: 1px solid var(--background-modifier-border);
-	border-radius: 0 0 6px 6px;
-	margin-bottom: 4px;
+	border-radius: 0 0 6px 6px !important;  /* Rounded bottom corners only */
+	margin-bottom: 4px !important;
 }
 
 .workspace-suggestion-item.is-active {
@@ -238,10 +239,7 @@
 	filter: drop-shadow(0 0 2px var(--interactive-accent));
 }
 
-/* Drag-and-drop: workspace item being dragged */
-.workspace-suggestion-item.is-dragging {
-	opacity: 0.3;
-}
+/* Drag-and-drop: workspace item being dragged - no visual change, ghost is enough */
 
 /* Drag handle for moving workspace between groups */
 .workspace-drag-handle {

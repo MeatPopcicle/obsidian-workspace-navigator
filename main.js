@@ -1691,13 +1691,17 @@ function renderGroupHeader(container, config) {
   container.style.padding = "8px 6rem 8px 16px";
   container.style.marginTop = "8px";
   container.style.fontSize = "0.75em";
-  container.style.fontWeight = "600";
+  container.style.fontWeight = "normal";
   container.style.color = "var(--text-muted)";
   container.style.letterSpacing = "0.05em";
-  container.style.backgroundColor = "var(--background-secondary)";
-  container.style.borderRadius = "6px 6px 0 0";
+  container.style.backgroundColor = "var(--background-primary-alt)";
   container.style.border = "1px solid var(--background-modifier-border)";
-  container.style.borderBottom = "none";
+  if (isCollapsed) {
+    container.style.borderRadius = "6px";
+  } else {
+    container.style.borderRadius = "6px 6px 0 0";
+    container.style.borderBottom = "none";
+  }
   container.dataset.groupName = groupName;
   if (useManualOrder && hasGroups) {
     const dragHandle = document.createElement("span");
@@ -2411,6 +2415,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   useSelectedItem(evt) {
     const targetEl = evt.composedPath ? evt.composedPath()[0] : evt.target;
     if (targetEl && targetEl.contentEditable === "true") {
+      if (targetEl.closest(".workspace-group-header")) {
+        evt.preventDefault();
+        targetEl.blur();
+        return false;
+      }
       this.handleRename(targetEl);
       return false;
     }
@@ -2585,10 +2594,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   createDragGhost(el, workspaceName) {
     this.dragGhost = document.createElement("div");
     this.dragGhost.addClass("workspace-drag-ghost");
-    const handleSpan = document.createElement("span");
-    handleSpan.addClass("workspace-drag-ghost-handle");
-    (0, import_obsidian4.setIcon)(handleSpan, "grip-vertical");
-    this.dragGhost.appendChild(handleSpan);
     const nameSpan = document.createElement("span");
     nameSpan.textContent = workspaceName;
     this.dragGhost.appendChild(nameSpan);
@@ -4483,6 +4488,16 @@ ${error.stack}
     if (this.storage.activeWorkspace === oldName) {
       this.storage.activeWorkspace = newName;
       this.logger.log(`- Updated active workspace to "${newName}"`);
+    }
+    if (this.storage.workspaceOrder) {
+      for (const key of Object.keys(this.storage.workspaceOrder)) {
+        const order2 = this.storage.workspaceOrder[key];
+        const index = order2.indexOf(oldName);
+        if (index !== -1) {
+          order2[index] = newName;
+          this.logger.log(`- Updated workspace order in group "${key}"`);
+        }
+      }
     }
     this.app.workspace.trigger("workspace-rename", newName, oldName);
     this.logger.log(`\u2705 Successfully renamed workspace`);

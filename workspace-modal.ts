@@ -686,6 +686,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// If we're editing a contentEditable element, handle rename
 		if (targetEl && targetEl.contentEditable === 'true') {
+			// Check if this is a group header rename (just blur to trigger save)
+			if (targetEl.closest('.workspace-group-header')) {
+				evt.preventDefault();
+				targetEl.blur();
+				return false;
+			}
+			// Otherwise it's a workspace rename
 			this.handleRename(targetEl);
 			return false;
 		}
@@ -920,13 +927,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.dragGhost = document.createElement('div');
 		this.dragGhost.addClass('workspace-drag-ghost');
 
-		// Add grip handle icon
-		const handleSpan = document.createElement('span');
-		handleSpan.addClass('workspace-drag-ghost-handle');
-		setIcon(handleSpan, 'grip-vertical');
-		this.dragGhost.appendChild(handleSpan);
-
-		// Add workspace name
+		// Add workspace name only (no handle needed)
 		const nameSpan = document.createElement('span');
 		nameSpan.textContent = workspaceName;
 		this.dragGhost.appendChild(nameSpan);
