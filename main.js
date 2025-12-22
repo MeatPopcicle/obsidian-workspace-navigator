@@ -2611,6 +2611,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       e.removeClass("drag-over", "drop-target-above", "drop-target-below");
     });
   }
+  startWorkspaceDrag(evt, workspaceName, el) {
+    this.draggedWorkspace = workspaceName;
+    this.draggedElement = el;
+    el.addClass("is-dragging");
+    document.body.addClass("workspace-dragging");
+    this.createDragGhost(el, workspaceName);
+    this.dragGhost.style.left = `${evt.clientX + 10}px`;
+    this.dragGhost.style.top = `${evt.clientY - 10}px`;
+  }
   onClose() {
     this.app.keymap.popScope(this.scope);
     if (this._dragMouseMove) {
@@ -2728,13 +2737,18 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       dragHandle.addEventListener("mousedown", (evt) => {
         evt.preventDefault();
         evt.stopPropagation();
-        this.draggedWorkspace = workspaceName;
-        this.draggedElement = el;
-        el.addClass("is-dragging");
-        document.body.addClass("workspace-dragging");
-        this.createDragGhost(el, workspaceName);
-        this.dragGhost.style.left = `${evt.clientX + 10}px`;
-        this.dragGhost.style.top = `${evt.clientY - 10}px`;
+        this.startWorkspaceDrag(evt, workspaceName, el);
+      });
+    }
+    if (hasNamedGroups) {
+      el.addEventListener("mousedown", (evt) => {
+        if (evt.button !== 0)
+          return;
+        const target = evt.target;
+        if (target.closest("button") || target.closest(".workspace-action-btn"))
+          return;
+        evt.preventDefault();
+        this.startWorkspaceDrag(evt, workspaceName, el);
       });
     }
     const showStyles = this.plugin.settings.showStyleButton;

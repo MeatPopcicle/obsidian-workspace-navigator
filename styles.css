@@ -192,10 +192,28 @@
 	margin-top: 0 !important;
 }
 
-/* Hide all handles - card styling only */
+/* Hide visual handles - drag from entire row instead */
 .workspace-suggestion-item .workspace-drag-handle,
 .workspace-group-drag-handle {
 	display: none !important;
+}
+
+/* Make entire row draggable */
+.workspace-suggestion-item.in-group {
+	cursor: grab;
+}
+
+.workspace-suggestion-item.in-group:active {
+	cursor: grabbing;
+}
+
+/* Group headers draggable */
+.workspace-group-header {
+	cursor: grab;
+}
+
+.workspace-group-header:active {
+	cursor: grabbing;
 }
 
 /* Last item in group card - close the card with bottom border and rounded corners */

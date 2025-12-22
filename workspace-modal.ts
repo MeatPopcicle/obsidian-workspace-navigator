@@ -952,6 +952,16 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		});
 	}
 
+	private startWorkspaceDrag(evt: MouseEvent, workspaceName: string, el: HTMLElement): void {
+		this.draggedWorkspace = workspaceName;
+		this.draggedElement   = el;
+		el.addClass('is-dragging');
+		document.body.addClass('workspace-dragging');
+		this.createDragGhost(el, workspaceName);
+		this.dragGhost!.style.left = `${evt.clientX + 10}px`;
+		this.dragGhost!.style.top  = `${evt.clientY - 10}px`;
+	}
+
 	onClose(): void {
 		// Pop custom scope
 		(this.app as any).keymap.popScope(this.scope);
@@ -1117,14 +1127,20 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			dragHandle.addEventListener('mousedown', (evt) => {
 				evt.preventDefault();
 				evt.stopPropagation();
-				this.draggedWorkspace = workspaceName;
-				this.draggedElement = el;
-				el.addClass('is-dragging');
-				document.body.addClass('workspace-dragging');
-				this.createDragGhost(el, workspaceName);
-				// Position ghost at cursor
-				this.dragGhost!.style.left = `${evt.clientX + 10}px`;
-				this.dragGhost!.style.top = `${evt.clientY - 10}px`;
+				this.startWorkspaceDrag(evt, workspaceName, el);
+			});
+		}
+
+		// Also allow dragging from entire row when groups exist
+		if (hasNamedGroups) {
+			el.addEventListener('mousedown', (evt) => {
+				// Only start drag on left click, not on buttons
+				if (evt.button !== 0) return;
+				const target = evt.target as HTMLElement;
+				if (target.closest('button') || target.closest('.workspace-action-btn')) return;
+
+				evt.preventDefault();
+				this.startWorkspaceDrag(evt, workspaceName, el);
 			});
 		}
 
