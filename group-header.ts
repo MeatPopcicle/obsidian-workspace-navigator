@@ -78,11 +78,17 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     if (useManualOrder && hasGroups && !isNoGroup && onDragStart) {
         const dragHandle = document.createElement('span');
         dragHandle.className = 'workspace-group-drag-handle';
-        dragHandle.style.display        = 'inline-flex';
+        // Absolutely position handle - aligned with workspace handles
+        dragHandle.style.position       = 'absolute';
+        dragHandle.style.left           = '0.3em';
+        dragHandle.style.top            = '50%';
+        dragHandle.style.transform      = 'translateY(-50%)';
+        dragHandle.style.display        = 'flex';
         dragHandle.style.alignItems     = 'center';
         dragHandle.style.justifyContent = 'center';
+        dragHandle.style.width          = '1.2em';
+        dragHandle.style.height         = '1.2em';
         dragHandle.style.opacity        = '0.3';
-        dragHandle.style.marginRight    = '4px';
         dragHandle.style.cursor         = 'grab';
         setIcon(dragHandle, 'grip-vertical');
         dragHandle.setAttribute('title', 'Drag to reorder group');

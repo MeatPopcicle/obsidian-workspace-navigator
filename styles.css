@@ -192,8 +192,9 @@
 	margin-top: 0 !important;
 }
 
+/* Aligned handles: all handles at same x-position regardless of nesting */
 .workspace-suggestion-item.in-group .workspace-drag-handle {
-	left: 1.1rem;
+	left: 0.3em;  /* Same as non-grouped items */
 }
 
 /* Last item in group card - close the card with bottom border and rounded corners */
