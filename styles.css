@@ -32,38 +32,36 @@
 /* Workspace Modal                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-group-header {
-	position: relative;
-	display: flex;
-	align-items: center;
-	gap: 6px;
-	padding: 8px 6rem 5px 16px;
-	margin-top: -5px;
-	font-size: 0.75em;
-	font-weight: var(--font-weight-semibold);
-	color: var(--text-muted);
-	letter-spacing: 0.05em;
-	border-bottom: 1px solid var(--background-modifier-border);
-	transition: background-color 0.15s, border-color 0.15s;
+/* Group headers use inline styles for base styling (see group-header.ts)
+   CSS classes here are for interactive states only */
+
+.workspace-group-header,
+.workspace-editor-group-header {
+	/* Base styles applied via inline JS - these are fallbacks/transitions only */
+	transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 /* Drag-and-drop: group header as drop target */
-.workspace-group-header.drag-over {
-	background-color: hsla(var(--interactive-accent-hsl), 0.15);
+.workspace-group-header.drag-over,
+.workspace-editor-group-header.drag-over {
+	background-color: hsla(var(--interactive-accent-hsl), 0.15) !important;
 	border-color: var(--interactive-accent);
 }
 
 /* Drag-and-drop: group header drop indicators */
-.workspace-group-header.drop-target-above {
+.workspace-group-header.drop-target-above,
+.workspace-editor-group-header.drop-target-above {
 	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
 }
 
-.workspace-group-header.drop-target-below {
+.workspace-group-header.drop-target-below,
+.workspace-editor-group-header.drop-target-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 /* Drag-and-drop: group header being dragged */
-.workspace-group-header.is-dragging {
+.workspace-group-header.is-dragging,
+.workspace-editor-group-header.is-dragging {
 	opacity: 0.3;
 }
 

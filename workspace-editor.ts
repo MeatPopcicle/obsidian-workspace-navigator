@@ -6,6 +6,7 @@ import { App, Modal, Setting, Notice, TextComponent, setIcon } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { StylePickerModal, WorkspaceStyleResult } from './workspace-modal';
+import { renderGroupHeader, setGroupDropTarget, setGroupDragging, GroupHeaderConfig } from './group-header';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Workspace Editor Modal
@@ -381,78 +382,45 @@ export class WorkspaceEditorModal extends Modal {
 
 	renderGroupSection(containerEl: HTMLElement, group: string | null, activeWorkspace: string | null) {
 		const workspaceManager = this.plugin.getWorkspaceManager();
-		const groupKey = group || '\x00nogroup';
-		const displayName = group || 'No Group';
-		const isCollapsed = this.collapsedGroups.has(groupKey);
+		const groupKey     = group || '\x00nogroup';
+		const displayName  = group || 'No Group';
+		const isCollapsed  = this.collapsedGroups.has(groupKey);
 		const useManualOrder = this.plugin.settings.manualSortOrder;
-		const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
-		const isNoGroup = group === null;
-		const hasMultipleGroups = workspaceManager.getGroups().length > 1;
+		const workspaces   = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
 
-		// Group header
+		// Group header - use shared utility with inline styles
 		const header = containerEl.createDiv('workspace-editor-group-header');
-		header.dataset.groupName = groupKey;
 
-		// Add drag handle for reordering groups (only if manual order is enabled and there are groups)
-		const hasGroups = workspaceManager.getGroups().length > 0;
-		if (this.plugin.settings.debugMode) {
-			console.log(`[EditorGroupHeader] "${displayName}" - useManualOrder=${useManualOrder}, hasGroups=${hasGroups}, isNoGroup=${isNoGroup}, showHandle=${useManualOrder && hasGroups && !isNoGroup}`);
-		}
-		if (useManualOrder && hasGroups && !isNoGroup) {
-			const dragHandle = header.createSpan('workspace-group-drag-handle');
-			setIcon(dragHandle, 'grip-vertical');
-
-			dragHandle.addEventListener('mousedown', (evt) => {
-				evt.preventDefault();
-				evt.stopPropagation();
-				this.draggedGroup = group;
+		const config: GroupHeaderConfig = {
+			groupName:        groupKey,
+			isCollapsed,
+			useManualOrder,
+			workspaceManager,
+			onToggleCollapse: (gn) => {
+				if (this.collapsedGroups.has(gn)) {
+					this.collapsedGroups.delete(gn);
+				} else {
+					this.collapsedGroups.add(gn);
+				}
+				this.onOpen();
+			},
+			onStyleClick:  () => {}, // Not used in editor modal
+			onRenameClick: () => {}, // Not used in editor modal
+			onDeleteClick: () => {}, // Not used in editor modal
+			onDragStart:   (evt, gn, c) => {
+				this.draggedGroup   = group;
 				this.draggedElement = header;
-				header.addClass('is-dragging');
+				setGroupDragging(header, true);
 				document.body.addClass('workspace-dragging');
 				this.createDragGhost(displayName);
 				if (this.dragGhost) {
 					this.dragGhost.style.left = `${evt.clientX + 10}px`;
-					this.dragGhost.style.top = `${evt.clientY - 10}px`;
+					this.dragGhost.style.top  = `${evt.clientY - 10}px`;
 				}
-			});
-		}
+			},
+		};
 
-		// Collapse/expand chevron
-		const chevron = header.createSpan('workspace-editor-group-chevron');
-		chevron.innerHTML = isCollapsed
-			? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>`
-			: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
-		chevron.addEventListener('click', () => {
-			if (isCollapsed) {
-				this.collapsedGroups.delete(groupKey);
-			} else {
-				this.collapsedGroups.add(groupKey);
-			}
-			this.onOpen(); // Refresh
-		});
-
-		// Group icon if set
-		const groupIcon = workspaceManager.getGroupIcon(groupKey);
-		if (groupIcon) {
-			const iconSpan = header.createSpan('workspace-editor-group-icon');
-			setIcon(iconSpan, groupIcon);
-			const iconColor = workspaceManager.getGroupIconColor(groupKey);
-			if (iconColor) {
-				iconSpan.style.color = iconColor;
-			}
-		}
-
-		// Group name
-		const nameSpan = header.createSpan('workspace-editor-group-name');
-		nameSpan.textContent = displayName;
-		const groupColor = workspaceManager.getGroupColor(groupKey);
-		if (groupColor) {
-			nameSpan.style.color = groupColor;
-		}
-
-		// Workspace count
-		const countSpan = header.createSpan('workspace-editor-group-count');
-		countSpan.textContent = `(${workspaces.length})`;
+		renderGroupHeader(header, config);
 
 		// Render workspaces if not collapsed
 		if (!isCollapsed) {

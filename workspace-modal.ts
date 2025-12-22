@@ -6,6 +6,7 @@ import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope, Modal, Setting, setI
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { createPopper, Instance as PopperInstance } from '@popperjs/core';
+import { renderGroupHeader, setGroupDropTarget, setGroupDragging, GroupHeaderConfig } from './group-header';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Lucide Icons (same icon set used by Obsidian)
@@ -1053,7 +1054,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.lastRenderedGroup = collapsedGroup === '\x00nogroup' ? null : collapsedGroup;
 			el.empty();
 			el.addClass('workspace-group-header', 'is-collapsed');
-			this.renderGroupHeader(el, collapsedGroup, true);
+			this.renderGroupHeaderElement(el, collapsedGroup, true);
 			return;
 		}
 
@@ -1078,7 +1079,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				// Use '\x00nogroup' as internal key for "No Group"
 				const groupKey = currentGroup || '\x00nogroup';
-				this.renderGroupHeader(header, groupKey, false);
+				this.renderGroupHeaderElement(header, groupKey, false);
 
 				el.parentElement?.insertBefore(header, el);
 			}
@@ -1523,133 +1524,32 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// Render group header (shared between normal and collapsed groups)
 	// ─────────────────────────────────────────────────────────────────
 
-	renderGroupHeader(container: HTMLElement, groupName: string, isCollapsed: boolean): void {
+	renderGroupHeaderElement(container: HTMLElement, groupName: string, isCollapsed: boolean): void {
 		const workspaceManager = this.plugin.getWorkspaceManager();
-		const isNoGroup = groupName === '\x00nogroup';
-		const displayName = isNoGroup ? 'No Group' : groupName;
-		const useManualOrder = this.plugin.settings.manualSortOrder;
-		const hasMultipleGroups = workspaceManager.getGroups().length > 1;
+		const isNoGroup    = groupName === '\x00nogroup';
+		const displayName  = isNoGroup ? 'No Group' : groupName;
 
-		// Store group name on container for drop handling
-		container.dataset.groupName = groupName;
-
-		// Add drag handle for reordering groups (only if manual order is enabled and there are groups)
-		const hasGroups = workspaceManager.getGroups().length > 0;
-		if (this.plugin.settings.debugMode) {
-			console.log(`[GroupHeader] "${displayName}" - useManualOrder=${useManualOrder}, hasGroups=${hasGroups}, isNoGroup=${isNoGroup}, showHandle=${useManualOrder && hasGroups && !isNoGroup}`);
-		}
-		if (useManualOrder && hasGroups && !isNoGroup) {
-			const dragHandle = document.createElement('span');
-			dragHandle.addClass('workspace-group-drag-handle');
-			setIcon(dragHandle, 'grip-vertical');
-			dragHandle.setAttribute('title', 'Drag to reorder group');
-
-			dragHandle.addEventListener('mousedown', (evt) => {
-				evt.preventDefault();
-				evt.stopPropagation();
-				this.draggedGroup = groupName;
-				this.draggedElement = container;
-				container.addClass('is-dragging');
+		const config: GroupHeaderConfig = {
+			groupName,
+			isCollapsed,
+			useManualOrder:   this.plugin.settings.manualSortOrder,
+			workspaceManager,
+			onToggleCollapse: (gn) => this.onGroupToggleCollapse(gn),
+			onStyleClick:     (gn) => this.onGroupStyleClick(gn),
+			onRenameClick:    (c, t, gn) => this.onGroupRenameClick(c, t, gn),
+			onDeleteClick:    (gn) => this.onGroupDelete(gn),
+			onDragStart:      (evt, gn, c) => {
+				this.draggedGroup   = gn;
+				this.draggedElement = c;
+				setGroupDragging(c, true);
 				document.body.addClass('workspace-dragging');
-				this.createDragGhost(container, displayName);
+				this.createDragGhost(c, displayName);
 				this.dragGhost!.style.left = `${evt.clientX + 10}px`;
-				this.dragGhost!.style.top = `${evt.clientY - 10}px`;
-			});
+				this.dragGhost!.style.top  = `${evt.clientY - 10}px`;
+			},
+		};
 
-			container.appendChild(dragHandle);
-		}
-
-		// Collapse/expand chevron
-		const chevron = document.createElement('span');
-		chevron.addClass('workspace-group-chevron');
-		chevron.innerHTML = isCollapsed
-			? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>`
-			: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
-		chevron.setAttribute('title', isCollapsed ? 'Expand group' : 'Collapse group');
-		chevron.addEventListener('click', (evt) => {
-			evt.stopPropagation();
-			this.onGroupToggleCollapse(groupName);
-		});
-		container.appendChild(chevron);
-
-		// Add group icon if set
-		const groupIcon = isNoGroup
-			? workspaceManager.getGroupIcon('\x00nogroup')
-			: workspaceManager.getGroupIcon(groupName);
-		if (groupIcon) {
-			const iconSpan = document.createElement('span');
-			iconSpan.addClass('workspace-group-icon');
-			setIcon(iconSpan, groupIcon);
-			const iconColor = isNoGroup
-				? workspaceManager.getGroupIconColor('\x00nogroup')
-				: workspaceManager.getGroupIconColor(groupName);
-			if (iconColor) {
-				iconSpan.style.color = iconColor;
-			}
-			container.appendChild(iconSpan);
-		}
-
-		// Group name text
-		const textSpan = document.createElement('span');
-		textSpan.addClass('workspace-group-text');
-		textSpan.textContent = displayName;
-		textSpan.dataset.groupName = groupName;
-		const groupColor = isNoGroup
-			? workspaceManager.getGroupColor('\x00nogroup')
-			: workspaceManager.getGroupColor(groupName);
-		if (groupColor) {
-			textSpan.style.color = groupColor;
-		}
-		container.appendChild(textSpan);
-
-		// Workspace count for collapsed groups
-		if (isCollapsed) {
-			const count = isNoGroup
-				? workspaceManager.getWorkspacesByGroup(null).length
-				: workspaceManager.getWorkspacesByGroup(groupName).length;
-			const countSpan = document.createElement('span');
-			countSpan.addClass('workspace-group-count');
-			countSpan.textContent = `(${count})`;
-			container.appendChild(countSpan);
-		}
-
-		// Style button (palette) - positioned at right: 3.3em
-		const styleBtn = document.createElement('span');
-		styleBtn.addClass('workspace-group-edit-btn', 'workspace-group-style-btn');
-		styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
-		styleBtn.setAttribute('title', 'Edit group style');
-		styleBtn.addEventListener('click', (evt) => {
-			evt.stopPropagation();
-			this.onGroupStyleClick(groupName);
-		});
-		container.appendChild(styleBtn);
-
-		// Rename button (pencil) - positioned at right: 2em
-		const renameBtn = document.createElement('span');
-		renameBtn.addClass('workspace-group-edit-btn', 'workspace-group-rename-btn');
-		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-		renameBtn.setAttribute('title', isNoGroup ? 'Name this group' : 'Rename group');
-		renameBtn.addEventListener('click', (evt) => {
-			evt.stopPropagation();
-			this.onGroupRenameClick(container, textSpan, groupName);
-		});
-		container.appendChild(renameBtn);
-
-		// Delete button (trash) - positioned at right: 0.7em
-		const deleteBtn = document.createElement('span');
-		deleteBtn.addClass('workspace-group-edit-btn', 'workspace-group-delete-btn');
-		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
-		if (isNoGroup) {
-			// Grayed-out placeholder for alignment
-			deleteBtn.addClass('workspace-group-edit-btn-disabled');
-		} else {
-			deleteBtn.setAttribute('title', 'Delete group (ungroup workspaces)');
-			deleteBtn.addEventListener('click', (evt) => {
-				evt.stopPropagation();
-				this.onGroupDelete(groupName);
-			});
-		}
-		container.appendChild(deleteBtn);
+		renderGroupHeader(container, config);
 	}
 
 	// ─────────────────────────────────────────────────────────────────
