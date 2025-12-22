@@ -192,9 +192,10 @@
 	margin-top: 0 !important;
 }
 
-/* Handles stay at same position */
-.workspace-suggestion-item.in-group .workspace-drag-handle {
-	left: 0.3em;
+/* Hide all handles - card styling only */
+.workspace-suggestion-item .workspace-drag-handle,
+.workspace-group-drag-handle {
+	display: none !important;
 }
 
 /* Last item in group card - close the card with bottom border and rounded corners */
