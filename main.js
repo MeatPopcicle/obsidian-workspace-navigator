@@ -2696,11 +2696,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     el.dataset.workspaceName = workspaceName;
     el.addClass("workspace-suggestion-item");
-    const currentGroupForClass = workspaceManager.getWorkspaceGroup(workspaceName);
-    if (currentGroupForClass) {
+    if (hasNamedGroups) {
       el.addClass("in-group");
       const useManualOrder = this.plugin.settings.manualSortOrder;
-      const groupWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(currentGroupForClass, useManualOrder);
+      const groupWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(currentGroup, useManualOrder);
       const isLastInGroup = groupWorkspaces[groupWorkspaces.length - 1] === workspaceName;
       if (isLastInGroup) {
         el.addClass("in-group-last");
