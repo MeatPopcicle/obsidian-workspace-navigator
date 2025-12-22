@@ -183,25 +183,38 @@
 	align-items: center;
 }
 
-/* Card-style grouping: workspace items inside a group */
+/* Card-style grouping: workspace items inside a group - indented under chevron */
 .workspace-suggestion-item.in-group {
-	padding-left: 2.4rem !important;
+	margin-left: 1.6rem !important;
+	padding-left: 1.6rem !important;
 	background-color: var(--background-secondary);
 	border-left: 1px solid var(--background-modifier-border);
 	border-right: 1px solid var(--background-modifier-border);
 	margin-top: 0 !important;
 }
 
-/* Aligned handles: all handles at same x-position regardless of nesting */
+/* First item in group card - rounded top corners */
+.workspace-suggestion-item.in-group-first {
+	border-top: 1px solid var(--background-modifier-border);
+	border-radius: 6px 6px 0 0;
+	margin-top: 2px !important;
+}
+
+/* Workspace handles inside group - aligned column */
 .workspace-suggestion-item.in-group .workspace-drag-handle {
-	left: 0.3em;  /* Same as non-grouped items */
+	left: 0.3em;
 }
 
 /* Last item in group card - close the card with bottom border and rounded corners */
 .workspace-suggestion-item.in-group-last {
 	border-bottom: 1px solid var(--background-modifier-border);
 	border-radius: 0 0 6px 6px;
-	margin-bottom: 4px;
+	margin-bottom: 8px;
+}
+
+/* Single item in group - fully rounded */
+.workspace-suggestion-item.in-group-first.in-group-last {
+	border-radius: 6px;
 }
 
 .workspace-suggestion-item.is-active {
