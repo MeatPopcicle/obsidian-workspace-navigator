@@ -175,20 +175,9 @@
 	display: none;
 }
 
-.workspace-suggestion-item {
-	position: relative;
-	padding: 5px 6rem 5px 1.6rem !important;
-	min-height: 1.8em;
-	display: flex;
-	align-items: center;
-}
-
-/* Card-style grouping: workspace items inside a group - no indent, aligned columns */
+/* Workspace item structural styles are now inline (theme-proof, fixed px) */
+/* Only keeping overrides for Obsidian defaults that need !important */
 .workspace-suggestion-item.in-group {
-	padding-left: 1.6rem !important;  /* Same as ungrouped - no indent */
-	background-color: var(--background-secondary);
-	border-left: 1px solid var(--background-modifier-border);
-	border-right: 1px solid var(--background-modifier-border);
 	border-radius: 0 !important;  /* Override Obsidian's default suggestion item rounding */
 	margin: 0 !important;  /* Remove gaps between rows */
 }

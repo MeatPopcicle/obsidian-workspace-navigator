@@ -1688,12 +1688,10 @@ function renderGroupHeader(container, config) {
   container.style.display = "flex";
   container.style.alignItems = "center";
   container.style.gap = "6px";
-  container.style.padding = "8px 6rem 8px 16px";
+  container.style.padding = "8px 96px 8px 16px";
   container.style.marginTop = "8px";
-  container.style.fontSize = "0.75em";
   container.style.fontWeight = "normal";
   container.style.color = "var(--text-muted)";
-  container.style.letterSpacing = "0.05em";
   container.style.backgroundColor = "var(--background-primary-alt)";
   container.style.border = "1px solid var(--background-modifier-border)";
   if (isCollapsed) {
@@ -1707,14 +1705,14 @@ function renderGroupHeader(container, config) {
     const dragHandle = document.createElement("span");
     dragHandle.className = "workspace-group-drag-handle";
     dragHandle.style.position = "absolute";
-    dragHandle.style.left = "0.3em";
+    dragHandle.style.left = "5px";
     dragHandle.style.top = "50%";
     dragHandle.style.transform = "translateY(-50%)";
     dragHandle.style.display = "flex";
     dragHandle.style.alignItems = "center";
     dragHandle.style.justifyContent = "center";
-    dragHandle.style.width = "1.2em";
-    dragHandle.style.height = "1.2em";
+    dragHandle.style.width = "20px";
+    dragHandle.style.height = "20px";
     (0, import_obsidian3.setIcon)(dragHandle, "grip-vertical");
     if (isNoGroup) {
       dragHandle.style.opacity = "0.15";
@@ -1766,8 +1764,7 @@ function renderGroupHeader(container, config) {
   iconSpan.style.display = "inline-flex";
   iconSpan.style.alignItems = "center";
   iconSpan.style.justifyContent = "center";
-  iconSpan.style.width = "1.5em";
-  iconSpan.style.marginRight = "0.3em";
+  iconSpan.style.width = "24px";
   if (groupIcon) {
     (0, import_obsidian3.setIcon)(iconSpan, groupIcon);
     const iconColor = isNoGroup ? workspaceManager.getGroupIconColor(NO_GROUP_KEY) : workspaceManager.getGroupIconColor(groupName);
@@ -1799,8 +1796,7 @@ function renderGroupHeader(container, config) {
     const countSpan = document.createElement("span");
     countSpan.className = "workspace-group-count";
     countSpan.style.color = "var(--text-faint)";
-    countSpan.style.fontSize = "0.9em";
-    countSpan.style.marginLeft = "0.3em";
+    countSpan.style.marginLeft = "5px";
     countSpan.textContent = `(${count})`;
     container.appendChild(countSpan);
   }
@@ -1817,7 +1813,7 @@ function renderGroupHeader(container, config) {
   const styleBtn = document.createElement("span");
   styleBtn.className = "workspace-group-edit-btn workspace-group-style-btn";
   Object.assign(styleBtn.style, buttonBaseStyle);
-  styleBtn.style.right = "3.3em";
+  styleBtn.style.right = "53px";
   styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
   styleBtn.setAttribute("title", "Edit group style");
   styleBtn.addEventListener("click", (evt) => {
@@ -1834,7 +1830,7 @@ function renderGroupHeader(container, config) {
   const renameBtn = document.createElement("span");
   renameBtn.className = "workspace-group-edit-btn workspace-group-rename-btn";
   Object.assign(renameBtn.style, buttonBaseStyle);
-  renameBtn.style.right = "2em";
+  renameBtn.style.right = "32px";
   renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
   renameBtn.setAttribute("title", isNoGroup ? "Name this group" : "Rename group");
   renameBtn.addEventListener("click", (evt) => {
@@ -1851,7 +1847,7 @@ function renderGroupHeader(container, config) {
   const deleteBtn = document.createElement("span");
   deleteBtn.className = "workspace-group-edit-btn workspace-group-delete-btn";
   Object.assign(deleteBtn.style, buttonBaseStyle);
-  deleteBtn.style.right = "0.7em";
+  deleteBtn.style.right = "11px";
   deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
   if (isNoGroup) {
     deleteBtn.style.opacity = "0.25";
@@ -2759,8 +2755,8 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     el.dataset.workspaceName = workspaceName;
     el.addClass("workspace-suggestion-item");
     el.style.position = "relative";
-    el.style.padding = "5px 6rem 5px 1.6rem";
-    el.style.minHeight = "1.8em";
+    el.style.padding = "5px 96px 5px 38px";
+    el.style.minHeight = "28px";
     el.style.display = "flex";
     el.style.alignItems = "center";
     if (hasNamedGroups) {
@@ -2788,13 +2784,13 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       dragHandle.setAttribute("aria-label", "Drag to move to group");
       dragHandle.style.display = "none";
       dragHandle.style.position = "absolute";
-      dragHandle.style.left = "0.3em";
+      dragHandle.style.left = "5px";
       dragHandle.style.top = "50%";
       dragHandle.style.transform = "translateY(-50%)";
       dragHandle.style.alignItems = "center";
       dragHandle.style.justifyContent = "center";
-      dragHandle.style.width = "1.2em";
-      dragHandle.style.height = "1.2em";
+      dragHandle.style.width = "20px";
+      dragHandle.style.height = "20px";
       (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
       dragHandle.addEventListener("mousedown", (evt) => {
         evt.preventDefault();
@@ -2821,8 +2817,8 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       iconSpan.style.display = "inline-flex";
       iconSpan.style.alignItems = "center";
       iconSpan.style.justifyContent = "center";
-      iconSpan.style.width = "1.5em";
-      iconSpan.style.marginRight = "0.4em";
+      iconSpan.style.width = "24px";
+      iconSpan.style.marginRight = "6px";
       iconSpan.style.verticalAlign = "middle";
       if (icon) {
         (0, import_obsidian4.setIcon)(iconSpan, icon);
@@ -2860,7 +2856,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     deleteBtn.style.position = "absolute";
     deleteBtn.style.top = "50%";
     deleteBtn.style.transform = "translateY(-50%)";
-    deleteBtn.style.right = "0.7em";
+    deleteBtn.style.right = "11px";
     deleteBtn.style.padding = "2px";
     deleteBtn.style.cursor = "pointer";
     deleteBtn.style.fill = "var(--text-muted)";
@@ -2880,7 +2876,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     renameBtn.style.position = "absolute";
     renameBtn.style.top = "50%";
     renameBtn.style.transform = "translateY(-50%)";
-    renameBtn.style.right = "2em";
+    renameBtn.style.right = "32px";
     renameBtn.style.padding = "2px";
     renameBtn.style.cursor = "pointer";
     renameBtn.style.fill = "var(--text-muted)";
@@ -2901,7 +2897,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       iconBtn.style.position = "absolute";
       iconBtn.style.top = "50%";
       iconBtn.style.transform = "translateY(-50%)";
-      iconBtn.style.right = "3.3em";
+      iconBtn.style.right = "53px";
       iconBtn.style.padding = "2px";
       iconBtn.style.cursor = "pointer";
       iconBtn.style.fill = "var(--text-muted)";

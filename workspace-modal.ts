@@ -1126,8 +1126,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Inline structural styles (theme-proof)
 		// ─────────────────────────────────────────────────────────────────
 		el.style.position   = 'relative';
-		el.style.padding    = '5px 6rem 5px 1.6rem';
-		el.style.minHeight  = '1.8em';
+		el.style.padding    = '5px 96px 5px 38px';  // Align workspace icons with group header icons
+		el.style.minHeight  = '28px';
 		el.style.display    = 'flex';
 		el.style.alignItems = 'center';
 
@@ -1165,13 +1165,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Inline structural styles (hidden but positioned for potential use)
 			dragHandle.style.display        = 'none';  // Hidden - drag from row instead
 			dragHandle.style.position       = 'absolute';
-			dragHandle.style.left           = '0.3em';
+			dragHandle.style.left           = '5px';
 			dragHandle.style.top            = '50%';
 			dragHandle.style.transform      = 'translateY(-50%)';
 			dragHandle.style.alignItems     = 'center';
 			dragHandle.style.justifyContent = 'center';
-			dragHandle.style.width          = '1.2em';
-			dragHandle.style.height         = '1.2em';
+			dragHandle.style.width          = '20px';
+			dragHandle.style.height         = '20px';
 			setIcon(dragHandle, 'grip-vertical');
 
 			dragHandle.addEventListener('mousedown', (evt) => {
@@ -1202,12 +1202,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 
 			const iconSpan = el.createSpan('workspace-icon-column');
-			// Inline structural styles (theme-proof)
+			// Inline structural styles (theme-proof, fixed px)
 			iconSpan.style.display        = 'inline-flex';
 			iconSpan.style.alignItems     = 'center';
 			iconSpan.style.justifyContent = 'center';
-			iconSpan.style.width          = '1.5em';
-			iconSpan.style.marginRight    = '0.4em';
+			iconSpan.style.width          = '24px';
+			iconSpan.style.marginRight    = '6px';  // Match group header flex gap
 			iconSpan.style.verticalAlign  = 'middle';
 
 			if (icon) {
@@ -1251,11 +1251,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Create delete button
 		const deleteBtn = el.createDiv('workspace-delete-btn');
 		deleteBtn.setAttribute('aria-label', 'Delete workspace');
-		// Inline structural styles (theme-proof)
+		// Inline structural styles (theme-proof, fixed px)
 		deleteBtn.style.position  = 'absolute';
 		deleteBtn.style.top       = '50%';
 		deleteBtn.style.transform = 'translateY(-50%)';
-		deleteBtn.style.right     = '0.7em';
+		deleteBtn.style.right     = '11px';
 		deleteBtn.style.padding   = '2px';
 		deleteBtn.style.cursor    = 'pointer';
 		deleteBtn.style.fill      = 'var(--text-muted)';
@@ -1280,11 +1280,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Create rename button
 		const renameBtn = el.createDiv('workspace-rename-btn');
 		renameBtn.setAttribute('aria-label', 'Rename workspace');
-		// Inline structural styles (theme-proof)
+		// Inline structural styles (theme-proof, fixed px)
 		renameBtn.style.position  = 'absolute';
 		renameBtn.style.top       = '50%';
 		renameBtn.style.transform = 'translateY(-50%)';
-		renameBtn.style.right     = '2em';
+		renameBtn.style.right     = '32px';
 		renameBtn.style.padding   = '2px';
 		renameBtn.style.cursor    = 'pointer';
 		renameBtn.style.fill      = 'var(--text-muted)';
@@ -1300,11 +1300,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (this.plugin.settings.showStyleButton) {
 			const iconBtn = el.createDiv('workspace-icon-btn');
 			iconBtn.setAttribute('aria-label', 'Style workspace');
-			// Inline structural styles (theme-proof)
+			// Inline structural styles (theme-proof, fixed px)
 			iconBtn.style.position  = 'absolute';
 			iconBtn.style.top       = '50%';
 			iconBtn.style.transform = 'translateY(-50%)';
-			iconBtn.style.right     = '3.3em';
+			iconBtn.style.right     = '53px';
 			iconBtn.style.padding   = '2px';
 			iconBtn.style.cursor    = 'pointer';
 			iconBtn.style.fill      = 'var(--text-muted)';
