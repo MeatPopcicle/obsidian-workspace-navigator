@@ -104,7 +104,6 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         } else if (onDragStart) {
             // Functional handle for named groups
             dragHandle.style.opacity = '0.3';
-            dragHandle.style.cursor  = 'grab';
             dragHandle.setAttribute('title', 'Drag to reorder group');
 
             dragHandle.addEventListener('mousedown', (evt) => {
@@ -118,6 +117,21 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         }
 
         container.appendChild(dragHandle);
+
+        // Also allow dragging from entire header (since handle is hidden via CSS)
+        // Both named groups and "No Group" can be reordered
+        if (onDragStart) {
+            container.addEventListener('mousedown', (evt) => {
+                // Only start drag on left click, not on buttons/icons
+                if (evt.button !== 0) return;
+                const target = evt.target as HTMLElement;
+                if (target.closest('.workspace-group-chevron') ||
+                    target.closest('.workspace-group-edit-btn')) return;
+
+                evt.preventDefault();
+                onDragStart(evt, groupName, container);
+            });
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────
@@ -149,9 +163,12 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         : workspaceManager.getGroupIcon(groupName);
 
     const iconSpan = document.createElement('span');
-    iconSpan.className     = 'workspace-group-icon';
-    iconSpan.style.display = 'inline-flex';
-    iconSpan.style.alignItems = 'center';
+    iconSpan.className            = 'workspace-group-icon';
+    iconSpan.style.display        = 'inline-flex';
+    iconSpan.style.alignItems     = 'center';
+    iconSpan.style.justifyContent = 'center';
+    iconSpan.style.width          = '1.5em';
+    iconSpan.style.marginRight    = '0.3em';
 
     if (groupIcon) {
         setIcon(iconSpan, groupIcon);
@@ -165,6 +182,13 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         // Default icon for groups without a custom icon
         setIcon(iconSpan, 'folder');
         iconSpan.style.opacity = '0.4';
+    }
+
+    // Theme-proof icon SVG size
+    const svg = iconSpan.querySelector('svg');
+    if (svg) {
+        (svg as SVGElement).style.width  = '16px';
+        (svg as SVGElement).style.height = '16px';
     }
     container.appendChild(iconSpan);
 

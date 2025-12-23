@@ -199,23 +199,7 @@
 	display: none !important;
 }
 
-/* Make entire row draggable */
-.workspace-suggestion-item.in-group {
-	cursor: grab;
-}
-
-.workspace-suggestion-item.in-group:active {
-	cursor: grabbing;
-}
-
-/* Group headers draggable */
-.workspace-group-header {
-	cursor: grab;
-}
-
-.workspace-group-header:active {
-	cursor: grabbing;
-}
+/* Entire row is draggable (no visual cursor change per user preference) */
 
 /* Last item in group card - close the card with bottom border and rounded corners */
 .workspace-suggestion-item.in-group-last {

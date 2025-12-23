@@ -1721,7 +1721,6 @@ function renderGroupHeader(container, config) {
       dragHandle.style.cursor = "default";
     } else if (onDragStart) {
       dragHandle.style.opacity = "0.3";
-      dragHandle.style.cursor = "grab";
       dragHandle.setAttribute("title", "Drag to reorder group");
       dragHandle.addEventListener("mousedown", (evt) => {
         evt.preventDefault();
@@ -1736,6 +1735,17 @@ function renderGroupHeader(container, config) {
       });
     }
     container.appendChild(dragHandle);
+    if (onDragStart) {
+      container.addEventListener("mousedown", (evt) => {
+        if (evt.button !== 0)
+          return;
+        const target = evt.target;
+        if (target.closest(".workspace-group-chevron") || target.closest(".workspace-group-edit-btn"))
+          return;
+        evt.preventDefault();
+        onDragStart(evt, groupName, container);
+      });
+    }
   }
   const chevron = document.createElement("span");
   chevron.className = "workspace-group-chevron";
@@ -1755,6 +1765,9 @@ function renderGroupHeader(container, config) {
   iconSpan.className = "workspace-group-icon";
   iconSpan.style.display = "inline-flex";
   iconSpan.style.alignItems = "center";
+  iconSpan.style.justifyContent = "center";
+  iconSpan.style.width = "1.5em";
+  iconSpan.style.marginRight = "0.3em";
   if (groupIcon) {
     (0, import_obsidian3.setIcon)(iconSpan, groupIcon);
     const iconColor = isNoGroup ? workspaceManager.getGroupIconColor(NO_GROUP_KEY) : workspaceManager.getGroupIconColor(groupName);
@@ -1764,6 +1777,11 @@ function renderGroupHeader(container, config) {
   } else {
     (0, import_obsidian3.setIcon)(iconSpan, "folder");
     iconSpan.style.opacity = "0.4";
+  }
+  const svg = iconSpan.querySelector("svg");
+  if (svg) {
+    svg.style.width = "16px";
+    svg.style.height = "16px";
   }
   container.appendChild(iconSpan);
   const textSpan = document.createElement("span");
@@ -2465,11 +2483,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         return;
       this.dragGhost.style.left = `${evt.clientX + 10}px`;
       this.dragGhost.style.top = `${evt.clientY - 10}px`;
-      this.dragGhost.style.pointerEvents = "none";
       const target = document.elementFromPoint(evt.clientX, evt.clientY);
-      this.dragGhost.style.pointerEvents = "";
-      this.modalEl.querySelectorAll(".drop-target-above, .drop-target-below, .drag-over").forEach((e) => {
-        e.removeClass("drop-target-above", "drop-target-below", "drag-over");
+      this.modalEl.querySelectorAll(".workspace-group-header, .workspace-suggestion-item").forEach((e) => {
+        e.style.boxShadow = "";
+      });
+      this.modalEl.querySelectorAll(".drag-over").forEach((e) => {
+        e.removeClass("drag-over");
       });
       if (this.draggedGroup) {
         const groupHeader2 = target == null ? void 0 : target.closest(".workspace-group-header");
@@ -2478,9 +2497,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           const midY = rect.top + rect.height / 2;
           const insertBefore = evt.clientY < midY;
           if (insertBefore) {
-            groupHeader2.addClass("drop-target-above");
+            groupHeader2.style.boxShadow = "inset 0 2px 0 0 var(--interactive-accent)";
           } else {
-            groupHeader2.addClass("drop-target-below");
+            groupHeader2.style.boxShadow = "inset 0 -2px 0 0 var(--interactive-accent)";
           }
           this._dropTarget = {
             group: groupHeader2.dataset.groupName,
@@ -2498,9 +2517,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         const midY = rect.top + rect.height / 2;
         const insertBefore = evt.clientY < midY;
         if (insertBefore) {
-          workspaceItem.addClass("drop-target-above");
+          workspaceItem.style.boxShadow = "inset 0 2px 0 0 var(--interactive-accent)";
         } else {
-          workspaceItem.addClass("drop-target-below");
+          workspaceItem.style.boxShadow = "inset 0 -2px 0 0 var(--interactive-accent)";
         }
         this._dropTarget = {
           workspace: workspaceItem.dataset.workspaceName,
@@ -2594,6 +2613,19 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   createDragGhost(el, workspaceName) {
     this.dragGhost = document.createElement("div");
     this.dragGhost.addClass("workspace-drag-ghost");
+    this.dragGhost.style.position = "fixed";
+    this.dragGhost.style.zIndex = "10000";
+    this.dragGhost.style.display = "flex";
+    this.dragGhost.style.alignItems = "center";
+    this.dragGhost.style.gap = "6px";
+    this.dragGhost.style.padding = "6px 12px";
+    this.dragGhost.style.background = "var(--background-primary)";
+    this.dragGhost.style.border = "1px solid var(--interactive-accent)";
+    this.dragGhost.style.borderRadius = "4px";
+    this.dragGhost.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+    this.dragGhost.style.fontSize = "var(--font-ui-small)";
+    this.dragGhost.style.pointerEvents = "none";
+    this.dragGhost.style.whiteSpace = "nowrap";
     const nameSpan = document.createElement("span");
     nameSpan.textContent = workspaceName;
     this.dragGhost.appendChild(nameSpan);
@@ -2602,6 +2634,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   cleanupDrag() {
     if (this.draggedElement) {
       this.draggedElement.removeClass("is-dragging");
+      this.draggedElement.style.opacity = "";
     }
     if (this.dragGhost) {
       this.dragGhost.remove();
@@ -2612,8 +2645,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.draggedElement = null;
     this._dropTarget = null;
     document.body.removeClass("workspace-dragging");
-    this.modalEl.querySelectorAll(".drag-over, .drop-target-above, .drop-target-below").forEach((e) => {
-      e.removeClass("drag-over", "drop-target-above", "drop-target-below");
+    this.modalEl.querySelectorAll(".drag-over").forEach((e) => {
+      e.removeClass("drag-over");
+    });
+    this.modalEl.querySelectorAll(".workspace-group-header, .workspace-suggestion-item").forEach((e) => {
+      e.style.boxShadow = "";
     });
   }
   startWorkspaceDrag(evt, workspaceName, el) {
@@ -2646,23 +2682,22 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   getItems() {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const useManualOrder = this.plugin.settings.manualSortOrder;
-    const groups = workspaceManager.getGroupsOrdered(useManualOrder);
+    const allGroups = workspaceManager.getAllGroupsOrdered(useManualOrder);
+    const hasNamedGroups = workspaceManager.getGroups().length > 0;
     const result = [];
-    const hasNamedGroups = groups.length > 0;
-    for (const group of groups) {
+    for (const group of allGroups) {
+      const isNoGroup = group === "\0nogroup";
+      if (isNoGroup && !hasNamedGroups) {
+        const workspaces = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
+        result.push(...workspaces);
+        continue;
+      }
       if (workspaceManager.isGroupCollapsed(group)) {
         result.push(`\0collapsed:${group}`);
       } else {
-        const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
+        const actualGroup = isNoGroup ? null : group;
+        const workspaces = workspaceManager.getWorkspacesByGroupOrdered(actualGroup, useManualOrder);
         result.push(...workspaces);
-      }
-    }
-    const ungrouped = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
-    if (ungrouped.length > 0) {
-      if (hasNamedGroups && workspaceManager.isGroupCollapsed("\0nogroup")) {
-        result.push("\0collapsed:\0nogroup");
-      } else {
-        result.push(...ungrouped);
       }
     }
     return result;
@@ -2723,13 +2758,26 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     el.dataset.workspaceName = workspaceName;
     el.addClass("workspace-suggestion-item");
+    el.style.position = "relative";
+    el.style.padding = "5px 6rem 5px 1.6rem";
+    el.style.minHeight = "1.8em";
+    el.style.display = "flex";
+    el.style.alignItems = "center";
     if (hasNamedGroups) {
       el.addClass("in-group");
+      el.style.backgroundColor = "var(--background-secondary)";
+      el.style.borderLeft = "1px solid var(--background-modifier-border)";
+      el.style.borderRight = "1px solid var(--background-modifier-border)";
+      el.style.borderRadius = "0";
+      el.style.margin = "0";
       const useManualOrder = this.plugin.settings.manualSortOrder;
       const groupWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(currentGroup, useManualOrder);
       const isLastInGroup = groupWorkspaces[groupWorkspaces.length - 1] === workspaceName;
       if (isLastInGroup) {
         el.addClass("in-group-last");
+        el.style.borderBottom = "1px solid var(--background-modifier-border)";
+        el.style.borderRadius = "0 0 6px 6px";
+        el.style.marginBottom = "4px";
       }
     }
     const textContent = el.textContent || "";
@@ -2738,6 +2786,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     if (hasGroups) {
       const dragHandle = el.createDiv("workspace-drag-handle");
       dragHandle.setAttribute("aria-label", "Drag to move to group");
+      dragHandle.style.display = "none";
+      dragHandle.style.position = "absolute";
+      dragHandle.style.left = "0.3em";
+      dragHandle.style.top = "50%";
+      dragHandle.style.transform = "translateY(-50%)";
+      dragHandle.style.alignItems = "center";
+      dragHandle.style.justifyContent = "center";
+      dragHandle.style.width = "1.2em";
+      dragHandle.style.height = "1.2em";
       (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
       dragHandle.addEventListener("mousedown", (evt) => {
         evt.preventDefault();
@@ -2761,6 +2818,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       const icon = workspaceManager.getWorkspaceIcon(workspaceName);
       const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
       const iconSpan = el.createSpan("workspace-icon-column");
+      iconSpan.style.display = "inline-flex";
+      iconSpan.style.alignItems = "center";
+      iconSpan.style.justifyContent = "center";
+      iconSpan.style.width = "1.5em";
+      iconSpan.style.marginRight = "0.4em";
+      iconSpan.style.verticalAlign = "middle";
       if (icon) {
         (0, import_obsidian4.setIcon)(iconSpan, icon);
         if (iconColor) {
@@ -2770,9 +2833,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         (0, import_obsidian4.setIcon)(iconSpan, "layout-grid");
         iconSpan.style.opacity = "0.4";
       }
+      const svg = iconSpan.querySelector("svg");
+      if (svg) {
+        svg.style.width = "16px";
+        svg.style.height = "16px";
+      }
     }
     const textSpan = el.createSpan("workspace-name-text");
     textSpan.textContent = textContent;
+    textSpan.style.display = "inline-block";
     if (showStyles) {
       const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
       if (nameStyle.color)
@@ -2788,25 +2857,64 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     const deleteBtn = el.createDiv("workspace-delete-btn");
     deleteBtn.setAttribute("aria-label", "Delete workspace");
+    deleteBtn.style.position = "absolute";
+    deleteBtn.style.top = "50%";
+    deleteBtn.style.transform = "translateY(-50%)";
+    deleteBtn.style.right = "0.7em";
+    deleteBtn.style.padding = "2px";
+    deleteBtn.style.cursor = "pointer";
+    deleteBtn.style.fill = "var(--text-muted)";
     deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
     deleteBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       this.deleteWorkspace(workspaceName);
     });
+    deleteBtn.addEventListener("mouseenter", () => {
+      deleteBtn.style.fill = "var(--text-error)";
+    });
+    deleteBtn.addEventListener("mouseleave", () => {
+      deleteBtn.style.fill = "var(--text-muted)";
+    });
     const renameBtn = el.createDiv("workspace-rename-btn");
     renameBtn.setAttribute("aria-label", "Rename workspace");
+    renameBtn.style.position = "absolute";
+    renameBtn.style.top = "50%";
+    renameBtn.style.transform = "translateY(-50%)";
+    renameBtn.style.right = "2em";
+    renameBtn.style.padding = "2px";
+    renameBtn.style.cursor = "pointer";
+    renameBtn.style.fill = "var(--text-muted)";
     renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
     renameBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       this.onRenameClick(evt, el);
     });
+    renameBtn.addEventListener("mouseenter", () => {
+      renameBtn.style.fill = "var(--text-accent-hover)";
+    });
+    renameBtn.addEventListener("mouseleave", () => {
+      renameBtn.style.fill = "var(--text-muted)";
+    });
     if (this.plugin.settings.showStyleButton) {
       const iconBtn = el.createDiv("workspace-icon-btn");
       iconBtn.setAttribute("aria-label", "Style workspace");
+      iconBtn.style.position = "absolute";
+      iconBtn.style.top = "50%";
+      iconBtn.style.transform = "translateY(-50%)";
+      iconBtn.style.right = "3.3em";
+      iconBtn.style.padding = "2px";
+      iconBtn.style.cursor = "pointer";
+      iconBtn.style.fill = "var(--text-muted)";
       iconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
       iconBtn.addEventListener("click", (evt) => {
         evt.stopPropagation();
         this.onIconClick(workspaceName);
+      });
+      iconBtn.addEventListener("mouseenter", () => {
+        iconBtn.style.fill = "var(--text-accent-hover)";
+      });
+      iconBtn.addEventListener("mouseleave", () => {
+        iconBtn.style.fill = "var(--text-muted)";
       });
     }
   }
@@ -3888,6 +3996,39 @@ var WorkspaceManager = class {
       }
       return orderA - orderB;
     });
+  }
+  /**
+   * Get all groups including "No Group" pseudo-group, with manual order applied
+   * Returns '\x00nogroup' for ungrouped workspaces if any exist
+   */
+  getAllGroupsOrdered(useManualOrder) {
+    const namedGroups = this.getGroupsOrdered(useManualOrder);
+    const hasUngrouped = this.getWorkspacesByGroup(null).length > 0;
+    if (!hasUngrouped) {
+      return namedGroups;
+    }
+    const allGroups = [...namedGroups];
+    if (!useManualOrder) {
+      allGroups.push("\0nogroup");
+      return allGroups;
+    }
+    const savedOrder = this.storage.groupOrder || [];
+    const noGroupIndex = savedOrder.indexOf("\0nogroup");
+    if (noGroupIndex === -1) {
+      allGroups.push("\0nogroup");
+    } else {
+      const orderMap = new Map(savedOrder.map((name, idx) => [name, idx]));
+      let insertIndex = allGroups.length;
+      for (let i = 0; i < allGroups.length; i++) {
+        const groupOrder = orderMap.get(allGroups[i]);
+        if (groupOrder !== void 0 && groupOrder > noGroupIndex) {
+          insertIndex = i;
+          break;
+        }
+      }
+      allGroups.splice(insertIndex, 0, "\0nogroup");
+    }
+    return allGroups;
   }
   /**
    * Get workspaces by group (null for ungrouped)

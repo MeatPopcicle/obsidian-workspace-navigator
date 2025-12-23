@@ -244,6 +244,52 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Get all groups including "No Group" pseudo-group, with manual order applied
+	 * Returns '\x00nogroup' for ungrouped workspaces if any exist
+	 */
+	getAllGroupsOrdered(useManualOrder: boolean): string[] {
+		const namedGroups = this.getGroupsOrdered(useManualOrder);
+		const hasUngrouped = this.getWorkspacesByGroup(null).length > 0;
+
+		if (!hasUngrouped) {
+			return namedGroups;
+		}
+
+		// Include '\x00nogroup' in the ordering
+		const allGroups = [...namedGroups];
+
+		if (!useManualOrder) {
+			// Default: "No Group" at the end
+			allGroups.push('\x00nogroup');
+			return allGroups;
+		}
+
+		const savedOrder = this.storage.groupOrder || [];
+		const noGroupIndex = savedOrder.indexOf('\x00nogroup');
+
+		if (noGroupIndex === -1) {
+			// Not in saved order yet, put at end
+			allGroups.push('\x00nogroup');
+		} else {
+			// Insert at saved position
+			const orderMap = new Map(savedOrder.map((name, idx) => [name, idx]));
+
+			// Find where to insert '\x00nogroup' based on its order position
+			let insertIndex = allGroups.length;
+			for (let i = 0; i < allGroups.length; i++) {
+				const groupOrder = orderMap.get(allGroups[i]);
+				if (groupOrder !== undefined && groupOrder > noGroupIndex) {
+					insertIndex = i;
+					break;
+				}
+			}
+			allGroups.splice(insertIndex, 0, '\x00nogroup');
+		}
+
+		return allGroups;
+	}
+
+	/**
 	 * Get workspaces by group (null for ungrouped)
 	 */
 	getWorkspacesByGroup(group: string | null): string[] {

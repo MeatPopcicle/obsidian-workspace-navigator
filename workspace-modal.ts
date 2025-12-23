@@ -756,14 +756,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.dragGhost.style.left = `${evt.clientX + 10}px`;
 			this.dragGhost.style.top = `${evt.clientY - 10}px`;
 
-			// Hide ghost temporarily to find element underneath
-			this.dragGhost.style.pointerEvents = 'none';
+			// Find element underneath (ghost already has pointerEvents: 'none')
 			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
-			this.dragGhost.style.pointerEvents = '';
 
-			// Remove previous drop-target classes
-			this.modalEl.querySelectorAll('.drop-target-above, .drop-target-below, .drag-over').forEach(e => {
-				e.removeClass('drop-target-above', 'drop-target-below', 'drag-over');
+			// Remove previous drop-target styling (inline styles for theme-proofing)
+			this.modalEl.querySelectorAll('.workspace-group-header, .workspace-suggestion-item').forEach(e => {
+				(e as HTMLElement).style.boxShadow = '';
+			});
+			this.modalEl.querySelectorAll('.drag-over').forEach(e => {
+				e.removeClass('drag-over');
 			});
 
 			// If dragging a group, only show indicators on other group headers
@@ -774,10 +775,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					const midY = rect.top + rect.height / 2;
 					const insertBefore = evt.clientY < midY;
 
+					// Use inline styles for drop indicator (theme-proof)
 					if (insertBefore) {
-						groupHeader.addClass('drop-target-above');
+						groupHeader.style.boxShadow = 'inset 0 2px 0 0 var(--interactive-accent)';
 					} else {
-						groupHeader.addClass('drop-target-below');
+						groupHeader.style.boxShadow = 'inset 0 -2px 0 0 var(--interactive-accent)';
 					}
 
 					(this as any)._dropTarget = {
@@ -795,15 +797,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
 
 			if (workspaceItem && workspaceItem !== this.draggedElement) {
-				// Show drop indicator as border on target row
+				// Show drop indicator as inline style (theme-proof)
 				const rect = workspaceItem.getBoundingClientRect();
 				const midY = rect.top + rect.height / 2;
 				const insertBefore = evt.clientY < midY;
 
 				if (insertBefore) {
-					workspaceItem.addClass('drop-target-above');
+					workspaceItem.style.boxShadow = 'inset 0 2px 0 0 var(--interactive-accent)';
 				} else {
-					workspaceItem.addClass('drop-target-below');
+					workspaceItem.style.boxShadow = 'inset 0 -2px 0 0 var(--interactive-accent)';
 				}
 
 				// Store drop target info
@@ -927,6 +929,21 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.dragGhost = document.createElement('div');
 		this.dragGhost.addClass('workspace-drag-ghost');
 
+		// Inline structural styles (theme-proof)
+		this.dragGhost.style.position      = 'fixed';
+		this.dragGhost.style.zIndex        = '10000';
+		this.dragGhost.style.display       = 'flex';
+		this.dragGhost.style.alignItems    = 'center';
+		this.dragGhost.style.gap           = '6px';
+		this.dragGhost.style.padding       = '6px 12px';
+		this.dragGhost.style.background    = 'var(--background-primary)';
+		this.dragGhost.style.border        = '1px solid var(--interactive-accent)';
+		this.dragGhost.style.borderRadius  = '4px';
+		this.dragGhost.style.boxShadow     = '0 4px 12px rgba(0, 0, 0, 0.3)';
+		this.dragGhost.style.fontSize      = 'var(--font-ui-small)';
+		this.dragGhost.style.pointerEvents = 'none';
+		this.dragGhost.style.whiteSpace    = 'nowrap';
+
 		// Add workspace name only (no handle needed)
 		const nameSpan = document.createElement('span');
 		nameSpan.textContent = workspaceName;
@@ -938,6 +955,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	private cleanupDrag(): void {
 		if (this.draggedElement) {
 			this.draggedElement.removeClass('is-dragging');
+			this.draggedElement.style.opacity = '';  // Clear group dragging opacity
 		}
 		if (this.dragGhost) {
 			this.dragGhost.remove();
@@ -948,8 +966,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.draggedElement = null;
 		(this as any)._dropTarget = null;
 		document.body.removeClass('workspace-dragging');
-		this.modalEl.querySelectorAll('.drag-over, .drop-target-above, .drop-target-below').forEach(e => {
-			e.removeClass('drag-over', 'drop-target-above', 'drop-target-below');
+		// Clear both CSS classes and inline styles
+		this.modalEl.querySelectorAll('.drag-over').forEach(e => {
+			e.removeClass('drag-over');
+		});
+		this.modalEl.querySelectorAll('.workspace-group-header, .workspace-suggestion-item').forEach(e => {
+			(e as HTMLElement).style.boxShadow = '';
 		});
 	}
 
@@ -990,31 +1012,31 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	getItems(): string[] {
 		const workspaceManager = this.plugin.getWorkspaceManager();
-		const useManualOrder = this.plugin.settings.manualSortOrder;
-		const groups = workspaceManager.getGroupsOrdered(useManualOrder);
+		const useManualOrder   = this.plugin.settings.manualSortOrder;
+		const allGroups        = workspaceManager.getAllGroupsOrdered(useManualOrder);
+		const hasNamedGroups   = workspaceManager.getGroups().length > 0;
 		const result: string[] = [];
-		const hasNamedGroups = groups.length > 0;
 
-		// Add workspaces by group
-		for (const group of groups) {
+		// Add workspaces by group (including '\x00nogroup' for ungrouped)
+		for (const group of allGroups) {
+			const isNoGroup = group === '\x00nogroup';
+
+			// Only show "No Group" header if there are named groups
+			if (isNoGroup && !hasNamedGroups) {
+				// No named groups, just add ungrouped workspaces without header
+				const workspaces = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
+				result.push(...workspaces);
+				continue;
+			}
+
 			if (workspaceManager.isGroupCollapsed(group)) {
 				// Add a placeholder for collapsed group (will render header only)
 				result.push(`\x00collapsed:${group}`);
 			} else {
-				const workspaces = workspaceManager.getWorkspacesByGroupOrdered(group, useManualOrder);
+				// For '\x00nogroup', get ungrouped workspaces (null group)
+				const actualGroup = isNoGroup ? null : group;
+				const workspaces = workspaceManager.getWorkspacesByGroupOrdered(actualGroup, useManualOrder);
 				result.push(...workspaces);
-			}
-		}
-
-		// Add ungrouped workspaces at the end
-		const ungrouped = workspaceManager.getWorkspacesByGroupOrdered(null, useManualOrder);
-		if (ungrouped.length > 0) {
-			// Only show "No Group" header/placeholder if there are named groups
-			if (hasNamedGroups && workspaceManager.isGroupCollapsed('\x00nogroup')) {
-				// Add placeholder for collapsed "No Group"
-				result.push('\x00collapsed:\x00nogroup');
-			} else {
-				result.push(...ungrouped);
 			}
 		}
 
@@ -1100,9 +1122,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
 
+		// ─────────────────────────────────────────────────────────────────
+		// Inline structural styles (theme-proof)
+		// ─────────────────────────────────────────────────────────────────
+		el.style.position   = 'relative';
+		el.style.padding    = '5px 6rem 5px 1.6rem';
+		el.style.minHeight  = '1.8em';
+		el.style.display    = 'flex';
+		el.style.alignItems = 'center';
+
 		// Apply card styling to all workspaces when groups exist (including "No Group")
 		if (hasNamedGroups) {
 			el.addClass('in-group');
+			el.style.backgroundColor = 'var(--background-secondary)';
+			el.style.borderLeft      = '1px solid var(--background-modifier-border)';
+			el.style.borderRight     = '1px solid var(--background-modifier-border)';
+			el.style.borderRadius    = '0';
+			el.style.margin          = '0';
 
 			// Check if this is the last workspace in the group (for card bottom styling)
 			const useManualOrder  = this.plugin.settings.manualSortOrder;
@@ -1110,6 +1146,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const isLastInGroup   = groupWorkspaces[groupWorkspaces.length - 1] === workspaceName;
 			if (isLastInGroup) {
 				el.addClass('in-group-last');
+				el.style.borderBottom  = '1px solid var(--background-modifier-border)';
+				el.style.borderRadius  = '0 0 6px 6px';
+				el.style.marginBottom  = '4px';
 			}
 		}
 
@@ -1123,6 +1162,16 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (hasGroups) {
 			const dragHandle = el.createDiv('workspace-drag-handle');
 			dragHandle.setAttribute('aria-label', 'Drag to move to group');
+			// Inline structural styles (hidden but positioned for potential use)
+			dragHandle.style.display        = 'none';  // Hidden - drag from row instead
+			dragHandle.style.position       = 'absolute';
+			dragHandle.style.left           = '0.3em';
+			dragHandle.style.top            = '50%';
+			dragHandle.style.transform      = 'translateY(-50%)';
+			dragHandle.style.alignItems     = 'center';
+			dragHandle.style.justifyContent = 'center';
+			dragHandle.style.width          = '1.2em';
+			dragHandle.style.height         = '1.2em';
 			setIcon(dragHandle, 'grip-vertical');
 
 			dragHandle.addEventListener('mousedown', (evt) => {
@@ -1153,6 +1202,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 
 			const iconSpan = el.createSpan('workspace-icon-column');
+			// Inline structural styles (theme-proof)
+			iconSpan.style.display        = 'inline-flex';
+			iconSpan.style.alignItems     = 'center';
+			iconSpan.style.justifyContent = 'center';
+			iconSpan.style.width          = '1.5em';
+			iconSpan.style.marginRight    = '0.4em';
+			iconSpan.style.verticalAlign  = 'middle';
+
 			if (icon) {
 				setIcon(iconSpan, icon);
 				if (iconColor) {
@@ -1163,10 +1220,19 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				setIcon(iconSpan, 'layout-grid');
 				iconSpan.style.opacity = '0.4';
 			}
+
+			// Theme-proof icon SVG size
+			const svg = iconSpan.querySelector('svg');
+			if (svg) {
+				(svg as SVGElement).style.width  = '16px';
+				(svg as SVGElement).style.height = '16px';
+			}
 		}
 
 		const textSpan = el.createSpan('workspace-name-text');
 		textSpan.textContent = textContent;
+		// Inline structural style (theme-proof)
+		textSpan.style.display = 'inline-block';
 
 		// Apply name styling only if enabled
 		if (showStyles) {
@@ -1185,11 +1251,21 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Create delete button
 		const deleteBtn = el.createDiv('workspace-delete-btn');
 		deleteBtn.setAttribute('aria-label', 'Delete workspace');
+		// Inline structural styles (theme-proof)
+		deleteBtn.style.position  = 'absolute';
+		deleteBtn.style.top       = '50%';
+		deleteBtn.style.transform = 'translateY(-50%)';
+		deleteBtn.style.right     = '0.7em';
+		deleteBtn.style.padding   = '2px';
+		deleteBtn.style.cursor    = 'pointer';
+		deleteBtn.style.fill      = 'var(--text-muted)';
 		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
 		deleteBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.deleteWorkspace(workspaceName);
 		});
+		deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.fill = 'var(--text-error)'; });
+		deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.fill = 'var(--text-muted)'; });
 
 		// Note: Duplicate button removed from UI but duplicateWorkspace() method still available
 		// Can be re-enabled by uncommenting this block:
@@ -1204,21 +1280,41 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Create rename button
 		const renameBtn = el.createDiv('workspace-rename-btn');
 		renameBtn.setAttribute('aria-label', 'Rename workspace');
+		// Inline structural styles (theme-proof)
+		renameBtn.style.position  = 'absolute';
+		renameBtn.style.top       = '50%';
+		renameBtn.style.transform = 'translateY(-50%)';
+		renameBtn.style.right     = '2em';
+		renameBtn.style.padding   = '2px';
+		renameBtn.style.cursor    = 'pointer';
+		renameBtn.style.fill      = 'var(--text-muted)';
 		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
 		renameBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.onRenameClick(evt, el);
 		});
+		renameBtn.addEventListener('mouseenter', () => { renameBtn.style.fill = 'var(--text-accent-hover)'; });
+		renameBtn.addEventListener('mouseleave', () => { renameBtn.style.fill = 'var(--text-muted)'; });
 
 		// Create style button (only if enabled in settings)
 		if (this.plugin.settings.showStyleButton) {
 			const iconBtn = el.createDiv('workspace-icon-btn');
 			iconBtn.setAttribute('aria-label', 'Style workspace');
+			// Inline structural styles (theme-proof)
+			iconBtn.style.position  = 'absolute';
+			iconBtn.style.top       = '50%';
+			iconBtn.style.transform = 'translateY(-50%)';
+			iconBtn.style.right     = '3.3em';
+			iconBtn.style.padding   = '2px';
+			iconBtn.style.cursor    = 'pointer';
+			iconBtn.style.fill      = 'var(--text-muted)';
 			iconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
 			iconBtn.addEventListener('click', (evt) => {
 				evt.stopPropagation();
 				this.onIconClick(workspaceName);
 			});
+			iconBtn.addEventListener('mouseenter', () => { iconBtn.style.fill = 'var(--text-accent-hover)'; });
+			iconBtn.addEventListener('mouseleave', () => { iconBtn.style.fill = 'var(--text-muted)'; });
 		}
 	}
 
