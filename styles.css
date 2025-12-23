@@ -32,6 +32,21 @@
 /* Workspace Modal                                                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
+/* Transparent modal (optional setting) */
+.modal-container:has(.workspace-switcher-modal-transparent) .modal-bg {
+	background-color: transparent;
+}
+
+.workspace-switcher-modal-transparent,
+.workspace-switcher-modal-transparent .prompt,
+.workspace-switcher-modal-transparent .prompt-input-container,
+.workspace-switcher-modal-transparent .suggestion-container,
+.workspace-switcher-modal-transparent .prompt-results {
+	background-color: transparent !important;
+	box-shadow: none !important;
+	border: none !important;
+}
+
 /* Group headers use inline styles for base styling (see group-header.ts)
    CSS classes here are for interactive states only */
 

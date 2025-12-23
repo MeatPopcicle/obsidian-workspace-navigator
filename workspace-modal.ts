@@ -604,6 +604,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		super(app);
 		this.plugin = plugin;
 
+		// Add class for transparent modal if enabled in settings
+		this.modalEl.addClass('workspace-switcher-modal');
+		if (plugin.settings.transparentModal) {
+			this.modalEl.addClass('workspace-switcher-modal-transparent');
+		}
+
 		this.setPlaceholder('Type workspace name...');
 
 		// Add instructions if enabled

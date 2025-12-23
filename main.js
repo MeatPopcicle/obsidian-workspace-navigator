@@ -72,7 +72,8 @@ var DEFAULT_SETTINGS = {
   showStatusBar: true,
   showInstructions: true,
   showStyleButton: false,
-  showSearchBox: true,
+  showSearchBox: false,
+  transparentModal: false,
   showDeleteConfirmation: true,
   defaultGroup: "",
   autoSaveOnSwitch: false,
@@ -111,12 +112,12 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Show search box").setDesc("Display the search/filter box in the workspace switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showSearchBox).onChange(async (value) => {
-      this.plugin.settings.showSearchBox = value;
-      await this.plugin.saveSettings();
-    }));
     new import_obsidian2.Setting(containerEl).setName("Show keyboard shortcuts").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
       this.plugin.settings.showInstructions = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Transparent modal").setDesc("Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.").addToggle((toggle) => toggle.setValue(this.plugin.settings.transparentModal).onChange(async (value) => {
+      this.plugin.settings.transparentModal = value;
       await this.plugin.saveSettings();
     }));
     new import_obsidian2.Setting(containerEl).setName("Show style controls").setDesc("Display style button (icon, color, formatting) for each workspace. Styles are retained when hidden.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleButton).onChange(async (value) => {
@@ -2373,6 +2374,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.draggedElement = null;
     this.dragGhost = null;
     this.plugin = plugin;
+    this.modalEl.addClass("workspace-switcher-modal");
+    if (plugin.settings.transparentModal) {
+      this.modalEl.addClass("workspace-switcher-modal-transparent");
+    }
     this.setPlaceholder("Type workspace name...");
     if (plugin.settings.showInstructions) {
       this.setInstructions([

@@ -20,6 +20,7 @@ export interface WorkspaceNavigatorSettings {
 	showInstructions:                boolean;
 	showStyleButton:                 boolean;
 	showSearchBox:                   boolean;
+	transparentModal:                boolean;
 
 	// Workspace management
 	showDeleteConfirmation:          boolean;
@@ -42,7 +43,8 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showStatusBar:                   true,
 	showInstructions:                true,
 	showStyleButton:                 false,
-	showSearchBox:                   true,
+	showSearchBox:                   false,
+	transparentModal:                false,
 	showDeleteConfirmation:          true,
 	defaultGroup:                    '',
 	autoSaveOnSwitch:                false,
@@ -131,22 +133,22 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(containerEl)
-			.setName('Show search box')
-			.setDesc('Display the search/filter box in the workspace switcher modal.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showSearchBox)
-				.onChange(async (value) => {
-					this.plugin.settings.showSearchBox = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
 			.setName('Show keyboard shortcuts')
 			.setDesc('Display keyboard shortcut hints at the bottom of the switcher modal.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.showInstructions)
 				.onChange(async (value) => {
 					this.plugin.settings.showInstructions = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Transparent modal')
+			.setDesc('Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.transparentModal)
+				.onChange(async (value) => {
+					this.plugin.settings.transparentModal = value;
 					await this.plugin.saveSettings();
 				}));
 
