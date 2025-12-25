@@ -71,7 +71,6 @@ var DEFAULT_SETTINGS = {
   maintainLayoutAcrossWorkspaces: false,
   showStatusBar: true,
   showInstructions: true,
-  showStyleButton: false,
   showSearchBox: false,
   transparentModal: false,
   showDeleteConfirmation: true,
@@ -118,11 +117,6 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
     }));
     new import_obsidian2.Setting(containerEl).setName("Transparent modal").setDesc("Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.").addToggle((toggle) => toggle.setValue(this.plugin.settings.transparentModal).onChange(async (value) => {
       this.plugin.settings.transparentModal = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Show style controls").setDesc("Display style button (icon, color, formatting) for each workspace. Styles are retained when hidden.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleButton).onChange(async (value) => {
-      this.plugin.settings.showStyleButton = value;
-      this.plugin.updateStatusBar();
       await this.plugin.saveSettings();
     }));
     new import_obsidian2.Setting(containerEl).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
@@ -1677,7 +1671,7 @@ function renderGroupHeader(container, config) {
     useManualOrder,
     workspaceManager,
     onToggleCollapse,
-    onStyleClick,
+    onEditClick,
     onRenameClick,
     onDeleteClick,
     onDragStart
@@ -1689,7 +1683,7 @@ function renderGroupHeader(container, config) {
   container.style.display = "flex";
   container.style.alignItems = "center";
   container.style.gap = "6px";
-  container.style.padding = "8px 96px 8px 16px";
+  container.style.padding = "8px 75px 8px 16px";
   container.style.marginTop = "8px";
   container.style.fontWeight = "normal";
   container.style.color = "var(--text-muted)";
@@ -1702,6 +1696,14 @@ function renderGroupHeader(container, config) {
     container.style.borderBottom = "none";
   }
   container.dataset.groupName = groupName;
+  container.addEventListener("contextmenu", (evt) => {
+    evt.preventDefault();
+    evt.stopPropagation();
+    const textSpan2 = container.querySelector(".workspace-group-text");
+    if (textSpan2) {
+      onRenameClick(container, textSpan2, groupName);
+    }
+  });
   if (useManualOrder && hasGroups) {
     const dragHandle = document.createElement("span");
     dragHandle.className = "workspace-group-drag-handle";
@@ -1787,9 +1789,18 @@ function renderGroupHeader(container, config) {
   textSpan.style.flex = "1";
   textSpan.textContent = displayName;
   textSpan.dataset.groupName = groupName;
-  const groupColor = isNoGroup ? workspaceManager.getGroupColor(NO_GROUP_KEY) : workspaceManager.getGroupColor(groupName);
+  const styleKey = isNoGroup ? NO_GROUP_KEY : groupName;
+  const groupColor = workspaceManager.getGroupColor(styleKey);
+  const groupBold = workspaceManager.getGroupBold(styleKey);
+  const groupItalic = workspaceManager.getGroupItalic(styleKey);
   if (groupColor) {
     textSpan.style.color = groupColor;
+  }
+  if (groupBold) {
+    textSpan.style.fontWeight = "bold";
+  }
+  if (groupItalic) {
+    textSpan.style.fontStyle = "italic";
   }
   container.appendChild(textSpan);
   if (isCollapsed) {
@@ -1811,40 +1822,23 @@ function renderGroupHeader(container, config) {
     cursor: "pointer",
     padding: "2px"
   };
-  const styleBtn = document.createElement("span");
-  styleBtn.className = "workspace-group-edit-btn workspace-group-style-btn";
-  Object.assign(styleBtn.style, buttonBaseStyle);
-  styleBtn.style.right = "53px";
-  styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
-  styleBtn.setAttribute("title", "Edit group style");
-  styleBtn.addEventListener("click", (evt) => {
+  const editBtn = document.createElement("span");
+  editBtn.className = "workspace-group-edit-btn workspace-group-rename-btn";
+  Object.assign(editBtn.style, buttonBaseStyle);
+  editBtn.style.right = "32px";
+  editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+  editBtn.setAttribute("title", isNoGroup ? "Edit ungrouped settings" : "Edit group");
+  editBtn.addEventListener("click", (evt) => {
     evt.stopPropagation();
-    onStyleClick(groupName);
+    onEditClick(groupName);
   });
-  styleBtn.addEventListener("mouseenter", () => {
-    styleBtn.style.fill = "var(--text-accent-hover)";
+  editBtn.addEventListener("mouseenter", () => {
+    editBtn.style.fill = "var(--text-accent-hover)";
   });
-  styleBtn.addEventListener("mouseleave", () => {
-    styleBtn.style.fill = "var(--text-muted)";
+  editBtn.addEventListener("mouseleave", () => {
+    editBtn.style.fill = "var(--text-muted)";
   });
-  container.appendChild(styleBtn);
-  const renameBtn = document.createElement("span");
-  renameBtn.className = "workspace-group-edit-btn workspace-group-rename-btn";
-  Object.assign(renameBtn.style, buttonBaseStyle);
-  renameBtn.style.right = "32px";
-  renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-  renameBtn.setAttribute("title", isNoGroup ? "Name this group" : "Rename group");
-  renameBtn.addEventListener("click", (evt) => {
-    evt.stopPropagation();
-    onRenameClick(container, textSpan, groupName);
-  });
-  renameBtn.addEventListener("mouseenter", () => {
-    renameBtn.style.fill = "var(--text-accent-hover)";
-  });
-  renameBtn.addEventListener("mouseleave", () => {
-    renameBtn.style.fill = "var(--text-muted)";
-  });
-  container.appendChild(renameBtn);
+  container.appendChild(editBtn);
   const deleteBtn = document.createElement("span");
   deleteBtn.className = "workspace-group-edit-btn workspace-group-delete-btn";
   Object.assign(deleteBtn.style, buttonBaseStyle);
@@ -2014,7 +2008,7 @@ var PRESET_COLORS = [
   { color: "#6b7280", name: "gray" },
   { color: "#ffffff", name: "white" }
 ];
-var StylePickerModal = class extends import_obsidian4.Modal {
+var WorkspaceStyleModal = class extends import_obsidian4.Modal {
   constructor(app, plugin, workspaceName, currentStyle, onSubmit) {
     super(app);
     this.plugin = plugin;
@@ -2026,43 +2020,57 @@ var StylePickerModal = class extends import_obsidian4.Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass("workspace-style-picker");
-    contentEl.createEl("h3", { text: "Customize Workspace Appearance" });
+    contentEl.createEl("h3", { text: "Edit Workspace" });
+    let renameValue = this.workspaceName;
     let groupValue = this.currentStyle.group;
     let iconValue = this.currentStyle.icon;
     let iconColorValue = this.currentStyle.iconColor;
     let nameColorValue = this.currentStyle.nameColor;
     let nameBoldValue = this.currentStyle.nameBold;
     let nameItalicValue = this.currentStyle.nameItalic;
+    const workspaceManager = this.plugin.getWorkspaceManager();
+    const existingGroups = workspaceManager.getGroups();
+    let iconPreview;
+    let namePreview;
+    const updatePreview = () => {
+      if (!iconPreview || !namePreview)
+        return;
+      iconPreview.empty();
+      if (iconValue) {
+        (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+        iconPreview.style.color = iconColorValue || "";
+      }
+      namePreview.textContent = renameValue || this.workspaceName;
+      namePreview.style.color = nameColorValue || "";
+      namePreview.style.fontWeight = nameBoldValue ? "bold" : "";
+      namePreview.style.fontStyle = nameItalicValue ? "italic" : "";
+    };
     const previewContainer = contentEl.createDiv("workspace-style-preview-container");
-    const iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
+    iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
+    namePreview = previewContainer.createSpan("workspace-style-preview-name");
     if (iconValue) {
       (0, import_obsidian4.setIcon)(iconPreview, iconValue);
       if (iconColorValue)
         iconPreview.style.color = iconColorValue;
     }
-    const namePreview = previewContainer.createSpan("workspace-style-preview-name");
-    namePreview.textContent = this.workspaceName;
+    namePreview.textContent = renameValue;
     if (nameColorValue)
       namePreview.style.color = nameColorValue;
     if (nameBoldValue)
       namePreview.style.fontWeight = "bold";
     if (nameItalicValue)
       namePreview.style.fontStyle = "italic";
-    const updatePreview = () => {
-      iconPreview.empty();
-      if (iconValue) {
-        (0, import_obsidian4.setIcon)(iconPreview, iconValue);
-        iconPreview.style.color = iconColorValue || "";
-      }
-      namePreview.style.color = nameColorValue || "";
-      namePreview.style.fontWeight = nameBoldValue ? "bold" : "";
-      namePreview.style.fontStyle = nameItalicValue ? "italic" : "";
-    };
-    contentEl.createEl("h4", { text: "Group", cls: "workspace-style-section" });
-    const workspaceManager = this.plugin.getWorkspaceManager();
-    const existingGroups = workspaceManager.getGroups();
-    new import_obsidian4.Setting(contentEl).setName("Assign to group").setDesc("Type a new group name or select an existing one").addDropdown((dropdown) => {
-      dropdown.addOption("", "(No group)");
+    const generalCard = contentEl.createDiv("workspace-style-card");
+    generalCard.createDiv({ cls: "workspace-style-card-label", text: "General" });
+    new import_obsidian4.Setting(generalCard).setName("Name").addText((text) => {
+      text.setValue(this.workspaceName);
+      text.onChange((value) => {
+        renameValue = value.trim();
+        updatePreview();
+      });
+    });
+    new import_obsidian4.Setting(generalCard).setName("Group").addDropdown((dropdown) => {
+      dropdown.addOption("", "(None)");
       for (const group of existingGroups) {
         dropdown.addOption(group, group);
       }
@@ -2071,41 +2079,27 @@ var StylePickerModal = class extends import_obsidian4.Modal {
         groupValue = value;
       });
     }).addText((text) => {
-      text.setPlaceholder("Or type new group...");
+      text.setPlaceholder("or new...");
       text.onChange((value) => {
         if (value.trim()) {
           groupValue = value.trim();
         }
       });
     });
-    contentEl.createEl("h4", { text: "Icon", cls: "workspace-style-section" });
-    contentEl.createEl("p", { text: "Icon color:", cls: "workspace-icon-label" });
-    const iconColorRow = contentEl.createDiv("workspace-color-row");
-    const iconSwatchContainer = iconColorRow.createDiv("workspace-color-swatches");
-    for (const { color, name } of PRESET_COLORS) {
-      const swatch = iconSwatchContainer.createEl("button", { cls: "workspace-color-swatch" });
-      swatch.style.backgroundColor = color;
-      swatch.setAttribute("title", name);
-      if (color === iconColorValue)
-        swatch.addClass("is-selected");
-      swatch.addEventListener("click", () => {
-        iconSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        swatch.addClass("is-selected");
-        iconColorValue = color;
-        iconColorInput.value = color;
-        updatePreview();
-      });
-    }
-    const iconColorInput = iconColorRow.createEl("input", { cls: "workspace-color-input" });
-    iconColorInput.type = "color";
-    iconColorInput.value = iconColorValue || "#ffffff";
-    iconColorInput.addEventListener("input", () => {
-      iconColorValue = iconColorInput.value;
-      iconSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+    const iconCard = contentEl.createDiv("workspace-style-card");
+    iconCard.createDiv({ cls: "workspace-style-card-label", text: "Icon" });
+    const grid = iconCard.createDiv("workspace-icon-grid");
+    const noIconBtn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
+    noIconBtn.textContent = "\u2715";
+    noIconBtn.setAttribute("title", "No icon");
+    if (!iconValue)
+      noIconBtn.addClass("is-selected");
+    noIconBtn.addEventListener("click", () => {
+      grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+      noIconBtn.addClass("is-selected");
+      iconValue = "";
       updatePreview();
     });
-    contentEl.createEl("p", { text: "Select icon:", cls: "workspace-icon-label" });
-    const grid = contentEl.createDiv("workspace-icon-grid");
     for (const iconName of LUCIDE_ICONS) {
       const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
       (0, import_obsidian4.setIcon)(btn, iconName);
@@ -2113,46 +2107,91 @@ var StylePickerModal = class extends import_obsidian4.Modal {
       if (iconName === iconValue)
         btn.addClass("is-selected");
       btn.addEventListener("click", () => {
-        iconValue = iconName;
         grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
         btn.addClass("is-selected");
+        iconValue = iconName;
         updatePreview();
       });
     }
-    contentEl.createEl("h4", { text: "Name Style", cls: "workspace-style-section" });
-    contentEl.createEl("p", { text: "Name color:", cls: "workspace-icon-label" });
-    const nameColorRow = contentEl.createDiv("workspace-color-row");
-    const nameSwatchContainer = nameColorRow.createDiv("workspace-color-swatches");
-    for (const { color, name } of PRESET_COLORS) {
-      const swatch = nameSwatchContainer.createEl("button", { cls: "workspace-color-swatch" });
-      swatch.style.backgroundColor = color;
-      swatch.setAttribute("title", name);
-      if (color === nameColorValue)
-        swatch.addClass("is-selected");
-      swatch.addEventListener("click", () => {
-        nameSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        swatch.addClass("is-selected");
-        nameColorValue = color;
-        nameColorInput.value = color;
+    new import_obsidian4.Setting(iconCard).setName("Color").then((setting) => {
+      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
+      for (const { color, name } of PRESET_COLORS) {
+        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute("title", name);
+        if (color === iconColorValue)
+          swatch.addClass("is-selected");
+        swatch.addEventListener("click", () => {
+          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+          swatch.addClass("is-selected");
+          iconColorValue = color;
+          updatePreview();
+        });
+      }
+      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
+      noColor.textContent = "\u2715";
+      noColor.setAttribute("title", "No color");
+      if (!iconColorValue)
+        noColor.addClass("is-selected");
+      noColor.addEventListener("click", () => {
+        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+        noColor.addClass("is-selected");
+        iconColorValue = "";
         updatePreview();
       });
-    }
-    const nameColorInput = nameColorRow.createEl("input", { cls: "workspace-color-input" });
-    nameColorInput.type = "color";
-    nameColorInput.value = nameColorValue || "#ffffff";
-    nameColorInput.addEventListener("input", () => {
-      nameColorValue = nameColorInput.value;
-      nameSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-      updatePreview();
     });
-    new import_obsidian4.Setting(contentEl).setName("Bold").addToggle((toggle) => toggle.setValue(nameBoldValue).onChange((value) => {
+    const nameCard = contentEl.createDiv("workspace-style-card");
+    nameCard.createDiv({ cls: "workspace-style-card-label", text: "Name Style" });
+    new import_obsidian4.Setting(nameCard).setName("Color").then((setting) => {
+      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
+      for (const { color, name } of PRESET_COLORS) {
+        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute("title", name);
+        if (color === nameColorValue)
+          swatch.addClass("is-selected");
+        swatch.addEventListener("click", () => {
+          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+          swatch.addClass("is-selected");
+          nameColorValue = color;
+          updatePreview();
+        });
+      }
+      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
+      noColor.textContent = "\u2715";
+      noColor.setAttribute("title", "No color");
+      if (!nameColorValue)
+        noColor.addClass("is-selected");
+      noColor.addEventListener("click", () => {
+        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+        noColor.addClass("is-selected");
+        nameColorValue = "";
+        updatePreview();
+      });
+    });
+    new import_obsidian4.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(nameBoldValue).setTooltip("Bold").onChange((value) => {
       nameBoldValue = value;
       updatePreview();
-    }));
-    new import_obsidian4.Setting(contentEl).setName("Italic").addToggle((toggle) => toggle.setValue(nameItalicValue).onChange((value) => {
+    })).addToggle((toggle) => toggle.setValue(nameItalicValue).setTooltip("Italic").onChange((value) => {
       nameItalicValue = value;
       updatePreview();
-    }));
+    })).then((setting) => {
+      const controls = setting.controlEl;
+      const toggles = controls.querySelectorAll(".checkbox-container");
+      if (toggles[0]) {
+        const label = document.createElement("span");
+        label.textContent = "B";
+        label.style.fontWeight = "bold";
+        label.style.marginRight = "12px";
+        toggles[0].after(label);
+      }
+      if (toggles[1]) {
+        const label = document.createElement("span");
+        label.textContent = "I";
+        label.style.fontStyle = "italic";
+        toggles[1].after(label);
+      }
+    });
     new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
       this.onSubmit({
         group: "",
@@ -2170,7 +2209,8 @@ var StylePickerModal = class extends import_obsidian4.Modal {
         iconColor: iconColorValue,
         nameColor: nameColorValue,
         nameBold: nameBoldValue,
-        nameItalic: nameItalicValue
+        nameItalic: nameItalicValue,
+        newName: renameValue !== this.workspaceName ? renameValue : void 0
       });
       this.close();
     }));
@@ -2189,48 +2229,60 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    const displayName = this.groupName === "\0nogroup" ? "No Group" : this.groupName;
-    contentEl.createEl("h3", { text: `Style for "${displayName}"` });
+    contentEl.addClass("workspace-style-picker");
+    const isNoGroup = this.groupName === "\0nogroup";
+    const displayName = isNoGroup ? "No Group" : this.groupName;
+    contentEl.createEl("h3", { text: isNoGroup ? "Edit Ungrouped Style" : "Edit Group" });
     const workspaceManager = this.plugin.getWorkspaceManager();
+    let renameValue = isNoGroup ? "" : this.groupName;
     let iconValue = workspaceManager.getGroupIcon(this.groupName) || "";
     let iconColorValue = workspaceManager.getGroupIconColor(this.groupName) || "";
     let textColorValue = workspaceManager.getGroupColor(this.groupName) || "";
-    contentEl.createEl("h4", { text: "Icon", cls: "workspace-style-section" });
-    contentEl.createEl("p", { text: "Icon color:", cls: "workspace-icon-label" });
-    const iconColorRow = contentEl.createDiv("workspace-color-row");
-    const iconSwatchContainer = iconColorRow.createDiv("workspace-color-swatches");
-    for (const { color, name } of PRESET_COLORS) {
-      const swatch = iconSwatchContainer.createEl("button", { cls: "workspace-color-swatch" });
-      swatch.style.backgroundColor = color;
-      swatch.setAttribute("title", name);
-      if (color === iconColorValue)
-        swatch.addClass("is-selected");
-      swatch.addEventListener("click", () => {
-        iconSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        swatch.addClass("is-selected");
-        iconColorValue = color;
-        iconColorInput.value = color;
-      });
+    let textBoldValue = workspaceManager.getGroupBold(this.groupName) || false;
+    let textItalicValue = workspaceManager.getGroupItalic(this.groupName) || false;
+    let iconPreview;
+    let namePreview;
+    const updatePreview = () => {
+      if (!iconPreview || !namePreview)
+        return;
+      iconPreview.empty();
+      if (iconValue) {
+        (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+        iconPreview.style.color = iconColorValue || "";
+      }
+      namePreview.textContent = renameValue || displayName;
+      namePreview.style.color = textColorValue || "";
+      namePreview.style.fontWeight = textBoldValue ? "bold" : "";
+      namePreview.style.fontStyle = textItalicValue ? "italic" : "";
+    };
+    const previewContainer = contentEl.createDiv("workspace-style-preview-container");
+    iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
+    namePreview = previewContainer.createSpan("workspace-style-preview-name");
+    if (iconValue) {
+      (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+      if (iconColorValue)
+        iconPreview.style.color = iconColorValue;
     }
-    const noIconColorSwatch = iconSwatchContainer.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
-    noIconColorSwatch.textContent = "\u2715";
-    noIconColorSwatch.setAttribute("title", "No color");
-    if (!iconColorValue)
-      noIconColorSwatch.addClass("is-selected");
-    noIconColorSwatch.addEventListener("click", () => {
-      iconSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-      noIconColorSwatch.addClass("is-selected");
-      iconColorValue = "";
+    namePreview.textContent = renameValue || displayName;
+    if (textColorValue)
+      namePreview.style.color = textColorValue;
+    if (textBoldValue)
+      namePreview.style.fontWeight = "bold";
+    if (textItalicValue)
+      namePreview.style.fontStyle = "italic";
+    const generalCard = contentEl.createDiv("workspace-style-card");
+    generalCard.createDiv({ cls: "workspace-style-card-label", text: "General" });
+    new import_obsidian4.Setting(generalCard).setName("Name").addText((text) => {
+      text.setValue(isNoGroup ? "" : this.groupName);
+      text.setPlaceholder(isNoGroup ? "Enter group name..." : "");
+      text.onChange((value) => {
+        renameValue = value.trim();
+        updatePreview();
+      });
     });
-    const iconColorInput = iconColorRow.createEl("input", { cls: "workspace-color-input" });
-    iconColorInput.type = "color";
-    iconColorInput.value = iconColorValue || "#ffffff";
-    iconColorInput.addEventListener("input", () => {
-      iconColorValue = iconColorInput.value;
-      iconSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-    });
-    contentEl.createEl("p", { text: "Select icon:", cls: "workspace-icon-label" });
-    const grid = contentEl.createDiv("workspace-icon-grid");
+    const iconCard = contentEl.createDiv("workspace-style-card");
+    iconCard.createDiv({ cls: "workspace-style-card-label", text: "Icon" });
+    const grid = iconCard.createDiv("workspace-icon-grid");
     const noIconBtn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
     noIconBtn.textContent = "\u2715";
     noIconBtn.setAttribute("title", "No icon");
@@ -2240,6 +2292,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
       noIconBtn.addClass("is-selected");
       iconValue = "";
+      updatePreview();
     });
     for (const iconName of LUCIDE_ICONS) {
       const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
@@ -2251,46 +2304,109 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
         grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
         btn.addClass("is-selected");
         iconValue = iconName;
+        updatePreview();
       });
     }
-    contentEl.createEl("h4", { text: "Text Color", cls: "workspace-style-section" });
-    const textColorRow = contentEl.createDiv("workspace-color-row");
-    const textSwatchContainer = textColorRow.createDiv("workspace-color-swatches");
-    for (const { color, name } of PRESET_COLORS) {
-      const swatch = textSwatchContainer.createEl("button", { cls: "workspace-color-swatch" });
-      swatch.style.backgroundColor = color;
-      swatch.setAttribute("title", name);
-      if (color === textColorValue)
-        swatch.addClass("is-selected");
-      swatch.addEventListener("click", () => {
-        textSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        swatch.addClass("is-selected");
-        textColorValue = color;
-        textColorInput.value = color;
+    new import_obsidian4.Setting(iconCard).setName("Color").then((setting) => {
+      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
+      for (const { color, name } of PRESET_COLORS) {
+        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute("title", name);
+        if (color === iconColorValue)
+          swatch.addClass("is-selected");
+        swatch.addEventListener("click", () => {
+          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+          swatch.addClass("is-selected");
+          iconColorValue = color;
+          updatePreview();
+        });
+      }
+      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
+      noColor.textContent = "\u2715";
+      noColor.setAttribute("title", "No color");
+      if (!iconColorValue)
+        noColor.addClass("is-selected");
+      noColor.addEventListener("click", () => {
+        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+        noColor.addClass("is-selected");
+        iconColorValue = "";
+        updatePreview();
       });
-    }
-    const noTextColorSwatch = textSwatchContainer.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
-    noTextColorSwatch.textContent = "\u2715";
-    noTextColorSwatch.setAttribute("title", "No color");
-    if (!textColorValue)
-      noTextColorSwatch.addClass("is-selected");
-    noTextColorSwatch.addEventListener("click", () => {
-      textSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-      noTextColorSwatch.addClass("is-selected");
-      textColorValue = "";
     });
-    const textColorInput = textColorRow.createEl("input", { cls: "workspace-color-input" });
-    textColorInput.type = "color";
-    textColorInput.value = textColorValue || "#ffffff";
-    textColorInput.addEventListener("input", () => {
-      textColorValue = textColorInput.value;
-      textSwatchContainer.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+    const nameCard = contentEl.createDiv("workspace-style-card");
+    nameCard.createDiv({ cls: "workspace-style-card-label", text: "Name Style" });
+    new import_obsidian4.Setting(nameCard).setName("Color").then((setting) => {
+      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
+      for (const { color, name } of PRESET_COLORS) {
+        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
+        swatch.style.backgroundColor = color;
+        swatch.setAttribute("title", name);
+        if (color === textColorValue)
+          swatch.addClass("is-selected");
+        swatch.addEventListener("click", () => {
+          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+          swatch.addClass("is-selected");
+          textColorValue = color;
+          updatePreview();
+        });
+      }
+      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
+      noColor.textContent = "\u2715";
+      noColor.setAttribute("title", "No color");
+      if (!textColorValue)
+        noColor.addClass("is-selected");
+      noColor.addEventListener("click", () => {
+        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+        noColor.addClass("is-selected");
+        textColorValue = "";
+        updatePreview();
+      });
+    });
+    new import_obsidian4.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(textBoldValue).setTooltip("Bold").onChange((value) => {
+      textBoldValue = value;
+      updatePreview();
+    })).addToggle((toggle) => toggle.setValue(textItalicValue).setTooltip("Italic").onChange((value) => {
+      textItalicValue = value;
+      updatePreview();
+    })).then((setting) => {
+      const controls = setting.controlEl;
+      const toggles = controls.querySelectorAll(".checkbox-container");
+      if (toggles[0]) {
+        const label = document.createElement("span");
+        label.textContent = "B";
+        label.style.fontWeight = "bold";
+        label.style.marginRight = "12px";
+        toggles[0].after(label);
+      }
+      if (toggles[1]) {
+        const label = document.createElement("span");
+        label.textContent = "I";
+        label.style.fontStyle = "italic";
+        toggles[1].after(label);
+      }
     });
     new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
-      this.onSubmit(null, null, null);
+      this.onSubmit({
+        newName: null,
+        icon: null,
+        iconColor: null,
+        textColor: null,
+        textBold: false,
+        textItalic: false
+      });
       this.close();
     })).addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close())).addButton((btn) => btn.setButtonText("Save").setCta().onClick(() => {
-      this.onSubmit(iconValue || null, iconColorValue || null, textColorValue || null);
+      const isNoGroup2 = this.groupName === "\0nogroup";
+      const hasNewName = isNoGroup2 ? renameValue && renameValue.length > 0 : renameValue !== this.groupName;
+      this.onSubmit({
+        newName: hasNewName ? renameValue : null,
+        icon: iconValue || null,
+        iconColor: iconColorValue || null,
+        textColor: textColorValue || null,
+        textBold: textBoldValue,
+        textItalic: textItalicValue
+      });
       this.close();
     }));
   }
@@ -2365,6 +2481,7 @@ var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
   }
 };
 var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
+  // Flag to prevent selection during rename
   constructor(app, plugin) {
     super(app);
     this.popper = null;
@@ -2373,6 +2490,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.draggedGroup = null;
     this.draggedElement = null;
     this.dragGhost = null;
+    this.isRenaming = false;
     this.plugin = plugin;
     this.modalEl.addClass("workspace-switcher-modal");
     if (plugin.settings.transparentModal) {
@@ -2454,6 +2572,21 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   open() {
     this.app.keymap.pushScope(this.scope);
     super.open();
+  }
+  // Override selectSuggestion to prevent selection during rename mode or right-click
+  selectSuggestion(value, evt) {
+    if (evt instanceof MouseEvent && evt.button === 2) {
+      return;
+    }
+    const renamingItem = this.modalEl.querySelector(".workspace-suggestion-item.is-renaming");
+    if (renamingItem) {
+      return;
+    }
+    const renamingGroup = this.modalEl.querySelector(".workspace-group-header.is-renaming");
+    if (renamingGroup) {
+      return;
+    }
+    super.selectSuggestion(value, evt);
   }
   onOpen() {
     super.onOpen();
@@ -2759,8 +2892,31 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     el.dataset.workspaceName = workspaceName;
     el.addClass("workspace-suggestion-item");
+    el.addEventListener("mousedown", (evt) => {
+      if (evt.button === 2) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        evt.stopImmediatePropagation();
+      }
+    }, true);
+    el.addEventListener("contextmenu", (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      evt.stopImmediatePropagation();
+      this.onRenameClick(evt, el);
+    }, true);
+    const preventSelectionInRenameMode = (evt) => {
+      if (el.hasClass("is-renaming")) {
+        evt.preventDefault();
+        evt.stopPropagation();
+        evt.stopImmediatePropagation();
+      }
+    };
+    el.addEventListener("mousedown", preventSelectionInRenameMode, true);
+    el.addEventListener("mouseup", preventSelectionInRenameMode, true);
+    el.addEventListener("click", preventSelectionInRenameMode, true);
     el.style.position = "relative";
-    el.style.padding = "5px 96px 5px 38px";
+    el.style.padding = "5px 75px 5px 38px";
     el.style.minHeight = "28px";
     el.style.display = "flex";
     el.style.alignItems = "center";
@@ -2814,44 +2970,39 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         this.startWorkspaceDrag(evt, workspaceName, el);
       });
     }
-    const showStyles = this.plugin.settings.showStyleButton;
-    if (showStyles) {
-      const icon = workspaceManager.getWorkspaceIcon(workspaceName);
-      const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
-      const iconSpan = el.createSpan("workspace-icon-column");
-      iconSpan.style.display = "inline-flex";
-      iconSpan.style.alignItems = "center";
-      iconSpan.style.justifyContent = "center";
-      iconSpan.style.width = "24px";
-      iconSpan.style.marginRight = "6px";
-      iconSpan.style.verticalAlign = "middle";
-      if (icon) {
-        (0, import_obsidian4.setIcon)(iconSpan, icon);
-        if (iconColor) {
-          iconSpan.style.color = iconColor;
-        }
-      } else {
-        (0, import_obsidian4.setIcon)(iconSpan, "layout-grid");
-        iconSpan.style.opacity = "0.4";
+    const icon = workspaceManager.getWorkspaceIcon(workspaceName);
+    const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
+    const iconSpan = el.createSpan("workspace-icon-column");
+    iconSpan.style.display = "inline-flex";
+    iconSpan.style.alignItems = "center";
+    iconSpan.style.justifyContent = "center";
+    iconSpan.style.width = "24px";
+    iconSpan.style.marginRight = "6px";
+    iconSpan.style.verticalAlign = "middle";
+    if (icon) {
+      (0, import_obsidian4.setIcon)(iconSpan, icon);
+      if (iconColor) {
+        iconSpan.style.color = iconColor;
       }
-      const svg = iconSpan.querySelector("svg");
-      if (svg) {
-        svg.style.width = "16px";
-        svg.style.height = "16px";
-      }
+    } else {
+      (0, import_obsidian4.setIcon)(iconSpan, "layout-grid");
+      iconSpan.style.opacity = "0.4";
+    }
+    const svg = iconSpan.querySelector("svg");
+    if (svg) {
+      svg.style.width = "16px";
+      svg.style.height = "16px";
     }
     const textSpan = el.createSpan("workspace-name-text");
     textSpan.textContent = textContent;
     textSpan.style.display = "inline-block";
-    if (showStyles) {
-      const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
-      if (nameStyle.color)
-        textSpan.style.color = nameStyle.color;
-      if (nameStyle.bold)
-        textSpan.style.fontWeight = "bold";
-      if (nameStyle.italic)
-        textSpan.style.fontStyle = "italic";
-    }
+    const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
+    if (nameStyle.color)
+      textSpan.style.color = nameStyle.color;
+    if (nameStyle.bold)
+      textSpan.style.fontWeight = "bold";
+    if (nameStyle.italic)
+      textSpan.style.fontStyle = "italic";
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     if (activeWorkspace && workspaceName === activeWorkspace) {
       el.addClass("is-active");
@@ -2876,48 +3027,26 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     deleteBtn.addEventListener("mouseleave", () => {
       deleteBtn.style.fill = "var(--text-muted)";
     });
-    const renameBtn = el.createDiv("workspace-rename-btn");
-    renameBtn.setAttribute("aria-label", "Rename workspace");
-    renameBtn.style.position = "absolute";
-    renameBtn.style.top = "50%";
-    renameBtn.style.transform = "translateY(-50%)";
-    renameBtn.style.right = "32px";
-    renameBtn.style.padding = "2px";
-    renameBtn.style.cursor = "pointer";
-    renameBtn.style.fill = "var(--text-muted)";
-    renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-    renameBtn.addEventListener("click", (evt) => {
+    const editBtn = el.createDiv("workspace-rename-btn");
+    editBtn.setAttribute("aria-label", "Edit workspace");
+    editBtn.style.position = "absolute";
+    editBtn.style.top = "50%";
+    editBtn.style.transform = "translateY(-50%)";
+    editBtn.style.right = "32px";
+    editBtn.style.padding = "2px";
+    editBtn.style.cursor = "pointer";
+    editBtn.style.fill = "var(--text-muted)";
+    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+    editBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
-      this.onRenameClick(evt, el);
+      this.onIconClick(workspaceName);
     });
-    renameBtn.addEventListener("mouseenter", () => {
-      renameBtn.style.fill = "var(--text-accent-hover)";
+    editBtn.addEventListener("mouseenter", () => {
+      editBtn.style.fill = "var(--text-accent-hover)";
     });
-    renameBtn.addEventListener("mouseleave", () => {
-      renameBtn.style.fill = "var(--text-muted)";
+    editBtn.addEventListener("mouseleave", () => {
+      editBtn.style.fill = "var(--text-muted)";
     });
-    if (this.plugin.settings.showStyleButton) {
-      const iconBtn = el.createDiv("workspace-icon-btn");
-      iconBtn.setAttribute("aria-label", "Style workspace");
-      iconBtn.style.position = "absolute";
-      iconBtn.style.top = "50%";
-      iconBtn.style.transform = "translateY(-50%)";
-      iconBtn.style.right = "53px";
-      iconBtn.style.padding = "2px";
-      iconBtn.style.cursor = "pointer";
-      iconBtn.style.fill = "var(--text-muted)";
-      iconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
-      iconBtn.addEventListener("click", (evt) => {
-        evt.stopPropagation();
-        this.onIconClick(workspaceName);
-      });
-      iconBtn.addEventListener("mouseenter", () => {
-        iconBtn.style.fill = "var(--text-accent-hover)";
-      });
-      iconBtn.addEventListener("mouseleave", () => {
-        iconBtn.style.fill = "var(--text-muted)";
-      });
-    }
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle rename click
@@ -2937,9 +3066,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     if (!textSpan)
       return;
     if (textSpan.contentEditable === "true") {
-      textSpan.textContent = el.dataset.workspaceName || "";
-      textSpan.contentEditable = "false";
-      el.removeClass("is-renaming");
+      this.handleRename(textSpan);
       return;
     }
     el.addClass("is-renaming");
@@ -2954,8 +3081,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     textSpan.focus();
     textSpan.onblur = () => {
-      textSpan.contentEditable = "false";
-      el.removeClass("is-renaming");
+      setTimeout(() => {
+        if (textSpan.contentEditable === "true") {
+          this.handleRename(textSpan);
+        }
+      }, 50);
     };
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3140,17 +3270,92 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     textSpan.addEventListener("keydown", handleKeydown);
   }
   // ─────────────────────────────────────────────────────────────────
-  // Handle group style click
+  // Handle group edit click (opens full editor modal)
   // ─────────────────────────────────────────────────────────────────
-  onGroupStyleClick(groupName) {
-    const modal = new GroupStylePickerModal(this.app, this.plugin, groupName, async (icon, iconColor, textColor) => {
+  onGroupEditClick(groupName) {
+    const modal = new GroupStylePickerModal(this.app, this.plugin, groupName, async (result) => {
       const workspaceManager = this.plugin.getWorkspaceManager();
-      workspaceManager.setGroupIcon(groupName, icon);
-      workspaceManager.setGroupIconColor(groupName, iconColor);
-      workspaceManager.setGroupColor(groupName, textColor);
+      const isNoGroup = groupName === "\0nogroup";
+      let finalGroupName = groupName;
+      if (result.newName) {
+        if (!isNoGroup && workspaceManager.getGroups().includes(result.newName)) {
+          new import_obsidian4.Notice(`Group "${result.newName}" already exists`);
+          return;
+        }
+        if (isNoGroup) {
+          const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+          for (const workspace of ungrouped) {
+            workspaceManager.setWorkspaceGroup(workspace, result.newName);
+          }
+          const icon = workspaceManager.getGroupIcon("\0nogroup");
+          const iconColor = workspaceManager.getGroupIconColor("\0nogroup");
+          const color = workspaceManager.getGroupColor("\0nogroup");
+          const bold = workspaceManager.getGroupBold("\0nogroup");
+          const italic = workspaceManager.getGroupItalic("\0nogroup");
+          const collapsed = workspaceManager.isGroupCollapsed("\0nogroup");
+          workspaceManager.setGroupIcon("\0nogroup", null);
+          workspaceManager.setGroupIconColor("\0nogroup", null);
+          workspaceManager.setGroupColor("\0nogroup", null);
+          workspaceManager.setGroupBold("\0nogroup", false);
+          workspaceManager.setGroupItalic("\0nogroup", false);
+          workspaceManager.setGroupCollapsed("\0nogroup", false);
+          if (icon)
+            workspaceManager.setGroupIcon(result.newName, icon);
+          if (iconColor)
+            workspaceManager.setGroupIconColor(result.newName, iconColor);
+          if (color)
+            workspaceManager.setGroupColor(result.newName, color);
+          if (bold)
+            workspaceManager.setGroupBold(result.newName, true);
+          if (italic)
+            workspaceManager.setGroupItalic(result.newName, true);
+          if (collapsed)
+            workspaceManager.setGroupCollapsed(result.newName, true);
+          finalGroupName = result.newName;
+          new import_obsidian4.Notice(`Created group "${result.newName}" with ${ungrouped.length} workspace(s)`);
+        } else if (result.newName !== groupName) {
+          const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
+          for (const workspace of workspacesInGroup) {
+            workspaceManager.setWorkspaceGroup(workspace, result.newName);
+          }
+          const icon = workspaceManager.getGroupIcon(groupName);
+          const iconColor = workspaceManager.getGroupIconColor(groupName);
+          const color = workspaceManager.getGroupColor(groupName);
+          const bold = workspaceManager.getGroupBold(groupName);
+          const italic = workspaceManager.getGroupItalic(groupName);
+          const collapsed = workspaceManager.isGroupCollapsed(groupName);
+          workspaceManager.setGroupIcon(groupName, null);
+          workspaceManager.setGroupIconColor(groupName, null);
+          workspaceManager.setGroupColor(groupName, null);
+          workspaceManager.setGroupBold(groupName, false);
+          workspaceManager.setGroupItalic(groupName, false);
+          workspaceManager.setGroupCollapsed(groupName, false);
+          if (icon)
+            workspaceManager.setGroupIcon(result.newName, icon);
+          if (iconColor)
+            workspaceManager.setGroupIconColor(result.newName, iconColor);
+          if (color)
+            workspaceManager.setGroupColor(result.newName, color);
+          if (bold)
+            workspaceManager.setGroupBold(result.newName, true);
+          if (italic)
+            workspaceManager.setGroupItalic(result.newName, true);
+          if (collapsed)
+            workspaceManager.setGroupCollapsed(result.newName, true);
+          finalGroupName = result.newName;
+        }
+      }
+      workspaceManager.setGroupIcon(finalGroupName, result.icon);
+      workspaceManager.setGroupIconColor(finalGroupName, result.iconColor);
+      workspaceManager.setGroupColor(finalGroupName, result.textColor);
+      workspaceManager.setGroupBold(finalGroupName, result.textBold);
+      workspaceManager.setGroupItalic(finalGroupName, result.textItalic);
       await this.plugin.saveSettings();
       this.lastRenderedGroup = void 0;
       this.updateSuggestions();
+      if (!isNoGroup || !result.newName) {
+        new import_obsidian4.Notice(`Updated "${finalGroupName === "\0nogroup" ? "No Group" : finalGroupName}"`);
+      }
     });
     modal.open();
   }
@@ -3167,7 +3372,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       useManualOrder: this.plugin.settings.manualSortOrder,
       workspaceManager,
       onToggleCollapse: (gn) => this.onGroupToggleCollapse(gn),
-      onStyleClick: (gn) => this.onGroupStyleClick(gn),
+      onEditClick: (gn) => this.onGroupEditClick(gn),
       onRenameClick: (c, t, gn) => this.onGroupRenameClick(c, t, gn),
       onDeleteClick: (gn) => this.onGroupDelete(gn),
       onDragStart: (evt, gn, c) => {
@@ -3227,10 +3432,24 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       nameBold: nameStyle.bold || false,
       nameItalic: nameStyle.italic || false
     };
-    const modal = new StylePickerModal(this.app, this.plugin, workspaceName, currentStyle, async (newStyle) => {
-      workspaceManager.setWorkspaceGroup(workspaceName, newStyle.group || null);
-      workspaceManager.setWorkspaceIcon(workspaceName, newStyle.icon || null, newStyle.iconColor || null);
-      workspaceManager.setWorkspaceNameStyle(workspaceName, {
+    const modal = new WorkspaceStyleModal(this.app, this.plugin, workspaceName, currentStyle, async (newStyle) => {
+      let finalName = workspaceName;
+      if (newStyle.newName && newStyle.newName !== workspaceName) {
+        if (workspaceManager.hasWorkspace(newStyle.newName)) {
+          new import_obsidian4.Notice(`Workspace "${newStyle.newName}" already exists`);
+          return;
+        }
+        workspaceManager.renameWorkspace(workspaceName, newStyle.newName);
+        const layout = this.plugin.navigationLayouts.get(workspaceName);
+        if (layout) {
+          this.plugin.navigationLayouts.delete(workspaceName);
+          this.plugin.navigationLayouts.set(newStyle.newName, layout);
+        }
+        finalName = newStyle.newName;
+      }
+      workspaceManager.setWorkspaceGroup(finalName, newStyle.group || null);
+      workspaceManager.setWorkspaceIcon(finalName, newStyle.icon || null, newStyle.iconColor || null);
+      workspaceManager.setWorkspaceNameStyle(finalName, {
         color: newStyle.nameColor || null,
         bold: newStyle.nameBold,
         italic: newStyle.nameItalic
@@ -3239,7 +3458,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.lastRenderedGroup = void 0;
       this.updateSuggestions();
       this.plugin.updateStatusBar();
-      new import_obsidian4.Notice(`Updated style for "${workspaceName}"`);
+      new import_obsidian4.Notice(`Updated "${finalName}"`);
     });
     modal.open();
   }
@@ -3627,7 +3846,7 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
         }
         this.onOpen();
       },
-      onStyleClick: () => {
+      onEditClick: () => {
       },
       // Not used in editor modal
       onRenameClick: () => {
@@ -3658,7 +3877,6 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
   renderWorkspaceItem(containerEl, name, isActive) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const setting = new import_obsidian5.Setting(containerEl);
-    const showStyles = this.plugin.settings.showStyleButton;
     const hasGroups = workspaceManager.getGroups().length > 0;
     const useManualOrder = this.plugin.settings.manualSortOrder;
     if (hasGroups || useManualOrder) {
@@ -3682,34 +3900,30 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       setting.settingEl.insertBefore(dragHandle, setting.settingEl.firstChild);
     }
     const nameEl = document.createDocumentFragment();
-    if (showStyles) {
-      const icon = workspaceManager.getWorkspaceIcon(name);
-      const iconColor = workspaceManager.getWorkspaceIconColor(name);
-      const iconSpan = document.createElement("span");
-      iconSpan.className = "workspace-editor-icon";
-      if (icon) {
-        (0, import_obsidian5.setIcon)(iconSpan, icon);
-        if (iconColor) {
-          iconSpan.style.color = iconColor;
-        }
-      } else {
-        (0, import_obsidian5.setIcon)(iconSpan, "layout-grid");
-        iconSpan.style.opacity = "0.4";
+    const icon = workspaceManager.getWorkspaceIcon(name);
+    const iconColor = workspaceManager.getWorkspaceIconColor(name);
+    const iconSpan = document.createElement("span");
+    iconSpan.className = "workspace-editor-icon";
+    if (icon) {
+      (0, import_obsidian5.setIcon)(iconSpan, icon);
+      if (iconColor) {
+        iconSpan.style.color = iconColor;
       }
-      nameEl.appendChild(iconSpan);
-      nameEl.appendChild(document.createTextNode(" "));
+    } else {
+      (0, import_obsidian5.setIcon)(iconSpan, "layout-grid");
+      iconSpan.style.opacity = "0.4";
     }
+    nameEl.appendChild(iconSpan);
+    nameEl.appendChild(document.createTextNode(" "));
     const nameSpan = document.createElement("span");
     nameSpan.textContent = name;
-    if (showStyles) {
-      const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
-      if (nameStyle.color)
-        nameSpan.style.color = nameStyle.color;
-      if (nameStyle.bold)
-        nameSpan.style.fontWeight = "bold";
-      if (nameStyle.italic)
-        nameSpan.style.fontStyle = "italic";
-    }
+    const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
+    if (nameStyle.color)
+      nameSpan.style.color = nameStyle.color;
+    if (nameStyle.bold)
+      nameSpan.style.fontWeight = "bold";
+    if (nameStyle.italic)
+      nameSpan.style.fontStyle = "italic";
     nameEl.appendChild(nameSpan);
     if (isActive) {
       nameEl.appendChild(document.createTextNode(" \u2713"));
@@ -3724,13 +3938,8 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       new import_obsidian5.Notice(`Loaded workspace: ${name}`);
       this.close();
     }));
-    if (this.plugin.settings.showStyleButton) {
-      setting.addExtraButton((button) => button.setIcon("palette").setTooltip("Style workspace").onClick(() => {
-        this.showStyleDialog(name);
-      }));
-    }
-    setting.addExtraButton((button) => button.setIcon("pencil").setTooltip("Rename workspace").onClick(() => {
-      this.showRenameDialog(name);
+    setting.addExtraButton((button) => button.setIcon("pencil").setTooltip("Edit workspace").onClick(() => {
+      this.showStyleDialog(name);
     }));
     setting.addExtraButton((button) => button.setIcon("copy").setTooltip("Clone workspace").onClick(async () => {
       await this.cloneWorkspace(name);
@@ -3756,10 +3965,24 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       nameBold: nameStyle.bold || false,
       nameItalic: nameStyle.italic || false
     };
-    const modal = new StylePickerModal(this.app, this.plugin, name, currentStyle, async (newStyle) => {
-      workspaceManager.setWorkspaceGroup(name, newStyle.group || null);
-      workspaceManager.setWorkspaceIcon(name, newStyle.icon || null, newStyle.iconColor || null);
-      workspaceManager.setWorkspaceNameStyle(name, {
+    const modal = new WorkspaceStyleModal(this.app, this.plugin, name, currentStyle, async (newStyle) => {
+      let finalName = name;
+      if (newStyle.newName && newStyle.newName !== name) {
+        if (workspaceManager.hasWorkspace(newStyle.newName)) {
+          new import_obsidian5.Notice(`Workspace "${newStyle.newName}" already exists`);
+          return;
+        }
+        workspaceManager.renameWorkspace(name, newStyle.newName);
+        const layout = this.plugin.navigationLayouts.get(name);
+        if (layout) {
+          this.plugin.navigationLayouts.delete(name);
+          this.plugin.navigationLayouts.set(newStyle.newName, layout);
+        }
+        finalName = newStyle.newName;
+      }
+      workspaceManager.setWorkspaceGroup(finalName, newStyle.group || null);
+      workspaceManager.setWorkspaceIcon(finalName, newStyle.icon || null, newStyle.iconColor || null);
+      workspaceManager.setWorkspaceNameStyle(finalName, {
         color: newStyle.nameColor || null,
         bold: newStyle.nameBold,
         italic: newStyle.nameItalic
@@ -3767,7 +3990,7 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
       this.onOpen();
-      new import_obsidian5.Notice(`Updated style for "${name}"`);
+      new import_obsidian5.Notice(`Updated "${finalName}"`);
     });
     modal.open();
   }
@@ -4104,6 +4327,16 @@ var WorkspaceManager = class {
       this.setGroupColor(newName, textColor);
       this.setGroupColor(oldName, null);
     }
+    const bold = this.getGroupBold(oldName);
+    if (bold) {
+      this.setGroupBold(newName, true);
+      this.setGroupBold(oldName, false);
+    }
+    const italic = this.getGroupItalic(oldName);
+    if (italic) {
+      this.setGroupItalic(newName, true);
+      this.setGroupItalic(oldName, false);
+    }
     const collapsed = this.isGroupCollapsed(oldName);
     if (collapsed) {
       this.setGroupCollapsed(newName, true);
@@ -4128,6 +4361,46 @@ var WorkspaceManager = class {
       this.storage.groupColors[group] = color;
     } else {
       delete this.storage.groupColors[group];
+    }
+  }
+  /**
+   * Get group bold
+   */
+  getGroupBold(group) {
+    var _a;
+    return ((_a = this.storage.groupBold) == null ? void 0 : _a[group]) || false;
+  }
+  /**
+   * Set group bold
+   */
+  setGroupBold(group, bold) {
+    if (!this.storage.groupBold) {
+      this.storage.groupBold = {};
+    }
+    if (bold) {
+      this.storage.groupBold[group] = true;
+    } else {
+      delete this.storage.groupBold[group];
+    }
+  }
+  /**
+   * Get group italic
+   */
+  getGroupItalic(group) {
+    var _a;
+    return ((_a = this.storage.groupItalic) == null ? void 0 : _a[group]) || false;
+  }
+  /**
+   * Set group italic
+   */
+  setGroupItalic(group, italic) {
+    if (!this.storage.groupItalic) {
+      this.storage.groupItalic = {};
+    }
+    if (italic) {
+      this.storage.groupItalic[group] = true;
+    } else {
+      delete this.storage.groupItalic[group];
     }
   }
   /**

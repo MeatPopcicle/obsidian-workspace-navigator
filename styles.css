@@ -143,17 +143,13 @@
 	transition: fill 0.15s;
 }
 
-/* Position group buttons to match workspace buttons: delete=0.7em, rename=2em, style=3.3em */
-.workspace-group-style-btn {
-	right: 3.3em;
-}
-
+/* Position group buttons: delete=11px, edit=32px (matching workspace buttons) */
 .workspace-group-rename-btn {
-	right: 2em;
+	right: 32px;
 }
 
 .workspace-group-delete-btn {
-	right: 0.7em;
+	right: 11px;
 }
 
 .workspace-group-edit-btn:hover {
@@ -292,8 +288,7 @@
 
 .workspace-delete-btn,
 .workspace-duplicate-btn,
-.workspace-rename-btn,
-.workspace-icon-btn {
+.workspace-rename-btn {
 	position: absolute;
 	top: 50%;
 	transform: translateY(-50%);
@@ -312,19 +307,11 @@
 	right: 2em;
 }
 
-.workspace-icon-btn {
-	right: 3.3em;
-}
-
 .workspace-delete-btn:hover {
 	fill: var(--text-error);
 }
 
 .workspace-rename-btn:hover {
-	fill: var(--text-accent-hover);
-}
-
-.workspace-icon-btn:hover {
 	fill: var(--text-accent-hover);
 }
 
@@ -387,11 +374,6 @@
 .workspace-suggestion-item.is-renaming .workspace-rename-btn {
 	opacity: 1;
 	fill: var(--text-success);
-}
-
-/* Hide icon button during rename */
-.workspace-suggestion-item.is-renaming .workspace-icon-btn {
-	display: none;
 }
 
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -459,15 +441,21 @@
 	align-items: center;
 	gap: 0.5em;
 	margin-bottom: 1em;
-	padding: 0.5em 1em;
+	padding: 0.75em 1em;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
 	background: var(--background-secondary);
-	font-size: 1.5em;
+	font-size: 1.4em;
 }
 
 .workspace-style-preview-icon {
-	font-size: 1.5em;
+	display: flex;
+	align-items: center;
+}
+
+.workspace-style-preview-icon svg {
+	width: 1.2em;
+	height: 1.2em;
 }
 
 .workspace-style-preview-name {
@@ -479,6 +467,86 @@
 	margin-bottom: 0.5em;
 	border-bottom: 1px solid var(--background-modifier-border);
 	padding-bottom: 0.3em;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Style Picker Modal Cards                                                     */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.workspace-style-picker {
+	/* Modal-level styling */
+}
+
+.workspace-style-picker h3 {
+	margin-top: 0;
+	margin-bottom: 1em;
+}
+
+/* Remove hr dividers in favor of cards */
+.workspace-style-picker hr {
+	display: none;
+}
+
+/* Card section containers */
+.workspace-style-card {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	padding: 12px 16px;
+	margin-bottom: 12px;
+}
+
+.workspace-style-card:last-of-type {
+	margin-bottom: 16px;
+}
+
+/* Card label/title */
+.workspace-style-card-label {
+	font-size: 0.75em;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: var(--text-muted);
+	margin-bottom: 8px;
+}
+
+/* Settings inside cards - reduce padding and fix alignment */
+.workspace-style-card .setting-item {
+	border: none;
+	padding: 4px 0;
+}
+
+.workspace-style-card .setting-item:last-child {
+	padding-bottom: 0;
+}
+
+/* Make text inputs in General card stretch to fill available space */
+.workspace-style-card .setting-item-info {
+	flex: 0 0 80px;
+}
+
+.workspace-style-card .setting-item-control {
+	flex: 1;
+	justify-content: flex-start;
+	gap: 8px;
+}
+
+.workspace-style-card .setting-item-control input[type="text"] {
+	flex: 1;
+	max-width: none;
+	width: auto !important;
+}
+
+.workspace-style-card .setting-item-control .dropdown {
+	flex: 0 0 auto;
+}
+
+/* Icon grid inside card */
+.workspace-style-card .workspace-icon-grid {
+	border: none;
+	padding: 0;
+	margin-bottom: 8px;
+	max-height: 160px;
 }
 
 /* Legacy - keep for compatibility */

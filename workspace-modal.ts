@@ -94,13 +94,14 @@ export interface WorkspaceStyleResult {
 	nameColor:  string;
 	nameBold:   boolean;
 	nameItalic: boolean;
+	newName?:   string;  // Optional: new name if workspace was renamed
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Style Picker Modal
+// Workspace Style Modal (single workspace editor)
 // ───────────────────────────────────────────────────────────────────────────────
 
-export class StylePickerModal extends Modal {
+export class WorkspaceStyleModal extends Modal {
 	plugin:        WorkspaceNavigator;
 	workspaceName: string;
 	currentStyle:  WorkspaceStyleResult;
@@ -119,9 +120,10 @@ export class StylePickerModal extends Modal {
 		contentEl.empty();
 		contentEl.addClass('workspace-style-picker');
 
-		contentEl.createEl('h3', { text: 'Customize Workspace Appearance' });
+		contentEl.createEl('h3', { text: 'Edit Workspace' });
 
 		// State
+		let renameValue     = this.workspaceName;
 		let groupValue      = this.currentStyle.group;
 		let iconValue       = this.currentStyle.icon;
 		let iconColorValue  = this.currentStyle.iconColor;
@@ -129,46 +131,62 @@ export class StylePickerModal extends Modal {
 		let nameBoldValue   = this.currentStyle.nameBold;
 		let nameItalicValue = this.currentStyle.nameItalic;
 
-		// ─────────────────────────────────────────────────────────────
-		// Preview
-		// ─────────────────────────────────────────────────────────────
-		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
-		const iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
-		if (iconValue) {
-			setIcon(iconPreview, iconValue);
-			if (iconColorValue) iconPreview.style.color = iconColorValue;
-		}
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const existingGroups   = workspaceManager.getGroups();
 
-		const namePreview = previewContainer.createSpan('workspace-style-preview-name');
-		namePreview.textContent = this.workspaceName;
-		if (nameColorValue) namePreview.style.color = nameColorValue;
-		if (nameBoldValue) namePreview.style.fontWeight = 'bold';
-		if (nameItalicValue) namePreview.style.fontStyle = 'italic';
-
+		// Preview update function (defined early, elements created later)
+		let iconPreview: HTMLElement;
+		let namePreview: HTMLElement;
 		const updatePreview = () => {
+			if (!iconPreview || !namePreview) return;
 			iconPreview.empty();
 			if (iconValue) {
 				setIcon(iconPreview, iconValue);
 				iconPreview.style.color = iconColorValue || '';
 			}
-			namePreview.style.color = nameColorValue || '';
+			namePreview.textContent = renameValue || this.workspaceName;
+			namePreview.style.color      = nameColorValue || '';
 			namePreview.style.fontWeight = nameBoldValue ? 'bold' : '';
-			namePreview.style.fontStyle = nameItalicValue ? 'italic' : '';
+			namePreview.style.fontStyle  = nameItalicValue ? 'italic' : '';
 		};
 
 		// ─────────────────────────────────────────────────────────────
-		// Group Section
+		// Preview (at top)
 		// ─────────────────────────────────────────────────────────────
-		contentEl.createEl('h4', { text: 'Group', cls: 'workspace-style-section' });
+		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
+		iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
+		namePreview = previewContainer.createSpan('workspace-style-preview-name');
 
-		const workspaceManager = this.plugin.getWorkspaceManager();
-		const existingGroups = workspaceManager.getGroups();
+		// Initialize preview
+		if (iconValue) {
+			setIcon(iconPreview, iconValue);
+			if (iconColorValue) iconPreview.style.color = iconColorValue;
+		}
+		namePreview.textContent = renameValue;
+		if (nameColorValue) namePreview.style.color = nameColorValue;
+		if (nameBoldValue) namePreview.style.fontWeight = 'bold';
+		if (nameItalicValue) namePreview.style.fontStyle = 'italic';
 
-		new Setting(contentEl)
-			.setName('Assign to group')
-			.setDesc('Type a new group name or select an existing one')
+		// ─────────────────────────────────────────────────────────────
+		// General Card (Name & Group)
+		// ─────────────────────────────────────────────────────────────
+		const generalCard = contentEl.createDiv('workspace-style-card');
+		generalCard.createDiv({ cls: 'workspace-style-card-label', text: 'General' });
+
+		new Setting(generalCard)
+			.setName('Name')
+			.addText(text => {
+				text.setValue(this.workspaceName);
+				text.onChange(value => {
+					renameValue = value.trim();
+					updatePreview();
+				});
+			});
+
+		new Setting(generalCard)
+			.setName('Group')
 			.addDropdown(dropdown => {
-				dropdown.addOption('', '(No group)');
+				dropdown.addOption('', '(None)');
 				for (const group of existingGroups) {
 					dropdown.addOption(group, group);
 				}
@@ -178,7 +196,7 @@ export class StylePickerModal extends Modal {
 				});
 			})
 			.addText(text => {
-				text.setPlaceholder('Or type new group...');
+				text.setPlaceholder('or new...');
 				text.onChange(value => {
 					if (value.trim()) {
 						groupValue = value.trim();
@@ -187,105 +205,135 @@ export class StylePickerModal extends Modal {
 			});
 
 		// ─────────────────────────────────────────────────────────────
-		// Icon Section
+		// Icon Card
 		// ─────────────────────────────────────────────────────────────
-		contentEl.createEl('h4', { text: 'Icon', cls: 'workspace-style-section' });
+		const iconCard = contentEl.createDiv('workspace-style-card');
+		iconCard.createDiv({ cls: 'workspace-style-card-label', text: 'Icon' });
 
-		// Icon color
-		contentEl.createEl('p', { text: 'Icon color:', cls: 'workspace-icon-label' });
-		const iconColorRow = contentEl.createDiv('workspace-color-row');
-		const iconSwatchContainer = iconColorRow.createDiv('workspace-color-swatches');
+		const grid = iconCard.createDiv('workspace-icon-grid');
 
-		for (const { color, name } of PRESET_COLORS) {
-			const swatch = iconSwatchContainer.createEl('button', { cls: 'workspace-color-swatch' });
-			swatch.style.backgroundColor = color;
-			swatch.setAttribute('title', name);
-			if (color === iconColorValue) swatch.addClass('is-selected');
-			swatch.addEventListener('click', () => {
-				iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-				swatch.addClass('is-selected');
-				iconColorValue = color;
-				iconColorInput.value = color;
-				updatePreview();
-			});
-		}
-
-		const iconColorInput = iconColorRow.createEl('input', { cls: 'workspace-color-input' }) as HTMLInputElement;
-		iconColorInput.type = 'color';
-		iconColorInput.value = iconColorValue || '#ffffff';
-		iconColorInput.addEventListener('input', () => {
-			iconColorValue = iconColorInput.value;
-			iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+		// No icon button
+		const noIconBtn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
+		noIconBtn.textContent = '✕';
+		noIconBtn.setAttribute('title', 'No icon');
+		if (!iconValue) noIconBtn.addClass('is-selected');
+		noIconBtn.addEventListener('click', () => {
+			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+			noIconBtn.addClass('is-selected');
+			iconValue = '';
 			updatePreview();
 		});
 
-		// Icon grid
-		contentEl.createEl('p', { text: 'Select icon:', cls: 'workspace-icon-label' });
-		const grid = contentEl.createDiv('workspace-icon-grid');
 		for (const iconName of LUCIDE_ICONS) {
 			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
 			setIcon(btn, iconName);
 			btn.setAttribute('title', iconName);
 			if (iconName === iconValue) btn.addClass('is-selected');
 			btn.addEventListener('click', () => {
-				iconValue = iconName;
 				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
 				btn.addClass('is-selected');
+				iconValue = iconName;
 				updatePreview();
 			});
 		}
 
-		// ─────────────────────────────────────────────────────────────
-		// Name Style Section
-		// ─────────────────────────────────────────────────────────────
-		contentEl.createEl('h4', { text: 'Name Style', cls: 'workspace-style-section' });
-
-		// Name color
-		contentEl.createEl('p', { text: 'Name color:', cls: 'workspace-icon-label' });
-		const nameColorRow = contentEl.createDiv('workspace-color-row');
-		const nameSwatchContainer = nameColorRow.createDiv('workspace-color-swatches');
-
-		for (const { color, name } of PRESET_COLORS) {
-			const swatch = nameSwatchContainer.createEl('button', { cls: 'workspace-color-swatch' });
-			swatch.style.backgroundColor = color;
-			swatch.setAttribute('title', name);
-			if (color === nameColorValue) swatch.addClass('is-selected');
-			swatch.addEventListener('click', () => {
-				nameSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-				swatch.addClass('is-selected');
-				nameColorValue = color;
-				nameColorInput.value = color;
-				updatePreview();
+		// Icon Color
+		new Setting(iconCard)
+			.setName('Color')
+			.then(setting => {
+				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
+				for (const { color, name } of PRESET_COLORS) {
+					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
+					swatch.style.backgroundColor = color;
+					swatch.setAttribute('title', name);
+					if (color === iconColorValue) swatch.addClass('is-selected');
+					swatch.addEventListener('click', () => {
+						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+						swatch.addClass('is-selected');
+						iconColorValue = color;
+						updatePreview();
+					});
+				}
+				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
+				noColor.textContent = '✕';
+				noColor.setAttribute('title', 'No color');
+				if (!iconColorValue) noColor.addClass('is-selected');
+				noColor.addEventListener('click', () => {
+					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+					noColor.addClass('is-selected');
+					iconColorValue = '';
+					updatePreview();
+				});
 			});
-		}
 
-		const nameColorInput = nameColorRow.createEl('input', { cls: 'workspace-color-input' }) as HTMLInputElement;
-		nameColorInput.type = 'color';
-		nameColorInput.value = nameColorValue || '#ffffff';
-		nameColorInput.addEventListener('input', () => {
-			nameColorValue = nameColorInput.value;
-			nameSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-			updatePreview();
-		});
+		// ─────────────────────────────────────────────────────────────
+		// Name Style Card
+		// ─────────────────────────────────────────────────────────────
+		const nameCard = contentEl.createDiv('workspace-style-card');
+		nameCard.createDiv({ cls: 'workspace-style-card-label', text: 'Name Style' });
 
-		// Bold & Italic toggles
-		new Setting(contentEl)
-			.setName('Bold')
+		new Setting(nameCard)
+			.setName('Color')
+			.then(setting => {
+				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
+				for (const { color, name } of PRESET_COLORS) {
+					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
+					swatch.style.backgroundColor = color;
+					swatch.setAttribute('title', name);
+					if (color === nameColorValue) swatch.addClass('is-selected');
+					swatch.addEventListener('click', () => {
+						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+						swatch.addClass('is-selected');
+						nameColorValue = color;
+						updatePreview();
+					});
+				}
+				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
+				noColor.textContent = '✕';
+				noColor.setAttribute('title', 'No color');
+				if (!nameColorValue) noColor.addClass('is-selected');
+				noColor.addEventListener('click', () => {
+					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+					noColor.addClass('is-selected');
+					nameColorValue = '';
+					updatePreview();
+				});
+			});
+
+		new Setting(nameCard)
+			.setName('Format')
 			.addToggle(toggle => toggle
 				.setValue(nameBoldValue)
+				.setTooltip('Bold')
 				.onChange(value => {
 					nameBoldValue = value;
 					updatePreview();
-				}));
-
-		new Setting(contentEl)
-			.setName('Italic')
+				}))
 			.addToggle(toggle => toggle
 				.setValue(nameItalicValue)
+				.setTooltip('Italic')
 				.onChange(value => {
 					nameItalicValue = value;
 					updatePreview();
-				}));
+				}))
+			.then(setting => {
+				// Add labels after toggles
+				const controls = setting.controlEl;
+				const toggles = controls.querySelectorAll('.checkbox-container');
+				if (toggles[0]) {
+					const label = document.createElement('span');
+					label.textContent = 'B';
+					label.style.fontWeight = 'bold';
+					label.style.marginRight = '12px';
+					toggles[0].after(label);
+				}
+				if (toggles[1]) {
+					const label = document.createElement('span');
+					label.textContent = 'I';
+					label.style.fontStyle = 'italic';
+					toggles[1].after(label);
+				}
+			});
 
 		// ─────────────────────────────────────────────────────────────
 		// Action buttons
@@ -313,7 +361,8 @@ export class StylePickerModal extends Modal {
 						iconColor:  iconColorValue,
 						nameColor:  nameColorValue,
 						nameBold:   nameBoldValue,
-						nameItalic: nameItalicValue
+						nameItalic: nameItalicValue,
+						newName:    renameValue !== this.workspaceName ? renameValue : undefined
 					});
 					this.close();
 				}));
@@ -325,15 +374,24 @@ export class StylePickerModal extends Modal {
 }
 
 // ───────────────────────────────────────────────────────────────────────────────
-// Group Style Picker Modal
+// Group Style Picker Modal (Option A layout - matches WorkspaceStyleModal)
 // ───────────────────────────────────────────────────────────────────────────────
+
+export interface GroupStyleResult {
+	newName?:   string | null;
+	icon:       string | null;
+	iconColor:  string | null;
+	textColor:  string | null;
+	textBold:   boolean;
+	textItalic: boolean;
+}
 
 export class GroupStylePickerModal extends Modal {
 	plugin:    WorkspaceNavigator;
 	groupName: string;
-	onSubmit:  (icon: string | null, iconColor: string | null, textColor: string | null) => void;
+	onSubmit:  (result: GroupStyleResult) => void;
 
-	constructor(app: App, plugin: WorkspaceNavigator, groupName: string, onSubmit: (icon: string | null, iconColor: string | null, textColor: string | null) => void) {
+	constructor(app: App, plugin: WorkspaceNavigator, groupName: string, onSubmit: (result: GroupStyleResult) => void) {
 		super(app);
 		this.plugin    = plugin;
 		this.groupName = groupName;
@@ -343,60 +401,81 @@ export class GroupStylePickerModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
+		contentEl.addClass('workspace-style-picker');
 
-		const displayName = this.groupName === '\x00nogroup' ? 'No Group' : this.groupName;
-		contentEl.createEl('h3', { text: `Style for "${displayName}"` });
+		const isNoGroup   = this.groupName === '\x00nogroup';
+		const displayName = isNoGroup ? 'No Group' : this.groupName;
+		contentEl.createEl('h3', { text: isNoGroup ? 'Edit Ungrouped Style' : 'Edit Group' });
 
 		const workspaceManager = this.plugin.getWorkspaceManager();
-		let iconValue      = workspaceManager.getGroupIcon(this.groupName) || '';
-		let iconColorValue = workspaceManager.getGroupIconColor(this.groupName) || '';
-		let textColorValue = workspaceManager.getGroupColor(this.groupName) || '';
+
+		// State
+		let renameValue     = isNoGroup ? '' : this.groupName;
+		let iconValue       = workspaceManager.getGroupIcon(this.groupName) || '';
+		let iconColorValue  = workspaceManager.getGroupIconColor(this.groupName) || '';
+		let textColorValue  = workspaceManager.getGroupColor(this.groupName) || '';
+		let textBoldValue   = workspaceManager.getGroupBold(this.groupName) || false;
+		let textItalicValue = workspaceManager.getGroupItalic(this.groupName) || false;
+
+		// Preview update function (defined early, elements created later)
+		let iconPreview: HTMLElement;
+		let namePreview: HTMLElement;
+		const updatePreview = () => {
+			if (!iconPreview || !namePreview) return;
+			iconPreview.empty();
+			if (iconValue) {
+				setIcon(iconPreview, iconValue);
+				iconPreview.style.color = iconColorValue || '';
+			}
+			namePreview.textContent = renameValue || displayName;
+			namePreview.style.color      = textColorValue || '';
+			namePreview.style.fontWeight = textBoldValue ? 'bold' : '';
+			namePreview.style.fontStyle  = textItalicValue ? 'italic' : '';
+		};
 
 		// ─────────────────────────────────────────────────────────────
-		// Icon Section
+		// Preview (at top)
 		// ─────────────────────────────────────────────────────────────
-		contentEl.createEl('h4', { text: 'Icon', cls: 'workspace-style-section' });
+		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
+		iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
+		namePreview = previewContainer.createSpan('workspace-style-preview-name');
 
-		// Icon color
-		contentEl.createEl('p', { text: 'Icon color:', cls: 'workspace-icon-label' });
-		const iconColorRow = contentEl.createDiv('workspace-color-row');
-		const iconSwatchContainer = iconColorRow.createDiv('workspace-color-swatches');
-
-		for (const { color, name } of PRESET_COLORS) {
-			const swatch = iconSwatchContainer.createEl('button', { cls: 'workspace-color-swatch' });
-			swatch.style.backgroundColor = color;
-			swatch.setAttribute('title', name);
-			if (color === iconColorValue) swatch.addClass('is-selected');
-			swatch.addEventListener('click', () => {
-				iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-				swatch.addClass('is-selected');
-				iconColorValue = color;
-				iconColorInput.value = color;
-			});
+		// Initialize preview
+		if (iconValue) {
+			setIcon(iconPreview, iconValue);
+			if (iconColorValue) iconPreview.style.color = iconColorValue;
 		}
+		namePreview.textContent = renameValue || displayName;
+		if (textColorValue) namePreview.style.color = textColorValue;
+		if (textBoldValue) namePreview.style.fontWeight = 'bold';
+		if (textItalicValue) namePreview.style.fontStyle = 'italic';
 
-		const noIconColorSwatch = iconSwatchContainer.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
-		noIconColorSwatch.textContent = '✕';
-		noIconColorSwatch.setAttribute('title', 'No color');
-		if (!iconColorValue) noIconColorSwatch.addClass('is-selected');
-		noIconColorSwatch.addEventListener('click', () => {
-			iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-			noIconColorSwatch.addClass('is-selected');
-			iconColorValue = '';
-		});
+		// ─────────────────────────────────────────────────────────────
+		// General Card (Name)
+		// ─────────────────────────────────────────────────────────────
+		const generalCard = contentEl.createDiv('workspace-style-card');
+		generalCard.createDiv({ cls: 'workspace-style-card-label', text: 'General' });
 
-		const iconColorInput = iconColorRow.createEl('input', { cls: 'workspace-color-input' }) as HTMLInputElement;
-		iconColorInput.type = 'color';
-		iconColorInput.value = iconColorValue || '#ffffff';
-		iconColorInput.addEventListener('input', () => {
-			iconColorValue = iconColorInput.value;
-			iconSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-		});
+		new Setting(generalCard)
+			.setName('Name')
+			.addText(text => {
+				text.setValue(isNoGroup ? '' : this.groupName);
+				text.setPlaceholder(isNoGroup ? 'Enter group name...' : '');
+				text.onChange(value => {
+					renameValue = value.trim();
+					updatePreview();
+				});
+			});
 
-		// Icon grid
-		contentEl.createEl('p', { text: 'Select icon:', cls: 'workspace-icon-label' });
-		const grid = contentEl.createDiv('workspace-icon-grid');
+		// ─────────────────────────────────────────────────────────────
+		// Icon Card
+		// ─────────────────────────────────────────────────────────────
+		const iconCard = contentEl.createDiv('workspace-style-card');
+		iconCard.createDiv({ cls: 'workspace-style-card-label', text: 'Icon' });
 
+		const grid = iconCard.createDiv('workspace-icon-grid');
+
+		// No icon button
 		const noIconBtn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
 		noIconBtn.textContent = '✕';
 		noIconBtn.setAttribute('title', 'No icon');
@@ -405,6 +484,7 @@ export class GroupStylePickerModal extends Modal {
 			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
 			noIconBtn.addClass('is-selected');
 			iconValue = '';
+			updatePreview();
 		});
 
 		for (const iconName of LUCIDE_ICONS) {
@@ -416,47 +496,107 @@ export class GroupStylePickerModal extends Modal {
 				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
 				btn.addClass('is-selected');
 				iconValue = iconName;
+				updatePreview();
 			});
 		}
 
-		// ─────────────────────────────────────────────────────────────
-		// Text Color Section
-		// ─────────────────────────────────────────────────────────────
-		contentEl.createEl('h4', { text: 'Text Color', cls: 'workspace-style-section' });
-
-		const textColorRow = contentEl.createDiv('workspace-color-row');
-		const textSwatchContainer = textColorRow.createDiv('workspace-color-swatches');
-
-		for (const { color, name } of PRESET_COLORS) {
-			const swatch = textSwatchContainer.createEl('button', { cls: 'workspace-color-swatch' });
-			swatch.style.backgroundColor = color;
-			swatch.setAttribute('title', name);
-			if (color === textColorValue) swatch.addClass('is-selected');
-			swatch.addEventListener('click', () => {
-				textSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-				swatch.addClass('is-selected');
-				textColorValue = color;
-				textColorInput.value = color;
+		// Icon Color
+		new Setting(iconCard)
+			.setName('Color')
+			.then(setting => {
+				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
+				for (const { color, name } of PRESET_COLORS) {
+					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
+					swatch.style.backgroundColor = color;
+					swatch.setAttribute('title', name);
+					if (color === iconColorValue) swatch.addClass('is-selected');
+					swatch.addEventListener('click', () => {
+						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+						swatch.addClass('is-selected');
+						iconColorValue = color;
+						updatePreview();
+					});
+				}
+				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
+				noColor.textContent = '✕';
+				noColor.setAttribute('title', 'No color');
+				if (!iconColorValue) noColor.addClass('is-selected');
+				noColor.addEventListener('click', () => {
+					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+					noColor.addClass('is-selected');
+					iconColorValue = '';
+					updatePreview();
+				});
 			});
-		}
 
-		const noTextColorSwatch = textSwatchContainer.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
-		noTextColorSwatch.textContent = '✕';
-		noTextColorSwatch.setAttribute('title', 'No color');
-		if (!textColorValue) noTextColorSwatch.addClass('is-selected');
-		noTextColorSwatch.addEventListener('click', () => {
-			textSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-			noTextColorSwatch.addClass('is-selected');
-			textColorValue = '';
-		});
+		// ─────────────────────────────────────────────────────────────
+		// Name Style Card
+		// ─────────────────────────────────────────────────────────────
+		const nameCard = contentEl.createDiv('workspace-style-card');
+		nameCard.createDiv({ cls: 'workspace-style-card-label', text: 'Name Style' });
 
-		const textColorInput = textColorRow.createEl('input', { cls: 'workspace-color-input' }) as HTMLInputElement;
-		textColorInput.type = 'color';
-		textColorInput.value = textColorValue || '#ffffff';
-		textColorInput.addEventListener('input', () => {
-			textColorValue = textColorInput.value;
-			textSwatchContainer.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-		});
+		new Setting(nameCard)
+			.setName('Color')
+			.then(setting => {
+				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
+				for (const { color, name } of PRESET_COLORS) {
+					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
+					swatch.style.backgroundColor = color;
+					swatch.setAttribute('title', name);
+					if (color === textColorValue) swatch.addClass('is-selected');
+					swatch.addEventListener('click', () => {
+						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+						swatch.addClass('is-selected');
+						textColorValue = color;
+						updatePreview();
+					});
+				}
+				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
+				noColor.textContent = '✕';
+				noColor.setAttribute('title', 'No color');
+				if (!textColorValue) noColor.addClass('is-selected');
+				noColor.addEventListener('click', () => {
+					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+					noColor.addClass('is-selected');
+					textColorValue = '';
+					updatePreview();
+				});
+			});
+
+		new Setting(nameCard)
+			.setName('Format')
+			.addToggle(toggle => toggle
+				.setValue(textBoldValue)
+				.setTooltip('Bold')
+				.onChange(value => {
+					textBoldValue = value;
+					updatePreview();
+				}))
+			.addToggle(toggle => toggle
+				.setValue(textItalicValue)
+				.setTooltip('Italic')
+				.onChange(value => {
+					textItalicValue = value;
+					updatePreview();
+				}))
+			.then(setting => {
+				// Add labels after toggles
+				const controls = setting.controlEl;
+				const toggles = controls.querySelectorAll('.checkbox-container');
+				if (toggles[0]) {
+					const label = document.createElement('span');
+					label.textContent = 'B';
+					label.style.fontWeight = 'bold';
+					label.style.marginRight = '12px';
+					toggles[0].after(label);
+				}
+				if (toggles[1]) {
+					const label = document.createElement('span');
+					label.textContent = 'I';
+					label.style.fontStyle = 'italic';
+					toggles[1].after(label);
+				}
+			});
 
 		// ─────────────────────────────────────────────────────────────
 		// Action buttons
@@ -465,7 +605,14 @@ export class GroupStylePickerModal extends Modal {
 			.addButton(btn => btn
 				.setButtonText('Clear All')
 				.onClick(() => {
-					this.onSubmit(null, null, null);
+					this.onSubmit({
+						newName:    null,
+						icon:       null,
+						iconColor:  null,
+						textColor:  null,
+						textBold:   false,
+						textItalic: false,
+					});
 					this.close();
 				}))
 			.addButton(btn => btn
@@ -475,7 +622,21 @@ export class GroupStylePickerModal extends Modal {
 				.setButtonText('Save')
 				.setCta()
 				.onClick(() => {
-					this.onSubmit(iconValue || null, iconColorValue || null, textColorValue || null);
+					const isNoGroup = this.groupName === '\x00nogroup';
+					// For "No Group", if user enters a name, that becomes newName
+					// For named groups, newName is set only if changed
+					const hasNewName = isNoGroup
+						? (renameValue && renameValue.length > 0)
+						: (renameValue !== this.groupName);
+
+					this.onSubmit({
+						newName:    hasNewName ? renameValue : null,
+						icon:       iconValue || null,
+						iconColor:  iconColorValue || null,
+						textColor:  textColorValue || null,
+						textBold:   textBoldValue,
+						textItalic: textItalicValue,
+					});
 					this.close();
 				}));
 	}
@@ -599,6 +760,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	private draggedGroup:     string | null = null;
 	private draggedElement:   HTMLElement | null = null;
 	private dragGhost:        HTMLElement | null = null;
+	private isRenaming:       boolean = false;  // Flag to prevent selection during rename
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -720,6 +882,30 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Push custom scope - just like original plugin
 		(this.app as any).keymap.pushScope(this.scope);
 		super.open();
+	}
+
+	// Override selectSuggestion to prevent selection during rename mode or right-click
+	selectSuggestion(value: FuzzyMatch<string>, evt: MouseEvent | KeyboardEvent): void {
+		// Check if this is a right-click - never select on right-click
+		if (evt instanceof MouseEvent && evt.button === 2) {
+			return;
+		}
+
+		// Check if any item is in rename mode
+		const renamingItem = this.modalEl.querySelector('.workspace-suggestion-item.is-renaming');
+		if (renamingItem) {
+			// Don't select - we're in rename mode
+			return;
+		}
+
+		// Check if a group header is in rename mode
+		const renamingGroup = this.modalEl.querySelector('.workspace-group-header.is-renaming');
+		if (renamingGroup) {
+			return;
+		}
+
+		// Proceed with normal selection
+		super.selectSuggestion(value, evt);
 	}
 
 	onOpen(): void {
@@ -1128,11 +1314,40 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		el.dataset.workspaceName = workspaceName;
 		el.addClass('workspace-suggestion-item');
 
+		// Right-click triggers quick inline rename
+		// Intercept mousedown for right-click to prevent FuzzySuggestModal from handling it
+		el.addEventListener('mousedown', (evt) => {
+			if (evt.button === 2) {  // Right-click
+				evt.preventDefault();
+				evt.stopPropagation();
+				evt.stopImmediatePropagation();
+			}
+		}, true);  // Capture phase
+
+		el.addEventListener('contextmenu', (evt) => {
+			evt.preventDefault();
+			evt.stopPropagation();
+			evt.stopImmediatePropagation();
+			this.onRenameClick(evt, el);
+		}, true);  // Capture phase
+
+		// Prevent selection when in rename mode (all mouse events)
+		const preventSelectionInRenameMode = (evt: MouseEvent) => {
+			if (el.hasClass('is-renaming')) {
+				evt.preventDefault();
+				evt.stopPropagation();
+				evt.stopImmediatePropagation();
+			}
+		};
+		el.addEventListener('mousedown', preventSelectionInRenameMode, true);
+		el.addEventListener('mouseup', preventSelectionInRenameMode, true);
+		el.addEventListener('click', preventSelectionInRenameMode, true);
+
 		// ─────────────────────────────────────────────────────────────────
 		// Inline structural styles (theme-proof)
 		// ─────────────────────────────────────────────────────────────────
 		el.style.position   = 'relative';
-		el.style.padding    = '5px 96px 5px 38px';  // Align workspace icons with group header icons
+		el.style.padding    = '5px 75px 5px 38px';  // Right padding for 2 buttons (edit + delete)
 		el.style.minHeight  = '28px';
 		el.style.display    = 'flex';
 		el.style.alignItems = 'center';
@@ -1201,38 +1416,34 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 
 		// Add workspace icon column (with custom icon or default)
-		const showStyles = this.plugin.settings.showStyleButton;
+		const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
+		const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 
-		if (showStyles) {
-			const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
-			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
+		const iconSpan = el.createSpan('workspace-icon-column');
+		// Inline structural styles (theme-proof, fixed px)
+		iconSpan.style.display        = 'inline-flex';
+		iconSpan.style.alignItems     = 'center';
+		iconSpan.style.justifyContent = 'center';
+		iconSpan.style.width          = '24px';
+		iconSpan.style.marginRight    = '6px';  // Match group header flex gap
+		iconSpan.style.verticalAlign  = 'middle';
 
-			const iconSpan = el.createSpan('workspace-icon-column');
-			// Inline structural styles (theme-proof, fixed px)
-			iconSpan.style.display        = 'inline-flex';
-			iconSpan.style.alignItems     = 'center';
-			iconSpan.style.justifyContent = 'center';
-			iconSpan.style.width          = '24px';
-			iconSpan.style.marginRight    = '6px';  // Match group header flex gap
-			iconSpan.style.verticalAlign  = 'middle';
-
-			if (icon) {
-				setIcon(iconSpan, icon);
-				if (iconColor) {
-					iconSpan.style.color = iconColor;
-				}
-			} else {
-				// Default icon for workspaces without a custom icon
-				setIcon(iconSpan, 'layout-grid');
-				iconSpan.style.opacity = '0.4';
+		if (icon) {
+			setIcon(iconSpan, icon);
+			if (iconColor) {
+				iconSpan.style.color = iconColor;
 			}
+		} else {
+			// Default icon for workspaces without a custom icon
+			setIcon(iconSpan, 'layout-grid');
+			iconSpan.style.opacity = '0.4';
+		}
 
-			// Theme-proof icon SVG size
-			const svg = iconSpan.querySelector('svg');
-			if (svg) {
-				(svg as SVGElement).style.width  = '16px';
-				(svg as SVGElement).style.height = '16px';
-			}
+		// Theme-proof icon SVG size
+		const svg = iconSpan.querySelector('svg');
+		if (svg) {
+			(svg as SVGElement).style.width  = '16px';
+			(svg as SVGElement).style.height = '16px';
 		}
 
 		const textSpan = el.createSpan('workspace-name-text');
@@ -1240,13 +1451,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Inline structural style (theme-proof)
 		textSpan.style.display = 'inline-block';
 
-		// Apply name styling only if enabled
-		if (showStyles) {
-			const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
-			if (nameStyle.color) textSpan.style.color = nameStyle.color;
-			if (nameStyle.bold) textSpan.style.fontWeight = 'bold';
-			if (nameStyle.italic) textSpan.style.fontStyle = 'italic';
-		}
+		// Apply name styling
+		const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
+		if (nameStyle.color) textSpan.style.color = nameStyle.color;
+		if (nameStyle.bold) textSpan.style.fontWeight = 'bold';
+		if (nameStyle.italic) textSpan.style.fontStyle = 'italic';
 
 		// Add active workspace indicator (left border accent via CSS class)
 		const activeWorkspace = workspaceManager.getActiveWorkspace();
@@ -1283,45 +1492,24 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// 	this.duplicateWorkspace(workspaceName);
 		// });
 
-		// Create rename button
-		const renameBtn = el.createDiv('workspace-rename-btn');
-		renameBtn.setAttribute('aria-label', 'Rename workspace');
+		// Create edit button (pencil - opens editor modal)
+		const editBtn = el.createDiv('workspace-rename-btn');
+		editBtn.setAttribute('aria-label', 'Edit workspace');
 		// Inline structural styles (theme-proof, fixed px)
-		renameBtn.style.position  = 'absolute';
-		renameBtn.style.top       = '50%';
-		renameBtn.style.transform = 'translateY(-50%)';
-		renameBtn.style.right     = '32px';
-		renameBtn.style.padding   = '2px';
-		renameBtn.style.cursor    = 'pointer';
-		renameBtn.style.fill      = 'var(--text-muted)';
-		renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-		renameBtn.addEventListener('click', (evt) => {
+		editBtn.style.position  = 'absolute';
+		editBtn.style.top       = '50%';
+		editBtn.style.transform = 'translateY(-50%)';
+		editBtn.style.right     = '32px';
+		editBtn.style.padding   = '2px';
+		editBtn.style.cursor    = 'pointer';
+		editBtn.style.fill      = 'var(--text-muted)';
+		editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+		editBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
-			this.onRenameClick(evt, el);
+			this.onIconClick(workspaceName);
 		});
-		renameBtn.addEventListener('mouseenter', () => { renameBtn.style.fill = 'var(--text-accent-hover)'; });
-		renameBtn.addEventListener('mouseleave', () => { renameBtn.style.fill = 'var(--text-muted)'; });
-
-		// Create style button (only if enabled in settings)
-		if (this.plugin.settings.showStyleButton) {
-			const iconBtn = el.createDiv('workspace-icon-btn');
-			iconBtn.setAttribute('aria-label', 'Style workspace');
-			// Inline structural styles (theme-proof, fixed px)
-			iconBtn.style.position  = 'absolute';
-			iconBtn.style.top       = '50%';
-			iconBtn.style.transform = 'translateY(-50%)';
-			iconBtn.style.right     = '53px';
-			iconBtn.style.padding   = '2px';
-			iconBtn.style.cursor    = 'pointer';
-			iconBtn.style.fill      = 'var(--text-muted)';
-			iconBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
-			iconBtn.addEventListener('click', (evt) => {
-				evt.stopPropagation();
-				this.onIconClick(workspaceName);
-			});
-			iconBtn.addEventListener('mouseenter', () => { iconBtn.style.fill = 'var(--text-accent-hover)'; });
-			iconBtn.addEventListener('mouseleave', () => { iconBtn.style.fill = 'var(--text-muted)'; });
-		}
+		editBtn.addEventListener('mouseenter', () => { editBtn.style.fill = 'var(--text-accent-hover)'; });
+		editBtn.addEventListener('mouseleave', () => { editBtn.style.fill = 'var(--text-muted)'; });
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -1343,12 +1531,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textSpan = el.querySelector('.workspace-name-text') as HTMLElement;
 		if (!textSpan) return;
 
-		// Toggle contentEditable - just like original plugin
+		// If already in rename mode, save the rename (don't cancel)
 		if (textSpan.contentEditable === 'true') {
-			// Cancel rename
-			textSpan.textContent = el.dataset.workspaceName || '';
-			textSpan.contentEditable = 'false';
-			el.removeClass('is-renaming');
+			// Save rename and exit rename mode
+			this.handleRename(textSpan);
 			return;
 		}
 
@@ -1367,10 +1553,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 		textSpan.focus();
 
-		// Handle blur - cancel rename
+		// Handle blur - save rename (not cancel)
 		textSpan.onblur = () => {
-			textSpan.contentEditable = 'false';
-			el.removeClass('is-renaming');
+			// Small delay to allow click events to process first
+			setTimeout(() => {
+				if (textSpan.contentEditable === 'true') {
+					this.handleRename(textSpan);
+				}
+			}, 50);
 		};
 	}
 
@@ -1628,20 +1818,106 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	}
 
 	// ─────────────────────────────────────────────────────────────────
-	// Handle group style click
+	// Handle group edit click (opens full editor modal)
 	// ─────────────────────────────────────────────────────────────────
 
-	onGroupStyleClick(groupName: string): void {
-		const modal = new GroupStylePickerModal(this.app, this.plugin, groupName, async (icon, iconColor, textColor) => {
+	onGroupEditClick(groupName: string): void {
+		const modal = new GroupStylePickerModal(this.app, this.plugin, groupName, async (result) => {
 			const workspaceManager = this.plugin.getWorkspaceManager();
-			workspaceManager.setGroupIcon(groupName, icon);
-			workspaceManager.setGroupIconColor(groupName, iconColor);
-			workspaceManager.setGroupColor(groupName, textColor);
+			const isNoGroup = groupName === '\x00nogroup';
+			let finalGroupName = groupName;
+
+			// Handle rename / naming "No Group"
+			if (result.newName) {
+				// Check if new group name already exists (unless naming "No Group")
+				if (!isNoGroup && workspaceManager.getGroups().includes(result.newName)) {
+					new Notice(`Group "${result.newName}" already exists`);
+					return;
+				}
+
+				if (isNoGroup) {
+					// Naming "No Group" - assign all ungrouped workspaces to new group
+					const ungrouped = workspaceManager.getWorkspacesByGroup(null);
+					for (const workspace of ungrouped) {
+						workspaceManager.setWorkspaceGroup(workspace, result.newName);
+					}
+
+					// Transfer any styling from '\x00nogroup' to the new group name
+					const icon      = workspaceManager.getGroupIcon('\x00nogroup');
+					const iconColor = workspaceManager.getGroupIconColor('\x00nogroup');
+					const color     = workspaceManager.getGroupColor('\x00nogroup');
+					const bold      = workspaceManager.getGroupBold('\x00nogroup');
+					const italic    = workspaceManager.getGroupItalic('\x00nogroup');
+					const collapsed = workspaceManager.isGroupCollapsed('\x00nogroup');
+
+					// Clear old styling
+					workspaceManager.setGroupIcon('\x00nogroup', null);
+					workspaceManager.setGroupIconColor('\x00nogroup', null);
+					workspaceManager.setGroupColor('\x00nogroup', null);
+					workspaceManager.setGroupBold('\x00nogroup', false);
+					workspaceManager.setGroupItalic('\x00nogroup', false);
+					workspaceManager.setGroupCollapsed('\x00nogroup', false);
+
+					// Apply to new name (will be overwritten by result values below)
+					if (icon) workspaceManager.setGroupIcon(result.newName, icon);
+					if (iconColor) workspaceManager.setGroupIconColor(result.newName, iconColor);
+					if (color) workspaceManager.setGroupColor(result.newName, color);
+					if (bold) workspaceManager.setGroupBold(result.newName, true);
+					if (italic) workspaceManager.setGroupItalic(result.newName, true);
+					if (collapsed) workspaceManager.setGroupCollapsed(result.newName, true);
+
+					finalGroupName = result.newName;
+					new Notice(`Created group "${result.newName}" with ${ungrouped.length} workspace(s)`);
+				} else if (result.newName !== groupName) {
+					// Normal rename
+					const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
+					for (const workspace of workspacesInGroup) {
+						workspaceManager.setWorkspaceGroup(workspace, result.newName);
+					}
+
+					// Migrate group styling to new name
+					const icon      = workspaceManager.getGroupIcon(groupName);
+					const iconColor = workspaceManager.getGroupIconColor(groupName);
+					const color     = workspaceManager.getGroupColor(groupName);
+					const bold      = workspaceManager.getGroupBold(groupName);
+					const italic    = workspaceManager.getGroupItalic(groupName);
+					const collapsed = workspaceManager.isGroupCollapsed(groupName);
+
+					// Clear old group styling
+					workspaceManager.setGroupIcon(groupName, null);
+					workspaceManager.setGroupIconColor(groupName, null);
+					workspaceManager.setGroupColor(groupName, null);
+					workspaceManager.setGroupBold(groupName, false);
+					workspaceManager.setGroupItalic(groupName, false);
+					workspaceManager.setGroupCollapsed(groupName, false);
+
+					// Apply to new name (will be overwritten by result values below)
+					if (icon) workspaceManager.setGroupIcon(result.newName, icon);
+					if (iconColor) workspaceManager.setGroupIconColor(result.newName, iconColor);
+					if (color) workspaceManager.setGroupColor(result.newName, color);
+					if (bold) workspaceManager.setGroupBold(result.newName, true);
+					if (italic) workspaceManager.setGroupItalic(result.newName, true);
+					if (collapsed) workspaceManager.setGroupCollapsed(result.newName, true);
+
+					finalGroupName = result.newName;
+				}
+			}
+
+			// Apply style updates
+			workspaceManager.setGroupIcon(finalGroupName, result.icon);
+			workspaceManager.setGroupIconColor(finalGroupName, result.iconColor);
+			workspaceManager.setGroupColor(finalGroupName, result.textColor);
+			workspaceManager.setGroupBold(finalGroupName, result.textBold);
+			workspaceManager.setGroupItalic(finalGroupName, result.textItalic);
 			await this.plugin.saveSettings();
 
 			// Refresh the suggestions to show updated style
 			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
+
+			if (!isNoGroup || !result.newName) {
+				new Notice(`Updated "${finalGroupName === '\x00nogroup' ? 'No Group' : finalGroupName}"`);
+			}
 		});
 		modal.open();
 	}
@@ -1661,7 +1937,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			useManualOrder:   this.plugin.settings.manualSortOrder,
 			workspaceManager,
 			onToggleCollapse: (gn) => this.onGroupToggleCollapse(gn),
-			onStyleClick:     (gn) => this.onGroupStyleClick(gn),
+			onEditClick:      (gn) => this.onGroupEditClick(gn),
 			onRenameClick:    (c, t, gn) => this.onGroupRenameClick(c, t, gn),
 			onDeleteClick:    (gn) => this.onGroupDelete(gn),
 			onDragStart:      (evt, gn, c) => {
@@ -1740,10 +2016,30 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			nameItalic: nameStyle.italic || false,
 		};
 
-		const modal = new StylePickerModal(this.app, this.plugin, workspaceName, currentStyle, async (newStyle) => {
-			workspaceManager.setWorkspaceGroup(workspaceName, newStyle.group || null);
-			workspaceManager.setWorkspaceIcon(workspaceName, newStyle.icon || null, newStyle.iconColor || null);
-			workspaceManager.setWorkspaceNameStyle(workspaceName, {
+		const modal = new WorkspaceStyleModal(this.app, this.plugin, workspaceName, currentStyle, async (newStyle) => {
+			let finalName = workspaceName;
+
+			// Handle rename if name changed
+			if (newStyle.newName && newStyle.newName !== workspaceName) {
+				if (workspaceManager.hasWorkspace(newStyle.newName)) {
+					new Notice(`Workspace "${newStyle.newName}" already exists`);
+					return;
+				}
+				workspaceManager.renameWorkspace(workspaceName, newStyle.newName);
+
+				// Migrate navigation layout data
+				const layout = this.plugin.navigationLayouts.get(workspaceName);
+				if (layout) {
+					this.plugin.navigationLayouts.delete(workspaceName);
+					this.plugin.navigationLayouts.set(newStyle.newName, layout);
+				}
+				finalName = newStyle.newName;
+			}
+
+			// Apply styles to finalName
+			workspaceManager.setWorkspaceGroup(finalName, newStyle.group || null);
+			workspaceManager.setWorkspaceIcon(finalName, newStyle.icon || null, newStyle.iconColor || null);
+			workspaceManager.setWorkspaceNameStyle(finalName, {
 				color:  newStyle.nameColor || null,
 				bold:   newStyle.nameBold,
 				italic: newStyle.nameItalic,
@@ -1755,7 +2051,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			(this as any).updateSuggestions();
 			this.plugin.updateStatusBar();
 
-			new Notice(`Updated style for "${workspaceName}"`);
+			new Notice(`Updated "${finalName}"`);
 		});
 		modal.open();
 	}

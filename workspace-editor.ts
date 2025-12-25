@@ -5,7 +5,7 @@
 import { App, Modal, Setting, Notice, TextComponent, setIcon } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
-import { StylePickerModal, WorkspaceStyleResult } from './workspace-modal';
+import { WorkspaceStyleModal, WorkspaceStyleResult } from './workspace-modal';
 import { renderGroupHeader, setGroupDropTarget, setGroupDragging, GroupHeaderConfig } from './group-header';
 
 // ───────────────────────────────────────────────────────────────────────────────
@@ -404,7 +404,7 @@ export class WorkspaceEditorModal extends Modal {
 				}
 				this.onOpen();
 			},
-			onStyleClick:  () => {}, // Not used in editor modal
+			onEditClick:   () => {}, // Not used in editor modal
 			onRenameClick: () => {}, // Not used in editor modal
 			onDeleteClick: () => {}, // Not used in editor modal
 			onDragStart:   (evt, gn, c) => {
@@ -433,7 +433,6 @@ export class WorkspaceEditorModal extends Modal {
 	renderWorkspaceItem(containerEl: HTMLElement, name: string, isActive: boolean) {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const setting    = new Setting(containerEl);
-		const showStyles = this.plugin.settings.showStyleButton;
 		const hasGroups  = workspaceManager.getGroups().length > 0;
 
 		// Add drag handle if groups exist or manual sort is enabled
@@ -463,39 +462,36 @@ export class WorkspaceEditorModal extends Modal {
 			setting.settingEl.insertBefore(dragHandle, setting.settingEl.firstChild);
 		}
 
-		// Build name with icon and styling (only if enabled)
+		// Build name with icon and styling
 		const nameEl = document.createDocumentFragment();
 
-		if (showStyles) {
-			const icon      = workspaceManager.getWorkspaceIcon(name);
-			const iconColor = workspaceManager.getWorkspaceIconColor(name);
+		const icon      = workspaceManager.getWorkspaceIcon(name);
+		const iconColor = workspaceManager.getWorkspaceIconColor(name);
 
-			const iconSpan = document.createElement('span');
-			iconSpan.className = 'workspace-editor-icon';
-			if (icon) {
-				setIcon(iconSpan, icon);
-				if (iconColor) {
-					iconSpan.style.color = iconColor;
-				}
-			} else {
-				// Default icon for workspaces without a custom icon
-				setIcon(iconSpan, 'layout-grid');
-				iconSpan.style.opacity = '0.4';
+		const iconSpan = document.createElement('span');
+		iconSpan.className = 'workspace-editor-icon';
+		if (icon) {
+			setIcon(iconSpan, icon);
+			if (iconColor) {
+				iconSpan.style.color = iconColor;
 			}
-			nameEl.appendChild(iconSpan);
-			nameEl.appendChild(document.createTextNode(' '));
+		} else {
+			// Default icon for workspaces without a custom icon
+			setIcon(iconSpan, 'layout-grid');
+			iconSpan.style.opacity = '0.4';
 		}
+		nameEl.appendChild(iconSpan);
+		nameEl.appendChild(document.createTextNode(' '));
 
-		// Create name span with optional styling
+		// Create name span with styling
 		const nameSpan = document.createElement('span');
 		nameSpan.textContent = name;
 
-		if (showStyles) {
-			const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
-			if (nameStyle.color) nameSpan.style.color = nameStyle.color;
-			if (nameStyle.bold) nameSpan.style.fontWeight = 'bold';
-			if (nameStyle.italic) nameSpan.style.fontStyle = 'italic';
-		}
+		const nameStyle = workspaceManager.getWorkspaceNameStyle(name);
+		if (nameStyle.color) nameSpan.style.color = nameStyle.color;
+		if (nameStyle.bold) nameSpan.style.fontWeight = 'bold';
+		if (nameStyle.italic) nameSpan.style.fontStyle = 'italic';
+
 		nameEl.appendChild(nameSpan);
 
 		if (isActive) {
@@ -519,22 +515,12 @@ export class WorkspaceEditorModal extends Modal {
 				this.close();
 			}));
 
-		// Style button (only if enabled in settings)
-		if (this.plugin.settings.showStyleButton) {
-			setting.addExtraButton(button => button
-				.setIcon('palette')
-				.setTooltip('Style workspace')
-				.onClick(() => {
-					this.showStyleDialog(name);
-				}));
-		}
-
-		// Rename button
+		// Edit button (pencil - opens full editor modal)
 		setting.addExtraButton(button => button
 			.setIcon('pencil')
-			.setTooltip('Rename workspace')
+			.setTooltip('Edit workspace')
 			.onClick(() => {
-				this.showRenameDialog(name);
+				this.showStyleDialog(name);
 			}));
 
 		// Clone button
@@ -574,10 +560,30 @@ export class WorkspaceEditorModal extends Modal {
 			nameItalic: nameStyle.italic || false,
 		};
 
-		const modal = new StylePickerModal(this.app, this.plugin, name, currentStyle, async (newStyle) => {
-			workspaceManager.setWorkspaceGroup(name, newStyle.group || null);
-			workspaceManager.setWorkspaceIcon(name, newStyle.icon || null, newStyle.iconColor || null);
-			workspaceManager.setWorkspaceNameStyle(name, {
+		const modal = new WorkspaceStyleModal(this.app, this.plugin, name, currentStyle, async (newStyle: WorkspaceStyleResult) => {
+			let finalName = name;
+
+			// Handle rename if name changed
+			if (newStyle.newName && newStyle.newName !== name) {
+				if (workspaceManager.hasWorkspace(newStyle.newName)) {
+					new Notice(`Workspace "${newStyle.newName}" already exists`);
+					return;
+				}
+				workspaceManager.renameWorkspace(name, newStyle.newName);
+
+				// Migrate navigation layout data
+				const layout = this.plugin.navigationLayouts.get(name);
+				if (layout) {
+					this.plugin.navigationLayouts.delete(name);
+					this.plugin.navigationLayouts.set(newStyle.newName, layout);
+				}
+				finalName = newStyle.newName;
+			}
+
+			// Apply styles to finalName
+			workspaceManager.setWorkspaceGroup(finalName, newStyle.group || null);
+			workspaceManager.setWorkspaceIcon(finalName, newStyle.icon || null, newStyle.iconColor || null);
+			workspaceManager.setWorkspaceNameStyle(finalName, {
 				color:  newStyle.nameColor || null,
 				bold:   newStyle.nameBold,
 				italic: newStyle.nameItalic,
@@ -590,7 +596,7 @@ export class WorkspaceEditorModal extends Modal {
 			// Refresh the workspace list
 			this.onOpen();
 
-			new Notice(`Updated style for "${name}"`);
+			new Notice(`Updated "${finalName}"`);
 		});
 		modal.open();
 	}

@@ -16,8 +16,8 @@ export interface GroupHeaderConfig {
     useManualOrder:  boolean;
     workspaceManager: WorkspaceManager;
     onToggleCollapse: (groupName: string) => void;
-    onStyleClick:     (groupName: string) => void;
-    onRenameClick:    (container: HTMLElement, textSpan: HTMLElement, groupName: string) => void;
+    onEditClick:      (groupName: string) => void;  // Opens full editor modal
+    onRenameClick:    (container: HTMLElement, textSpan: HTMLElement, groupName: string) => void;  // Quick inline rename
     onDeleteClick:    (groupName: string) => void;
     onDragStart?:     (evt: MouseEvent, groupName: string, container: HTMLElement) => void;
 }
@@ -39,7 +39,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         useManualOrder,
         workspaceManager,
         onToggleCollapse,
-        onStyleClick,
+        onEditClick,
         onRenameClick,
         onDeleteClick,
         onDragStart,
@@ -57,7 +57,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     container.style.display         = 'flex';
     container.style.alignItems      = 'center';
     container.style.gap             = '6px';
-    container.style.padding         = '8px 96px 8px 16px';  // Fixed px for consistency
+    container.style.padding         = '8px 75px 8px 16px';  // Right padding for 2 buttons (edit + delete)
     container.style.marginTop       = '8px';
     container.style.fontWeight      = 'normal';
     container.style.color           = 'var(--text-muted)';
@@ -76,6 +76,16 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
 
     // Store group name on container for drop handling
     container.dataset.groupName = groupName;
+
+    // Right-click triggers quick inline rename
+    container.addEventListener('contextmenu', (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        const textSpan = container.querySelector('.workspace-group-text') as HTMLElement;
+        if (textSpan) {
+            onRenameClick(container, textSpan, groupName);
+        }
+    });
 
     // ─────────────────────────────────────────────────────────────────
     // Drag handle (for group reordering)
@@ -200,11 +210,21 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     textSpan.style.flex  = '1';
     textSpan.textContent = displayName;
     textSpan.dataset.groupName = groupName;
-    const groupColor = isNoGroup
-        ? workspaceManager.getGroupColor(NO_GROUP_KEY)
-        : workspaceManager.getGroupColor(groupName);
+
+    // Apply group text styling
+    const styleKey   = isNoGroup ? NO_GROUP_KEY : groupName;
+    const groupColor = workspaceManager.getGroupColor(styleKey);
+    const groupBold  = workspaceManager.getGroupBold(styleKey);
+    const groupItalic = workspaceManager.getGroupItalic(styleKey);
+
     if (groupColor) {
         textSpan.style.color = groupColor;
+    }
+    if (groupBold) {
+        textSpan.style.fontWeight = 'bold';
+    }
+    if (groupItalic) {
+        textSpan.style.fontStyle = 'italic';
     }
     container.appendChild(textSpan);
 
@@ -240,40 +260,22 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     };
 
     // ─────────────────────────────────────────────────────────────────
-    // Style button (palette)
+    // Edit button (pencil - opens full editor modal)
     // ─────────────────────────────────────────────────────────────────
 
-    const styleBtn = document.createElement('span');
-    styleBtn.className = 'workspace-group-edit-btn workspace-group-style-btn';
-    Object.assign(styleBtn.style, buttonBaseStyle);
-    styleBtn.style.right = '53px';
-    styleBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 2c5.522 0 10 3.978 10 8.889a5.558 5.558 0 0 1-5.556 5.555h-1.966c-.922 0-1.667.745-1.667 1.667 0 .422.167.811.422 1.1.267.3.434.689.434 1.122C13.667 21.256 12.9 22 12 22 6.478 22 2 17.522 2 12S6.478 2 12 2zM7.5 12a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm9 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM12 9a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"/></svg>`;
-    styleBtn.setAttribute('title', 'Edit group style');
-    styleBtn.addEventListener('click', (evt) => {
+    const editBtn = document.createElement('span');
+    editBtn.className = 'workspace-group-edit-btn workspace-group-rename-btn';
+    Object.assign(editBtn.style, buttonBaseStyle);
+    editBtn.style.right = '32px';
+    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+    editBtn.setAttribute('title', isNoGroup ? 'Edit ungrouped settings' : 'Edit group');
+    editBtn.addEventListener('click', (evt) => {
         evt.stopPropagation();
-        onStyleClick(groupName);
+        onEditClick(groupName);
     });
-    styleBtn.addEventListener('mouseenter', () => { styleBtn.style.fill = 'var(--text-accent-hover)'; });
-    styleBtn.addEventListener('mouseleave', () => { styleBtn.style.fill = 'var(--text-muted)'; });
-    container.appendChild(styleBtn);
-
-    // ─────────────────────────────────────────────────────────────────
-    // Rename button (pencil)
-    // ─────────────────────────────────────────────────────────────────
-
-    const renameBtn = document.createElement('span');
-    renameBtn.className = 'workspace-group-edit-btn workspace-group-rename-btn';
-    Object.assign(renameBtn.style, buttonBaseStyle);
-    renameBtn.style.right = '32px';
-    renameBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-    renameBtn.setAttribute('title', isNoGroup ? 'Name this group' : 'Rename group');
-    renameBtn.addEventListener('click', (evt) => {
-        evt.stopPropagation();
-        onRenameClick(container, textSpan, groupName);
-    });
-    renameBtn.addEventListener('mouseenter', () => { renameBtn.style.fill = 'var(--text-accent-hover)'; });
-    renameBtn.addEventListener('mouseleave', () => { renameBtn.style.fill = 'var(--text-muted)'; });
-    container.appendChild(renameBtn);
+    editBtn.addEventListener('mouseenter', () => { editBtn.style.fill = 'var(--text-accent-hover)'; });
+    editBtn.addEventListener('mouseleave', () => { editBtn.style.fill = 'var(--text-muted)'; });
+    container.appendChild(editBtn);
 
     // ─────────────────────────────────────────────────────────────────
     // Delete button (trash)

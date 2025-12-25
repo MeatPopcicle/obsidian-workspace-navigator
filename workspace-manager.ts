@@ -104,6 +104,10 @@ export interface WorkspacesStorage {
 	groupIconColors?: Record<string, string>;
 	/** Group text colors (group name -> CSS color) */
 	groupColors?: Record<string, string>;
+	/** Group text bold (group name -> true if bold) */
+	groupBold?: Record<string, boolean>;
+	/** Group text italic (group name -> true if italic) */
+	groupItalic?: Record<string, boolean>;
 	/** Collapsed groups (group name -> true if collapsed) */
 	collapsedGroups?: Record<string, boolean>;
 	/** Manual workspace order per group (group name -> ordered workspace names) */
@@ -375,6 +379,20 @@ export class WorkspaceManager {
 			this.setGroupColor(oldName, null);
 		}
 
+		// Transfer group bold
+		const bold = this.getGroupBold(oldName);
+		if (bold) {
+			this.setGroupBold(newName, true);
+			this.setGroupBold(oldName, false);
+		}
+
+		// Transfer group italic
+		const italic = this.getGroupItalic(oldName);
+		if (italic) {
+			this.setGroupItalic(newName, true);
+			this.setGroupItalic(oldName, false);
+		}
+
 		// Transfer collapsed state
 		const collapsed = this.isGroupCollapsed(oldName);
 		if (collapsed) {
@@ -402,6 +420,50 @@ export class WorkspaceManager {
 			this.storage.groupColors[group] = color;
 		} else {
 			delete this.storage.groupColors[group];
+		}
+	}
+
+	/**
+	 * Get group bold
+	 */
+	getGroupBold(group: string): boolean {
+		return this.storage.groupBold?.[group] || false;
+	}
+
+	/**
+	 * Set group bold
+	 */
+	setGroupBold(group: string, bold: boolean): void {
+		if (!this.storage.groupBold) {
+			this.storage.groupBold = {};
+		}
+
+		if (bold) {
+			this.storage.groupBold[group] = true;
+		} else {
+			delete this.storage.groupBold[group];
+		}
+	}
+
+	/**
+	 * Get group italic
+	 */
+	getGroupItalic(group: string): boolean {
+		return this.storage.groupItalic?.[group] || false;
+	}
+
+	/**
+	 * Set group italic
+	 */
+	setGroupItalic(group: string, italic: boolean): void {
+		if (!this.storage.groupItalic) {
+			this.storage.groupItalic = {};
+		}
+
+		if (italic) {
+			this.storage.groupItalic[group] = true;
+		} else {
+			delete this.storage.groupItalic[group];
 		}
 	}
 
