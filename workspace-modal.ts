@@ -931,8 +931,190 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			});
 		}
 
+		// Add action buttons footer
+		this.createActionButtons();
+
 		// Set up global mouse handlers for drag-and-drop
 		this.setupDragHandlers();
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Action buttons footer
+	// ─────────────────────────────────────────────────────────────────
+
+	private actionButtonsEl: HTMLElement | null = null;
+
+	private createActionButtons(): void {
+		// Remove existing if present
+		if (this.actionButtonsEl) {
+			this.actionButtonsEl.remove();
+		}
+
+		const footer = document.createElement('div');
+		footer.className = 'workspace-modal-actions';
+
+		// Expand/Collapse All toggle button
+		const expandCollapseBtn = document.createElement('button');
+		expandCollapseBtn.className = 'workspace-action-btn btn-expand-collapse';
+		this.updateExpandCollapseButton(expandCollapseBtn);
+		expandCollapseBtn.addEventListener('click', (evt) => {
+			evt.preventDefault();
+			evt.stopPropagation();
+			this.toggleAllGroups(expandCollapseBtn);
+		});
+		footer.appendChild(expandCollapseBtn);
+
+		// + Group button
+		const addGroupBtn = document.createElement('button');
+		addGroupBtn.className = 'workspace-action-btn btn-add-group';
+		addGroupBtn.textContent = '+ Group';
+		addGroupBtn.setAttribute('title', 'Create a new group');
+		addGroupBtn.addEventListener('click', (evt) => {
+			evt.preventDefault();
+			evt.stopPropagation();
+			this.openNewGroupModal();
+		});
+		footer.appendChild(addGroupBtn);
+
+		// + Workspace button
+		const addWorkspaceBtn = document.createElement('button');
+		addWorkspaceBtn.className = 'workspace-action-btn btn-add-workspace';
+		addWorkspaceBtn.textContent = '+ Workspace';
+		addWorkspaceBtn.setAttribute('title', 'Save current layout as new workspace');
+		addWorkspaceBtn.addEventListener('click', (evt) => {
+			evt.preventDefault();
+			evt.stopPropagation();
+			this.openNewWorkspaceModal();
+		});
+		footer.appendChild(addWorkspaceBtn);
+
+		// Append to modal (after the prompt/results container)
+		this.modalEl.appendChild(footer);
+		this.actionButtonsEl = footer;
+	}
+
+	private updateExpandCollapseButton(btn: HTMLElement): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const allGroups = workspaceManager.getAllGroupsOrdered(this.plugin.settings.manualSortOrder);
+
+		// Check if any group is collapsed
+		const anyCollapsed = allGroups.some(g => workspaceManager.isGroupCollapsed(g));
+
+		if (anyCollapsed) {
+			btn.textContent = '⊞ Expand All';
+			btn.setAttribute('title', 'Expand all groups');
+		} else {
+			btn.textContent = '⊟ Collapse All';
+			btn.setAttribute('title', 'Collapse all groups');
+		}
+	}
+
+	private toggleAllGroups(btn: HTMLElement): void {
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const allGroups = workspaceManager.getAllGroupsOrdered(this.plugin.settings.manualSortOrder);
+
+		// Check if any group is collapsed
+		const anyCollapsed = allGroups.some(g => workspaceManager.isGroupCollapsed(g));
+
+		// If any collapsed, expand all; otherwise collapse all
+		const newState = !anyCollapsed;
+		for (const group of allGroups) {
+			workspaceManager.setGroupCollapsed(group, newState);
+		}
+
+		// Save and refresh
+		this.plugin.saveSettings();
+		this.updateExpandCollapseButton(btn);
+		this.lastRenderedGroup = undefined;
+		(this as any).updateSuggestions();
+	}
+
+	private openNewGroupModal(): void {
+		// Use GroupStylePickerModal with empty name - user fills it in
+		const modal = new GroupStylePickerModal(this.app, this.plugin, '', async (result) => {
+			if (!result.newName || !result.newName.trim()) {
+				new Notice('Group name is required');
+				return;
+			}
+
+			const trimmedName = result.newName.trim();
+			const workspaceManager = this.plugin.getWorkspaceManager();
+
+			// Check if group already exists
+			if (workspaceManager.getGroups().includes(trimmedName)) {
+				new Notice(`Group "${trimmedName}" already exists`);
+				return;
+			}
+
+			// Create group with styling
+			if (result.icon) workspaceManager.setGroupIcon(trimmedName, result.icon);
+			if (result.iconColor) workspaceManager.setGroupIconColor(trimmedName, result.iconColor);
+			if (result.textColor) workspaceManager.setGroupColor(trimmedName, result.textColor);
+			if (result.textBold) workspaceManager.setGroupBold(trimmedName, true);
+			if (result.textItalic) workspaceManager.setGroupItalic(trimmedName, true);
+
+			await this.plugin.saveSettings();
+			new Notice(`Created group "${trimmedName}"`);
+
+			// Refresh
+			this.lastRenderedGroup = undefined;
+			(this as any).updateSuggestions();
+		});
+		modal.open();
+	}
+
+	private openNewWorkspaceModal(): void {
+		// Use WorkspaceStyleModal with empty name - user fills it in
+		const modal = new WorkspaceStyleModal(
+			this.app,
+			this.plugin,
+			'',  // Empty name for new workspace
+			{
+				group: this.plugin.settings.defaultGroup || '',
+				icon: '',
+				iconColor: '',
+				nameColor: '',
+				nameBold: false,
+				nameItalic: false,
+			},
+			async (result) => {
+				const newName = result.newName?.trim();
+				if (!newName) {
+					new Notice('Workspace name is required');
+					return;
+				}
+
+				const workspaceManager = this.plugin.getWorkspaceManager();
+
+				// Check if workspace already exists
+				if (workspaceManager.hasWorkspace(newName)) {
+					new Notice(`Workspace "${newName}" already exists`);
+					return;
+				}
+
+				// Save current layout as new workspace
+				await workspaceManager.saveWorkspace(newName, this.plugin.settings.rememberNavigationLayout);
+
+				// Apply styling
+				if (result.group) workspaceManager.setWorkspaceGroup(newName, result.group);
+				if (result.icon) workspaceManager.setWorkspaceIcon(newName, result.icon, result.iconColor);
+				if (result.nameColor || result.nameBold || result.nameItalic) {
+					workspaceManager.setWorkspaceNameStyle(newName, {
+						color: result.nameColor || undefined,
+						bold: result.nameBold,
+						italic: result.nameItalic,
+					});
+				}
+
+				await this.plugin.saveSettings();
+				new Notice(`Created workspace "${newName}"`);
+
+				// Refresh
+				this.lastRenderedGroup = undefined;
+				(this as any).updateSuggestions();
+			}
+		);
+		modal.open();
 	}
 
 	// ─────────────────────────────────────────────────────────────────

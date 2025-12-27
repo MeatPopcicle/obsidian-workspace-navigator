@@ -2491,6 +2491,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.draggedElement = null;
     this.dragGhost = null;
     this.isRenaming = false;
+    // ─────────────────────────────────────────────────────────────────
+    // Action buttons footer
+    // ─────────────────────────────────────────────────────────────────
+    this.actionButtonsEl = null;
     this.plugin = plugin;
     this.modalEl.addClass("workspace-switcher-modal");
     if (plugin.settings.transparentModal) {
@@ -2604,7 +2608,146 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         modifiers: [{ name: "offset", options: { offset: [0, 10] } }]
       });
     }
+    this.createActionButtons();
     this.setupDragHandlers();
+  }
+  createActionButtons() {
+    if (this.actionButtonsEl) {
+      this.actionButtonsEl.remove();
+    }
+    const footer = document.createElement("div");
+    footer.className = "workspace-modal-actions";
+    const expandCollapseBtn = document.createElement("button");
+    expandCollapseBtn.className = "workspace-action-btn btn-expand-collapse";
+    this.updateExpandCollapseButton(expandCollapseBtn);
+    expandCollapseBtn.addEventListener("click", (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      this.toggleAllGroups(expandCollapseBtn);
+    });
+    footer.appendChild(expandCollapseBtn);
+    const addGroupBtn = document.createElement("button");
+    addGroupBtn.className = "workspace-action-btn btn-add-group";
+    addGroupBtn.textContent = "+ Group";
+    addGroupBtn.setAttribute("title", "Create a new group");
+    addGroupBtn.addEventListener("click", (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      this.openNewGroupModal();
+    });
+    footer.appendChild(addGroupBtn);
+    const addWorkspaceBtn = document.createElement("button");
+    addWorkspaceBtn.className = "workspace-action-btn btn-add-workspace";
+    addWorkspaceBtn.textContent = "+ Workspace";
+    addWorkspaceBtn.setAttribute("title", "Save current layout as new workspace");
+    addWorkspaceBtn.addEventListener("click", (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      this.openNewWorkspaceModal();
+    });
+    footer.appendChild(addWorkspaceBtn);
+    this.modalEl.appendChild(footer);
+    this.actionButtonsEl = footer;
+  }
+  updateExpandCollapseButton(btn) {
+    const workspaceManager = this.plugin.getWorkspaceManager();
+    const allGroups = workspaceManager.getAllGroupsOrdered(this.plugin.settings.manualSortOrder);
+    const anyCollapsed = allGroups.some((g) => workspaceManager.isGroupCollapsed(g));
+    if (anyCollapsed) {
+      btn.textContent = "\u229E Expand All";
+      btn.setAttribute("title", "Expand all groups");
+    } else {
+      btn.textContent = "\u229F Collapse All";
+      btn.setAttribute("title", "Collapse all groups");
+    }
+  }
+  toggleAllGroups(btn) {
+    const workspaceManager = this.plugin.getWorkspaceManager();
+    const allGroups = workspaceManager.getAllGroupsOrdered(this.plugin.settings.manualSortOrder);
+    const anyCollapsed = allGroups.some((g) => workspaceManager.isGroupCollapsed(g));
+    const newState = !anyCollapsed;
+    for (const group of allGroups) {
+      workspaceManager.setGroupCollapsed(group, newState);
+    }
+    this.plugin.saveSettings();
+    this.updateExpandCollapseButton(btn);
+    this.lastRenderedGroup = void 0;
+    this.updateSuggestions();
+  }
+  openNewGroupModal() {
+    const modal = new GroupStylePickerModal(this.app, this.plugin, "", async (result) => {
+      if (!result.newName || !result.newName.trim()) {
+        new import_obsidian4.Notice("Group name is required");
+        return;
+      }
+      const trimmedName = result.newName.trim();
+      const workspaceManager = this.plugin.getWorkspaceManager();
+      if (workspaceManager.getGroups().includes(trimmedName)) {
+        new import_obsidian4.Notice(`Group "${trimmedName}" already exists`);
+        return;
+      }
+      if (result.icon)
+        workspaceManager.setGroupIcon(trimmedName, result.icon);
+      if (result.iconColor)
+        workspaceManager.setGroupIconColor(trimmedName, result.iconColor);
+      if (result.textColor)
+        workspaceManager.setGroupColor(trimmedName, result.textColor);
+      if (result.textBold)
+        workspaceManager.setGroupBold(trimmedName, true);
+      if (result.textItalic)
+        workspaceManager.setGroupItalic(trimmedName, true);
+      await this.plugin.saveSettings();
+      new import_obsidian4.Notice(`Created group "${trimmedName}"`);
+      this.lastRenderedGroup = void 0;
+      this.updateSuggestions();
+    });
+    modal.open();
+  }
+  openNewWorkspaceModal() {
+    const modal = new WorkspaceStyleModal(
+      this.app,
+      this.plugin,
+      "",
+      // Empty name for new workspace
+      {
+        group: this.plugin.settings.defaultGroup || "",
+        icon: "",
+        iconColor: "",
+        nameColor: "",
+        nameBold: false,
+        nameItalic: false
+      },
+      async (result) => {
+        var _a;
+        const newName = (_a = result.newName) == null ? void 0 : _a.trim();
+        if (!newName) {
+          new import_obsidian4.Notice("Workspace name is required");
+          return;
+        }
+        const workspaceManager = this.plugin.getWorkspaceManager();
+        if (workspaceManager.hasWorkspace(newName)) {
+          new import_obsidian4.Notice(`Workspace "${newName}" already exists`);
+          return;
+        }
+        await workspaceManager.saveWorkspace(newName, this.plugin.settings.rememberNavigationLayout);
+        if (result.group)
+          workspaceManager.setWorkspaceGroup(newName, result.group);
+        if (result.icon)
+          workspaceManager.setWorkspaceIcon(newName, result.icon, result.iconColor);
+        if (result.nameColor || result.nameBold || result.nameItalic) {
+          workspaceManager.setWorkspaceNameStyle(newName, {
+            color: result.nameColor || void 0,
+            bold: result.nameBold,
+            italic: result.nameItalic
+          });
+        }
+        await this.plugin.saveSettings();
+        new import_obsidian4.Notice(`Created workspace "${newName}"`);
+        this.lastRenderedGroup = void 0;
+        this.updateSuggestions();
+      }
+    );
+    modal.open();
   }
   // ─────────────────────────────────────────────────────────────────
   // Drag-and-drop handlers
