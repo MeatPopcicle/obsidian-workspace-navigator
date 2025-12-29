@@ -133,10 +133,34 @@ export default class WorkspaceNavigator extends Plugin {
 				navigationLayouts: Object.fromEntries(this.navigationLayouts)
 			};
 			await this.saveData(dataToSave);
+
+			// Auto-backup if enabled
+			if (this.settings.autoBackupEnabled) {
+				await this.writeBackup(dataToSave);
+			}
 		}).catch(err => {
 			console.error('[Workspace Navigator] Failed to save settings:', err);
 		});
 		return this.saveQueue;
+	}
+
+	/**
+	 * Write backup file to specified path
+	 */
+	private async writeBackup(data: any): Promise<void> {
+		try {
+			const backupPath = this.settings.autoBackupPath || (this.app.vault.adapter as any).basePath;
+			const fileName   = 'workspace-navigator-backup.json';
+			const fullPath   = `${backupPath}/${fileName}`;
+
+			// Use Node.js fs for absolute paths outside vault
+			const fs = require('fs').promises;
+			await fs.writeFile(fullPath, JSON.stringify(data, null, 2), 'utf8');
+
+			this.debug(`Backup written to: ${fullPath}`);
+		} catch (err) {
+			console.error('[Workspace Navigator] Failed to write backup:', err);
+		}
 	}
 
 	// ─────────────────────────────────────────────────────────────────

@@ -32,6 +32,10 @@ export interface WorkspaceNavigatorSettings {
 	// Sorting preferences
 	manualSortOrder:                 boolean;
 
+	// Backup settings
+	autoBackupEnabled:               boolean;
+	autoBackupPath:                  string;
+
 	// Debug mode
 	debugMode:                       boolean;
 }
@@ -48,6 +52,8 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	autoSaveOnSwitch:                false,
 	autoSaveOnLayoutChange:          false,
 	manualSortOrder:                 false,
+	autoBackupEnabled:               false,
+	autoBackupPath:                  '',
 	debugMode:                       false,
 };
 
@@ -272,6 +278,36 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 							}
 						}
 					});
+				}));
+
+		// ─────────────────────────────────────────────────────────────────
+		// Backup Settings
+		// ─────────────────────────────────────────────────────────────────
+
+		containerEl.createEl('h2', { text: 'Backup' });
+
+		new Setting(containerEl)
+			.setName('Auto-backup on save')
+			.setDesc('Automatically write a backup of all settings and workspaces whenever configuration changes.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.autoBackupEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.autoBackupEnabled = value;
+					await this.plugin.saveSettings();
+					if (value && !this.plugin.settings.autoBackupPath) {
+						new Notice('Set a backup path below to enable auto-backup.');
+					}
+				}));
+
+		new Setting(containerEl)
+			.setName('Backup path')
+			.setDesc('Directory path where backup file will be saved (e.g., /home/user/backups or C:\\backups). Leave empty to use vault root.')
+			.addText(text => text
+				.setPlaceholder('Enter absolute path...')
+				.setValue(this.plugin.settings.autoBackupPath)
+				.onChange(async (value) => {
+					this.plugin.settings.autoBackupPath = value.trim();
+					await this.plugin.saveSettings();
 				}));
 
 		// ─────────────────────────────────────────────────────────────────

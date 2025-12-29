@@ -78,6 +78,8 @@ var DEFAULT_SETTINGS = {
   autoSaveOnSwitch: false,
   autoSaveOnLayoutChange: false,
   manualSortOrder: false,
+  autoBackupEnabled: false,
+  autoBackupPath: "",
   debugMode: false
 };
 var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingTab {
@@ -188,6 +190,18 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
           }
         }
       });
+    }));
+    containerEl.createEl("h2", { text: "Backup" });
+    new import_obsidian2.Setting(containerEl).setName("Auto-backup on save").setDesc("Automatically write a backup of all settings and workspaces whenever configuration changes.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoBackupEnabled).onChange(async (value) => {
+      this.plugin.settings.autoBackupEnabled = value;
+      await this.plugin.saveSettings();
+      if (value && !this.plugin.settings.autoBackupPath) {
+        new import_obsidian2.Notice("Set a backup path below to enable auto-backup.");
+      }
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Backup path").setDesc("Directory path where backup file will be saved (e.g., /home/user/backups or C:\\backups). Leave empty to use vault root.").addText((text) => text.setPlaceholder("Enter absolute path...").setValue(this.plugin.settings.autoBackupPath).onChange(async (value) => {
+      this.plugin.settings.autoBackupPath = value.trim();
+      await this.plugin.saveSettings();
     }));
     containerEl.createEl("h2", { text: "Debug Settings" });
     new import_obsidian2.Setting(containerEl).setName("Enable debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view)").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
@@ -5481,10 +5495,28 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
         navigationLayouts: Object.fromEntries(this.navigationLayouts)
       };
       await this.saveData(dataToSave);
+      if (this.settings.autoBackupEnabled) {
+        await this.writeBackup(dataToSave);
+      }
     }).catch((err) => {
       console.error("[Workspace Navigator] Failed to save settings:", err);
     });
     return this.saveQueue;
+  }
+  /**
+   * Write backup file to specified path
+   */
+  async writeBackup(data) {
+    try {
+      const backupPath = this.settings.autoBackupPath || this.app.vault.adapter.basePath;
+      const fileName = "workspace-navigator-backup.json";
+      const fullPath = `${backupPath}/${fileName}`;
+      const fs = require("fs").promises;
+      await fs.writeFile(fullPath, JSON.stringify(data, null, 2), "utf8");
+      this.debug(`Backup written to: ${fullPath}`);
+    } catch (err) {
+      console.error("[Workspace Navigator] Failed to write backup:", err);
+    }
   }
   // ─────────────────────────────────────────────────────────────────
   // Workspace Manager Access (Standalone Implementation)
