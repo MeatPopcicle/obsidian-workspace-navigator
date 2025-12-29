@@ -215,7 +215,7 @@ export class WorkspaceStyleModal extends Modal {
 		// No icon button
 		const noIconBtn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
 		noIconBtn.textContent = '✕';
-		noIconBtn.setAttribute('title', 'No icon');
+		noIconBtn.setAttribute('aria-label', 'No icon');
 		if (!iconValue) noIconBtn.addClass('is-selected');
 		noIconBtn.addEventListener('click', () => {
 			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -227,7 +227,7 @@ export class WorkspaceStyleModal extends Modal {
 		for (const iconName of LUCIDE_ICONS) {
 			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
 			setIcon(btn, iconName);
-			btn.setAttribute('title', iconName);
+			btn.setAttribute('aria-label', iconName);
 			if (iconName === iconValue) btn.addClass('is-selected');
 			btn.addEventListener('click', () => {
 				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -245,7 +245,7 @@ export class WorkspaceStyleModal extends Modal {
 				for (const { color, name } of PRESET_COLORS) {
 					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
 					swatch.style.backgroundColor = color;
-					swatch.setAttribute('title', name);
+					swatch.setAttribute('aria-label', name);
 					if (color === iconColorValue) swatch.addClass('is-selected');
 					swatch.addEventListener('click', () => {
 						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -256,7 +256,7 @@ export class WorkspaceStyleModal extends Modal {
 				}
 				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
 				noColor.textContent = '✕';
-				noColor.setAttribute('title', 'No color');
+				noColor.setAttribute('aria-label', 'No color');
 				if (!iconColorValue) noColor.addClass('is-selected');
 				noColor.addEventListener('click', () => {
 					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -279,7 +279,7 @@ export class WorkspaceStyleModal extends Modal {
 				for (const { color, name } of PRESET_COLORS) {
 					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
 					swatch.style.backgroundColor = color;
-					swatch.setAttribute('title', name);
+					swatch.setAttribute('aria-label', name);
 					if (color === nameColorValue) swatch.addClass('is-selected');
 					swatch.addEventListener('click', () => {
 						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -290,7 +290,7 @@ export class WorkspaceStyleModal extends Modal {
 				}
 				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
 				noColor.textContent = '✕';
-				noColor.setAttribute('title', 'No color');
+				noColor.setAttribute('aria-label', 'No color');
 				if (!nameColorValue) noColor.addClass('is-selected');
 				noColor.addEventListener('click', () => {
 					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -478,7 +478,7 @@ export class GroupStylePickerModal extends Modal {
 		// No icon button
 		const noIconBtn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
 		noIconBtn.textContent = '✕';
-		noIconBtn.setAttribute('title', 'No icon');
+		noIconBtn.setAttribute('aria-label', 'No icon');
 		if (!iconValue) noIconBtn.addClass('is-selected');
 		noIconBtn.addEventListener('click', () => {
 			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -490,7 +490,7 @@ export class GroupStylePickerModal extends Modal {
 		for (const iconName of LUCIDE_ICONS) {
 			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
 			setIcon(btn, iconName);
-			btn.setAttribute('title', iconName);
+			btn.setAttribute('aria-label', iconName);
 			if (iconName === iconValue) btn.addClass('is-selected');
 			btn.addEventListener('click', () => {
 				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -508,7 +508,7 @@ export class GroupStylePickerModal extends Modal {
 				for (const { color, name } of PRESET_COLORS) {
 					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
 					swatch.style.backgroundColor = color;
-					swatch.setAttribute('title', name);
+					swatch.setAttribute('aria-label', name);
 					if (color === iconColorValue) swatch.addClass('is-selected');
 					swatch.addEventListener('click', () => {
 						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -519,7 +519,7 @@ export class GroupStylePickerModal extends Modal {
 				}
 				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
 				noColor.textContent = '✕';
-				noColor.setAttribute('title', 'No color');
+				noColor.setAttribute('aria-label', 'No color');
 				if (!iconColorValue) noColor.addClass('is-selected');
 				noColor.addEventListener('click', () => {
 					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -542,7 +542,7 @@ export class GroupStylePickerModal extends Modal {
 				for (const { color, name } of PRESET_COLORS) {
 					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
 					swatch.style.backgroundColor = color;
-					swatch.setAttribute('title', name);
+					swatch.setAttribute('aria-label', name);
 					if (color === textColorValue) swatch.addClass('is-selected');
 					swatch.addEventListener('click', () => {
 						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -553,7 +553,7 @@ export class GroupStylePickerModal extends Modal {
 				}
 				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
 				noColor.textContent = '✕';
-				noColor.setAttribute('title', 'No color');
+				noColor.setAttribute('aria-label', 'No color');
 				if (!textColorValue) noColor.addClass('is-selected');
 				noColor.addEventListener('click', () => {
 					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
@@ -723,7 +723,7 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 		if (alreadyHasFile) {
 			const indicator = el.createSpan('workspace-picker-has-file');
 			setIcon(indicator, 'layers');
-			indicator.setAttribute('title', 'File already open in this workspace');
+			indicator.setAttribute('aria-label', 'File already open in this workspace');
 		}
 
 		// Show group if applicable
@@ -986,7 +986,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		setIcon(groupIcon, 'folder-plus');
 		addGroupBtn.appendChild(groupIcon);
 		addGroupBtn.appendChild(document.createTextNode('Group'));
-		addGroupBtn.setAttribute('title', 'Create a new group');
+		addGroupBtn.setAttribute('aria-label', 'Create a new group');
 		addGroupBtn.addEventListener('click', (evt) => {
 			evt.preventDefault();
 			evt.stopPropagation();
@@ -1001,7 +1001,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		setIcon(workspaceIcon, 'file-plus');
 		addWorkspaceBtn.appendChild(workspaceIcon);
 		addWorkspaceBtn.appendChild(document.createTextNode('Workspace'));
-		addWorkspaceBtn.setAttribute('title', 'Save current layout as new workspace');
+		addWorkspaceBtn.setAttribute('aria-label', 'Save current layout as new workspace');
 		addWorkspaceBtn.addEventListener('click', (evt) => {
 			evt.preventDefault();
 			evt.stopPropagation();
@@ -1020,20 +1020,15 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Check if any group is collapsed
 		const anyCollapsed = allGroups.some(g => workspaceManager.isGroupCollapsed(g));
 
-		// Clear and rebuild button content
+		// Clear and rebuild button content (icon only)
 		btn.empty();
-		const iconSpan = document.createElement('span');
 
 		if (anyCollapsed) {
-			setIcon(iconSpan, 'chevrons-down');
-			btn.appendChild(iconSpan);
-			btn.appendChild(document.createTextNode('Expand'));
-			btn.setAttribute('title', 'Expand all groups');
+			setIcon(btn, 'chevrons-up');
+			btn.setAttribute('aria-label', 'Expand all groups');
 		} else {
-			setIcon(iconSpan, 'chevrons-up');
-			btn.appendChild(iconSpan);
-			btn.appendChild(document.createTextNode('Collapse'));
-			btn.setAttribute('title', 'Collapse all groups');
+			setIcon(btn, 'chevrons-down');
+			btn.setAttribute('aria-label', 'Collapse all groups');
 		}
 	}
 
@@ -1052,9 +1047,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Save and refresh
 		this.plugin.saveSettings();
-		this.updateExpandCollapseButton(btn);
 		this.lastRenderedGroup = undefined;
 		(this as any).updateSuggestions();
+
+		// Re-add action buttons (updateSuggestions clears the container)
+		this.createActionButtons();
 	}
 
 	private openNewGroupModal(): void {

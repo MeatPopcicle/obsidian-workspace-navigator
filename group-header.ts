@@ -113,7 +113,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         } else if (onDragStart) {
             // Functional handle for named groups
             dragHandle.style.opacity = '0.3';
-            dragHandle.setAttribute('title', 'Drag to reorder group');
+            dragHandle.setAttribute('aria-label', 'Drag to reorder group');
 
             dragHandle.addEventListener('mousedown', (evt) => {
                 evt.preventDefault();
@@ -156,7 +156,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     chevron.innerHTML = isCollapsed
         ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>`
         : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
-    chevron.setAttribute('title', isCollapsed ? 'Expand group' : 'Collapse group');
+    chevron.setAttribute('aria-label', isCollapsed ? 'Expand group' : 'Collapse group');
     chevron.addEventListener('click', (evt) => {
         evt.stopPropagation();
         onToggleCollapse(groupName);
@@ -268,7 +268,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     Object.assign(editBtn.style, buttonBaseStyle);
     editBtn.style.right = '32px';
     editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-    editBtn.setAttribute('title', isNoGroup ? 'Edit ungrouped settings' : 'Edit group');
+    editBtn.setAttribute('aria-label', isNoGroup ? 'Edit ungrouped settings' : 'Edit group');
     editBtn.addEventListener('click', (evt) => {
         evt.stopPropagation();
         onEditClick(groupName);
@@ -292,7 +292,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
         deleteBtn.style.opacity = '0.25';
         deleteBtn.style.cursor  = 'default';
     } else {
-        deleteBtn.setAttribute('title', 'Delete group (ungroup workspaces)');
+        deleteBtn.setAttribute('aria-label', 'Delete group (ungroup workspaces)');
         deleteBtn.addEventListener('click', (evt) => {
             evt.stopPropagation();
             onDeleteClick(groupName);

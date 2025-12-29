@@ -593,7 +593,22 @@
 	color: var(--text-normal);
 }
 
-/* Expand/Collapse button */
+/* Expand/Collapse button - icon only, circular */
+.workspace-action-btn.btn-expand-collapse {
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border-radius: 50%;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.workspace-action-btn.btn-expand-collapse svg {
+	width: 14px;
+	height: 14px;
+}
+
 .workspace-action-btn.btn-expand-collapse:hover {
 	color: var(--interactive-accent);
 }

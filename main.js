@@ -1722,7 +1722,7 @@ function renderGroupHeader(container, config) {
       dragHandle.style.cursor = "default";
     } else if (onDragStart) {
       dragHandle.style.opacity = "0.3";
-      dragHandle.setAttribute("title", "Drag to reorder group");
+      dragHandle.setAttribute("aria-label", "Drag to reorder group");
       dragHandle.addEventListener("mousedown", (evt) => {
         evt.preventDefault();
         evt.stopPropagation();
@@ -1755,7 +1755,7 @@ function renderGroupHeader(container, config) {
   chevron.style.fill = "var(--text-muted)";
   chevron.style.cursor = "pointer";
   chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
-  chevron.setAttribute("title", isCollapsed ? "Expand group" : "Collapse group");
+  chevron.setAttribute("aria-label", isCollapsed ? "Expand group" : "Collapse group");
   chevron.addEventListener("click", (evt) => {
     evt.stopPropagation();
     onToggleCollapse(groupName);
@@ -1827,7 +1827,7 @@ function renderGroupHeader(container, config) {
   Object.assign(editBtn.style, buttonBaseStyle);
   editBtn.style.right = "32px";
   editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
-  editBtn.setAttribute("title", isNoGroup ? "Edit ungrouped settings" : "Edit group");
+  editBtn.setAttribute("aria-label", isNoGroup ? "Edit ungrouped settings" : "Edit group");
   editBtn.addEventListener("click", (evt) => {
     evt.stopPropagation();
     onEditClick(groupName);
@@ -1848,7 +1848,7 @@ function renderGroupHeader(container, config) {
     deleteBtn.style.opacity = "0.25";
     deleteBtn.style.cursor = "default";
   } else {
-    deleteBtn.setAttribute("title", "Delete group (ungroup workspaces)");
+    deleteBtn.setAttribute("aria-label", "Delete group (ungroup workspaces)");
     deleteBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       onDeleteClick(groupName);
@@ -2091,7 +2091,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
     const grid = iconCard.createDiv("workspace-icon-grid");
     const noIconBtn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
     noIconBtn.textContent = "\u2715";
-    noIconBtn.setAttribute("title", "No icon");
+    noIconBtn.setAttribute("aria-label", "No icon");
     if (!iconValue)
       noIconBtn.addClass("is-selected");
     noIconBtn.addEventListener("click", () => {
@@ -2103,7 +2103,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
     for (const iconName of LUCIDE_ICONS) {
       const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
       (0, import_obsidian4.setIcon)(btn, iconName);
-      btn.setAttribute("title", iconName);
+      btn.setAttribute("aria-label", iconName);
       if (iconName === iconValue)
         btn.addClass("is-selected");
       btn.addEventListener("click", () => {
@@ -2118,7 +2118,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
         swatch.style.backgroundColor = color;
-        swatch.setAttribute("title", name);
+        swatch.setAttribute("aria-label", name);
         if (color === iconColorValue)
           swatch.addClass("is-selected");
         swatch.addEventListener("click", () => {
@@ -2130,7 +2130,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
       }
       const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
       noColor.textContent = "\u2715";
-      noColor.setAttribute("title", "No color");
+      noColor.setAttribute("aria-label", "No color");
       if (!iconColorValue)
         noColor.addClass("is-selected");
       noColor.addEventListener("click", () => {
@@ -2147,7 +2147,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
         swatch.style.backgroundColor = color;
-        swatch.setAttribute("title", name);
+        swatch.setAttribute("aria-label", name);
         if (color === nameColorValue)
           swatch.addClass("is-selected");
         swatch.addEventListener("click", () => {
@@ -2159,7 +2159,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
       }
       const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
       noColor.textContent = "\u2715";
-      noColor.setAttribute("title", "No color");
+      noColor.setAttribute("aria-label", "No color");
       if (!nameColorValue)
         noColor.addClass("is-selected");
       noColor.addEventListener("click", () => {
@@ -2285,7 +2285,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
     const grid = iconCard.createDiv("workspace-icon-grid");
     const noIconBtn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
     noIconBtn.textContent = "\u2715";
-    noIconBtn.setAttribute("title", "No icon");
+    noIconBtn.setAttribute("aria-label", "No icon");
     if (!iconValue)
       noIconBtn.addClass("is-selected");
     noIconBtn.addEventListener("click", () => {
@@ -2297,7 +2297,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
     for (const iconName of LUCIDE_ICONS) {
       const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
       (0, import_obsidian4.setIcon)(btn, iconName);
-      btn.setAttribute("title", iconName);
+      btn.setAttribute("aria-label", iconName);
       if (iconName === iconValue)
         btn.addClass("is-selected");
       btn.addEventListener("click", () => {
@@ -2312,7 +2312,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
         swatch.style.backgroundColor = color;
-        swatch.setAttribute("title", name);
+        swatch.setAttribute("aria-label", name);
         if (color === iconColorValue)
           swatch.addClass("is-selected");
         swatch.addEventListener("click", () => {
@@ -2324,7 +2324,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       }
       const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
       noColor.textContent = "\u2715";
-      noColor.setAttribute("title", "No color");
+      noColor.setAttribute("aria-label", "No color");
       if (!iconColorValue)
         noColor.addClass("is-selected");
       noColor.addEventListener("click", () => {
@@ -2341,7 +2341,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
         swatch.style.backgroundColor = color;
-        swatch.setAttribute("title", name);
+        swatch.setAttribute("aria-label", name);
         if (color === textColorValue)
           swatch.addClass("is-selected");
         swatch.addEventListener("click", () => {
@@ -2353,7 +2353,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       }
       const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
       noColor.textContent = "\u2715";
-      noColor.setAttribute("title", "No color");
+      noColor.setAttribute("aria-label", "No color");
       if (!textColorValue)
         noColor.addClass("is-selected");
       noColor.addEventListener("click", () => {
@@ -2462,7 +2462,7 @@ var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
     if (alreadyHasFile) {
       const indicator = el.createSpan("workspace-picker-has-file");
       (0, import_obsidian4.setIcon)(indicator, "layers");
-      indicator.setAttribute("title", "File already open in this workspace");
+      indicator.setAttribute("aria-label", "File already open in this workspace");
     }
     const group = workspaceManager.getWorkspaceGroup(workspaceName);
     if (group) {
@@ -2641,7 +2641,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     (0, import_obsidian4.setIcon)(groupIcon, "folder-plus");
     addGroupBtn.appendChild(groupIcon);
     addGroupBtn.appendChild(document.createTextNode("Group"));
-    addGroupBtn.setAttribute("title", "Create a new group");
+    addGroupBtn.setAttribute("aria-label", "Create a new group");
     addGroupBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
@@ -2654,7 +2654,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     (0, import_obsidian4.setIcon)(workspaceIcon, "file-plus");
     addWorkspaceBtn.appendChild(workspaceIcon);
     addWorkspaceBtn.appendChild(document.createTextNode("Workspace"));
-    addWorkspaceBtn.setAttribute("title", "Save current layout as new workspace");
+    addWorkspaceBtn.setAttribute("aria-label", "Save current layout as new workspace");
     addWorkspaceBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
@@ -2669,17 +2669,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const allGroups = workspaceManager.getAllGroupsOrdered(this.plugin.settings.manualSortOrder);
     const anyCollapsed = allGroups.some((g) => workspaceManager.isGroupCollapsed(g));
     btn.empty();
-    const iconSpan = document.createElement("span");
     if (anyCollapsed) {
-      (0, import_obsidian4.setIcon)(iconSpan, "chevrons-down");
-      btn.appendChild(iconSpan);
-      btn.appendChild(document.createTextNode("Expand"));
-      btn.setAttribute("title", "Expand all groups");
+      (0, import_obsidian4.setIcon)(btn, "chevrons-up");
+      btn.setAttribute("aria-label", "Expand all groups");
     } else {
-      (0, import_obsidian4.setIcon)(iconSpan, "chevrons-up");
-      btn.appendChild(iconSpan);
-      btn.appendChild(document.createTextNode("Collapse"));
-      btn.setAttribute("title", "Collapse all groups");
+      (0, import_obsidian4.setIcon)(btn, "chevrons-down");
+      btn.setAttribute("aria-label", "Collapse all groups");
     }
   }
   toggleAllGroups(btn) {
@@ -2691,9 +2686,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       workspaceManager.setGroupCollapsed(group, newState);
     }
     this.plugin.saveSettings();
-    this.updateExpandCollapseButton(btn);
     this.lastRenderedGroup = void 0;
     this.updateSuggestions();
+    this.createActionButtons();
   }
   openNewGroupModal() {
     const modal = new GroupStylePickerModal(this.app, this.plugin, "", async (result) => {
@@ -5241,6 +5236,64 @@ ${error.stack}
   generateLeafId() {
     return Math.random().toString(36).substring(2, 15);
   }
+  /**
+   * Remove a file from a workspace's layout
+   * This modifies the stored layout so the file will no longer be open when the workspace is loaded
+   */
+  removeFileFromWorkspace(workspaceName, filePath) {
+    const workspace = this.getWorkspace(workspaceName);
+    if (!(workspace == null ? void 0 : workspace.layout))
+      return false;
+    let removed = false;
+    const removeFromNode = (node, parent, childIndex) => {
+      var _a, _b;
+      if (!node)
+        return false;
+      if (node.type === "leaf" && ((_b = (_a = node.state) == null ? void 0 : _a.state) == null ? void 0 : _b.file) === filePath) {
+        return true;
+      }
+      if (node.children && Array.isArray(node.children)) {
+        for (let i = node.children.length - 1; i >= 0; i--) {
+          if (removeFromNode(node.children[i], node, i)) {
+            node.children.splice(i, 1);
+            removed = true;
+            if (node.currentTab !== void 0) {
+              if (node.currentTab >= node.children.length) {
+                node.currentTab = Math.max(0, node.children.length - 1);
+              }
+            }
+          }
+        }
+      }
+      return false;
+    };
+    if (workspace.layout.main) {
+      removeFromNode(workspace.layout.main, null, -1);
+    }
+    if (workspace.layout.left) {
+      removeFromNode(workspace.layout.left, null, -1);
+    }
+    if (workspace.layout.right) {
+      removeFromNode(workspace.layout.right, null, -1);
+    }
+    if (removed) {
+      this.logger.log(`Removed file "${filePath}" from workspace "${workspaceName}"`);
+    }
+    return removed;
+  }
+  /**
+   * Remove a file from all workspaces
+   * @returns Array of workspace names where the file was removed
+   */
+  removeFileFromAllWorkspaces(filePath) {
+    const removedFrom = [];
+    for (const name of this.getWorkspaceNames()) {
+      if (this.removeFileFromWorkspace(name, filePath)) {
+        removedFrom.push(name);
+      }
+    }
+    return removedFrom;
+  }
   // ───────────────────────────────────────────────────────────────────
   // Storage Management
   // ───────────────────────────────────────────────────────────────────
@@ -5786,6 +5839,39 @@ ${JSON.stringify(layout, null, 2)}
             ).open();
           });
         });
+        let workspacesWithFile = this.workspaceManager.getWorkspacesWithFile(file.path);
+        if (activeWorkspace && !workspacesWithFile.includes(activeWorkspace)) {
+          workspacesWithFile = [activeWorkspace, ...workspacesWithFile];
+        }
+        const otherWorkspacesWithFile = workspacesWithFile.filter((w) => w !== activeWorkspace);
+        if (otherWorkspacesWithFile.length > 0) {
+          menu.addItem((item) => {
+            item.setTitle(`Close in other workspaces (${otherWorkspacesWithFile.length})`).setIcon("x").onClick(async () => {
+              let removedCount = 0;
+              for (const ws of otherWorkspacesWithFile) {
+                if (this.workspaceManager.removeFileFromWorkspace(ws, file.path)) {
+                  removedCount++;
+                }
+              }
+              await this.saveSettings();
+              this.updateTabIndicators();
+              new import_obsidian7.Notice(`Closed "${file.name}" in ${removedCount} other workspace(s)`);
+            });
+          });
+        }
+        if (workspacesWithFile.length > 1) {
+          menu.addItem((item) => {
+            item.setTitle(`Close in all workspaces (${workspacesWithFile.length})`).setIcon("x-circle").onClick(async () => {
+              const removedFrom = this.workspaceManager.removeFileFromAllWorkspaces(file.path);
+              if (leaf) {
+                leaf.detach();
+              }
+              await this.saveSettings();
+              this.updateTabIndicators();
+              new import_obsidian7.Notice(`Closed "${file.name}" in ${removedFrom.length} workspace(s)`);
+            });
+          });
+        }
       })
     );
   }
@@ -6032,12 +6118,11 @@ ${JSON.stringify(layout, null, 2)}
         indicator.addClass("workspace-tab-indicator");
         if (otherWorkspaces.length > 1) {
           indicator.textContent = otherWorkspaces.length.toString();
-          indicator.setAttribute("aria-label", `Open in ${otherWorkspaces.length} other workspaces: ${otherWorkspaces.join(", ")}`);
         } else {
           (0, import_obsidian7.setIcon)(indicator, "layers");
-          indicator.setAttribute("aria-label", `Also open in: ${otherWorkspaces[0]}`);
         }
-        indicator.setAttribute("title", `Also open in: ${otherWorkspaces.join(", ")}`);
+        indicator.removeAttribute("title");
+        indicator.setAttribute("aria-label", `Also open in: ${otherWorkspaces.join(", ")}`);
         const tabHeaderInner = tabHeader.querySelector(".workspace-tab-header-inner");
         if (tabHeaderInner) {
           tabHeaderInner.insertBefore(indicator, tabHeaderInner.firstChild);

@@ -1282,6 +1282,82 @@ export class WorkspaceManager {
 		return Math.random().toString(36).substring(2, 15);
 	}
 
+	/**
+	 * Remove a file from a workspace's layout
+	 * This modifies the stored layout so the file will no longer be open when the workspace is loaded
+	 */
+	removeFileFromWorkspace(workspaceName: string, filePath: string): boolean {
+		const workspace = this.getWorkspace(workspaceName);
+		if (!workspace?.layout) return false;
+
+		let removed = false;
+
+		const removeFromNode = (node: any, parent: any, childIndex: number): boolean => {
+			if (!node) return false;
+
+			// If this is a leaf with the target file, mark for removal
+			if (node.type === 'leaf' && node.state?.state?.file === filePath) {
+				return true; // Signal to parent to remove this child
+			}
+
+			// If this is a tabs/split container, process children
+			if (node.children && Array.isArray(node.children)) {
+				for (let i = node.children.length - 1; i >= 0; i--) {
+					if (removeFromNode(node.children[i], node, i)) {
+						node.children.splice(i, 1);
+						removed = true;
+
+						// Adjust currentTab if needed
+						if (node.currentTab !== undefined) {
+							if (node.currentTab >= node.children.length) {
+								node.currentTab = Math.max(0, node.children.length - 1);
+							}
+						}
+					}
+				}
+			}
+
+			return false;
+		};
+
+		// Process main area
+		if (workspace.layout.main) {
+			removeFromNode(workspace.layout.main, null, -1);
+		}
+
+		// Process left sidebar
+		if (workspace.layout.left) {
+			removeFromNode(workspace.layout.left, null, -1);
+		}
+
+		// Process right sidebar
+		if (workspace.layout.right) {
+			removeFromNode(workspace.layout.right, null, -1);
+		}
+
+		if (removed) {
+			this.logger.log(`Removed file "${filePath}" from workspace "${workspaceName}"`);
+		}
+
+		return removed;
+	}
+
+	/**
+	 * Remove a file from all workspaces
+	 * @returns Array of workspace names where the file was removed
+	 */
+	removeFileFromAllWorkspaces(filePath: string): string[] {
+		const removedFrom: string[] = [];
+
+		for (const name of this.getWorkspaceNames()) {
+			if (this.removeFileFromWorkspace(name, filePath)) {
+				removedFrom.push(name);
+			}
+		}
+
+		return removedFrom;
+	}
+
 	// ───────────────────────────────────────────────────────────────────
 	// Storage Management
 	// ───────────────────────────────────────────────────────────────────
