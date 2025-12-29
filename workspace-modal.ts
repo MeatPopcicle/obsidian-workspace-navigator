@@ -939,21 +939,27 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	}
 
 	// ─────────────────────────────────────────────────────────────────
-	// Action buttons footer
+	// Action buttons (top-right and bottom-right)
 	// ─────────────────────────────────────────────────────────────────
 
-	private actionButtonsEl: HTMLElement | null = null;
+	private topActionsEl: HTMLElement | null = null;
+	private bottomActionsEl: HTMLElement | null = null;
 
 	private createActionButtons(): void {
 		// Remove existing if present
-		if (this.actionButtonsEl) {
-			this.actionButtonsEl.remove();
-		}
+		if (this.topActionsEl) this.topActionsEl.remove();
+		if (this.bottomActionsEl) this.bottomActionsEl.remove();
 
-		const footer = document.createElement('div');
-		footer.className = 'workspace-modal-actions';
+		// Get the suggestion container to position relative to it
+		const resultsContainer = this.modalEl.querySelector('.prompt-results');
+		if (!resultsContainer) return;
 
-		// Expand/Collapse All toggle button
+		// ─────────────────────────────────────────────────────────────
+		// Top-right: Expand/Collapse All
+		// ─────────────────────────────────────────────────────────────
+		const topActions = document.createElement('div');
+		topActions.className = 'workspace-actions-top';
+
 		const expandCollapseBtn = document.createElement('button');
 		expandCollapseBtn.className = 'workspace-action-btn btn-expand-collapse';
 		this.updateExpandCollapseButton(expandCollapseBtn);
@@ -962,35 +968,49 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			evt.stopPropagation();
 			this.toggleAllGroups(expandCollapseBtn);
 		});
-		footer.appendChild(expandCollapseBtn);
+		topActions.appendChild(expandCollapseBtn);
+
+		resultsContainer.insertBefore(topActions, resultsContainer.firstChild);
+		this.topActionsEl = topActions;
+
+		// ─────────────────────────────────────────────────────────────
+		// Bottom-right: + Group, + Workspace
+		// ─────────────────────────────────────────────────────────────
+		const bottomActions = document.createElement('div');
+		bottomActions.className = 'workspace-actions-bottom';
 
 		// + Group button
 		const addGroupBtn = document.createElement('button');
 		addGroupBtn.className = 'workspace-action-btn btn-add-group';
-		addGroupBtn.textContent = '+ Group';
+		const groupIcon = document.createElement('span');
+		setIcon(groupIcon, 'folder-plus');
+		addGroupBtn.appendChild(groupIcon);
+		addGroupBtn.appendChild(document.createTextNode('Group'));
 		addGroupBtn.setAttribute('title', 'Create a new group');
 		addGroupBtn.addEventListener('click', (evt) => {
 			evt.preventDefault();
 			evt.stopPropagation();
 			this.openNewGroupModal();
 		});
-		footer.appendChild(addGroupBtn);
+		bottomActions.appendChild(addGroupBtn);
 
 		// + Workspace button
 		const addWorkspaceBtn = document.createElement('button');
 		addWorkspaceBtn.className = 'workspace-action-btn btn-add-workspace';
-		addWorkspaceBtn.textContent = '+ Workspace';
+		const workspaceIcon = document.createElement('span');
+		setIcon(workspaceIcon, 'file-plus');
+		addWorkspaceBtn.appendChild(workspaceIcon);
+		addWorkspaceBtn.appendChild(document.createTextNode('Workspace'));
 		addWorkspaceBtn.setAttribute('title', 'Save current layout as new workspace');
 		addWorkspaceBtn.addEventListener('click', (evt) => {
 			evt.preventDefault();
 			evt.stopPropagation();
 			this.openNewWorkspaceModal();
 		});
-		footer.appendChild(addWorkspaceBtn);
+		bottomActions.appendChild(addWorkspaceBtn);
 
-		// Append to modal (after the prompt/results container)
-		this.modalEl.appendChild(footer);
-		this.actionButtonsEl = footer;
+		resultsContainer.appendChild(bottomActions);
+		this.bottomActionsEl = bottomActions;
 	}
 
 	private updateExpandCollapseButton(btn: HTMLElement): void {
@@ -1000,11 +1020,19 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Check if any group is collapsed
 		const anyCollapsed = allGroups.some(g => workspaceManager.isGroupCollapsed(g));
 
+		// Clear and rebuild button content
+		btn.empty();
+		const iconSpan = document.createElement('span');
+
 		if (anyCollapsed) {
-			btn.textContent = '⊞ Expand All';
+			setIcon(iconSpan, 'chevrons-down');
+			btn.appendChild(iconSpan);
+			btn.appendChild(document.createTextNode('Expand'));
 			btn.setAttribute('title', 'Expand all groups');
 		} else {
-			btn.textContent = '⊟ Collapse All';
+			setIcon(iconSpan, 'chevrons-up');
+			btn.appendChild(iconSpan);
+			btn.appendChild(document.createTextNode('Collapse'));
 			btn.setAttribute('title', 'Collapse all groups');
 		}
 	}

@@ -2492,9 +2492,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.dragGhost = null;
     this.isRenaming = false;
     // ─────────────────────────────────────────────────────────────────
-    // Action buttons footer
+    // Action buttons (top-right and bottom-right)
     // ─────────────────────────────────────────────────────────────────
-    this.actionButtonsEl = null;
+    this.topActionsEl = null;
+    this.bottomActionsEl = null;
     this.plugin = plugin;
     this.modalEl.addClass("workspace-switcher-modal");
     if (plugin.settings.transparentModal) {
@@ -2612,11 +2613,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.setupDragHandlers();
   }
   createActionButtons() {
-    if (this.actionButtonsEl) {
-      this.actionButtonsEl.remove();
-    }
-    const footer = document.createElement("div");
-    footer.className = "workspace-modal-actions";
+    if (this.topActionsEl)
+      this.topActionsEl.remove();
+    if (this.bottomActionsEl)
+      this.bottomActionsEl.remove();
+    const resultsContainer = this.modalEl.querySelector(".prompt-results");
+    if (!resultsContainer)
+      return;
+    const topActions = document.createElement("div");
+    topActions.className = "workspace-actions-top";
     const expandCollapseBtn = document.createElement("button");
     expandCollapseBtn.className = "workspace-action-btn btn-expand-collapse";
     this.updateExpandCollapseButton(expandCollapseBtn);
@@ -2625,39 +2630,55 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       evt.stopPropagation();
       this.toggleAllGroups(expandCollapseBtn);
     });
-    footer.appendChild(expandCollapseBtn);
+    topActions.appendChild(expandCollapseBtn);
+    resultsContainer.insertBefore(topActions, resultsContainer.firstChild);
+    this.topActionsEl = topActions;
+    const bottomActions = document.createElement("div");
+    bottomActions.className = "workspace-actions-bottom";
     const addGroupBtn = document.createElement("button");
     addGroupBtn.className = "workspace-action-btn btn-add-group";
-    addGroupBtn.textContent = "+ Group";
+    const groupIcon = document.createElement("span");
+    (0, import_obsidian4.setIcon)(groupIcon, "folder-plus");
+    addGroupBtn.appendChild(groupIcon);
+    addGroupBtn.appendChild(document.createTextNode("Group"));
     addGroupBtn.setAttribute("title", "Create a new group");
     addGroupBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
       this.openNewGroupModal();
     });
-    footer.appendChild(addGroupBtn);
+    bottomActions.appendChild(addGroupBtn);
     const addWorkspaceBtn = document.createElement("button");
     addWorkspaceBtn.className = "workspace-action-btn btn-add-workspace";
-    addWorkspaceBtn.textContent = "+ Workspace";
+    const workspaceIcon = document.createElement("span");
+    (0, import_obsidian4.setIcon)(workspaceIcon, "file-plus");
+    addWorkspaceBtn.appendChild(workspaceIcon);
+    addWorkspaceBtn.appendChild(document.createTextNode("Workspace"));
     addWorkspaceBtn.setAttribute("title", "Save current layout as new workspace");
     addWorkspaceBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
       evt.stopPropagation();
       this.openNewWorkspaceModal();
     });
-    footer.appendChild(addWorkspaceBtn);
-    this.modalEl.appendChild(footer);
-    this.actionButtonsEl = footer;
+    bottomActions.appendChild(addWorkspaceBtn);
+    resultsContainer.appendChild(bottomActions);
+    this.bottomActionsEl = bottomActions;
   }
   updateExpandCollapseButton(btn) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const allGroups = workspaceManager.getAllGroupsOrdered(this.plugin.settings.manualSortOrder);
     const anyCollapsed = allGroups.some((g) => workspaceManager.isGroupCollapsed(g));
+    btn.empty();
+    const iconSpan = document.createElement("span");
     if (anyCollapsed) {
-      btn.textContent = "\u229E Expand All";
+      (0, import_obsidian4.setIcon)(iconSpan, "chevrons-down");
+      btn.appendChild(iconSpan);
+      btn.appendChild(document.createTextNode("Expand"));
       btn.setAttribute("title", "Expand all groups");
     } else {
-      btn.textContent = "\u229F Collapse All";
+      (0, import_obsidian4.setIcon)(iconSpan, "chevrons-up");
+      btn.appendChild(iconSpan);
+      btn.appendChild(document.createTextNode("Collapse"));
       btn.setAttribute("title", "Collapse all groups");
     }
   }
