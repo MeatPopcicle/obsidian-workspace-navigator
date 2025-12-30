@@ -974,7 +974,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.topActionsEl = topActions;
 
 		// ─────────────────────────────────────────────────────────────
-		// Bottom-right: + Group, + Workspace
+		// Bottom-right: + Group, + Workspace, Sidebar, Settings
 		// ─────────────────────────────────────────────────────────────
 		const bottomActions = document.createElement('div');
 		bottomActions.className = 'workspace-actions-bottom';
@@ -1008,6 +1008,34 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.openNewWorkspaceModal();
 		});
 		bottomActions.appendChild(addWorkspaceBtn);
+
+		// Sidebar button (panel-left icon)
+		const sidebarBtn = document.createElement('button');
+		sidebarBtn.className = 'workspace-action-btn btn-sidebar';
+		setIcon(sidebarBtn, 'panel-left');
+		sidebarBtn.setAttribute('aria-label', 'Open sidebar navigator');
+		sidebarBtn.addEventListener('click', (evt) => {
+			evt.preventDefault();
+			evt.stopPropagation();
+			this.close();
+			this.plugin.activateSidebarView();
+		});
+		bottomActions.appendChild(sidebarBtn);
+
+		// Settings button (gear icon)
+		const settingsBtn = document.createElement('button');
+		settingsBtn.className = 'workspace-action-btn btn-settings';
+		setIcon(settingsBtn, 'settings');
+		settingsBtn.setAttribute('aria-label', 'Open plugin settings');
+		settingsBtn.addEventListener('click', (evt) => {
+			evt.preventDefault();
+			evt.stopPropagation();
+			this.close();
+			// Open Obsidian settings and navigate to this plugin's tab
+			(this.app as any).setting.open();
+			(this.app as any).setting.openTabById('workspace-navigator');
+		});
+		bottomActions.appendChild(settingsBtn);
 
 		resultsContainer.appendChild(bottomActions);
 		this.bottomActionsEl = bottomActions;

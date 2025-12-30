@@ -1358,6 +1358,78 @@ export class WorkspaceManager {
 		return removedFrom;
 	}
 
+	/**
+	 * Reorder a file within a workspace's layout (move relative to another file)
+	 * @param workspaceName The workspace to modify
+	 * @param filePath The file to move
+	 * @param targetFilePath The file to position relative to
+	 * @param insertBefore If true, insert before target; otherwise insert after
+	 */
+	reorderFileInWorkspace(workspaceName: string, filePath: string, targetFilePath: string, insertBefore: boolean): boolean {
+		const workspace = this.getWorkspace(workspaceName);
+		if (!workspace?.layout) return false;
+
+		// Find the tabs container that has both files and reorder within it
+		const reorderInNode = (node: any): boolean => {
+			if (!node) return false;
+
+			// If this is a tabs container, check if it has both files
+			if (node.type === 'tabs' && node.children && Array.isArray(node.children)) {
+				let sourceIndex = -1;
+				let targetIndex = -1;
+
+				for (let i = 0; i < node.children.length; i++) {
+					const child = node.children[i];
+					const childFile = child.state?.state?.file || child.state?.file;
+					if (childFile === filePath) sourceIndex = i;
+					if (childFile === targetFilePath) targetIndex = i;
+				}
+
+				if (sourceIndex !== -1 && targetIndex !== -1 && sourceIndex !== targetIndex) {
+					// Remove from current position
+					const [movedChild] = node.children.splice(sourceIndex, 1);
+
+					// Adjust target index if source was before target
+					if (sourceIndex < targetIndex) {
+						targetIndex--;
+					}
+
+					// Insert at new position
+					const insertIndex = insertBefore ? targetIndex : targetIndex + 1;
+					node.children.splice(insertIndex, 0, movedChild);
+
+					// Update currentTab if needed
+					if (node.currentTab !== undefined) {
+						node.currentTab = insertIndex;
+					}
+
+					return true;
+				}
+			}
+
+			// Traverse children
+			if (node.children && Array.isArray(node.children)) {
+				for (const child of node.children) {
+					if (reorderInNode(child)) return true;
+				}
+			}
+
+			return false;
+		};
+
+		// Try main area first
+		if (workspace.layout.main && reorderInNode(workspace.layout.main)) {
+			this.logger.log(`Reordered file "${filePath}" ${insertBefore ? 'before' : 'after'} "${targetFilePath}" in workspace "${workspaceName}"`);
+			return true;
+		}
+
+		// Try sidebars
+		if (workspace.layout.left && reorderInNode(workspace.layout.left)) return true;
+		if (workspace.layout.right && reorderInNode(workspace.layout.right)) return true;
+
+		return false;
+	}
+
 	// ───────────────────────────────────────────────────────────────────
 	// Storage Management
 	// ───────────────────────────────────────────────────────────────────

@@ -623,6 +623,11 @@
 	color: #c4b5fd;
 }
 
+/* Settings button */
+.workspace-action-btn.btn-settings:hover {
+	color: var(--text-normal);
+}
+
 /* Legacy - keep for compatibility */
 .workspace-icon-preview-container {
 	display: flex;
@@ -916,4 +921,442 @@
 .workspace-tab-indicator svg {
 	width: 10px;
 	height: 10px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Sidebar Navigator View                                                       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.workspace-navigator-sidebar {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+/* Header with action buttons */
+.workspace-sidebar-header {
+	display: flex;
+	justify-content: flex-end;
+	padding: 6px 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.workspace-sidebar-actions {
+	display: flex;
+	gap: 4px;
+}
+
+.workspace-sidebar-action-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color 0.1s, color 0.1s;
+}
+
+.workspace-sidebar-action-btn svg {
+	width: 14px;
+	height: 14px;
+}
+
+.workspace-sidebar-action-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+/* Tree container */
+.workspace-sidebar-tree {
+	flex: 1;
+	overflow-y: auto;
+	padding: 4px 0;
+}
+
+/* Group container */
+.workspace-sidebar-group {
+	margin-bottom: 2px;
+}
+
+/* Group header */
+.workspace-sidebar-group-header {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 4px 8px;
+	cursor: pointer;
+	border-radius: 4px;
+	margin: 0 4px;
+	transition: background-color 0.1s;
+}
+
+.workspace-sidebar-group-header:hover {
+	background: var(--background-modifier-hover);
+}
+
+.workspace-sidebar-group-header.is-dragging {
+	opacity: 0.3;
+}
+
+.workspace-sidebar-group-header.drop-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-sidebar-group-header.drop-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
+}
+
+.workspace-sidebar-group-header.drop-target {
+	background: hsla(var(--interactive-accent-hsl), 0.15);
+}
+
+/* Chevron */
+.workspace-sidebar-chevron {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+	flex-shrink: 0;
+}
+
+.workspace-sidebar-chevron svg {
+	width: 12px;
+	height: 12px;
+}
+
+/* Group icon */
+.workspace-sidebar-group-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+.workspace-sidebar-group-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Group name */
+.workspace-sidebar-group-name {
+	flex: 1;
+	font-size: var(--font-ui-small);
+	color: var(--text-muted);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Count badge */
+.workspace-sidebar-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	margin-left: 4px;
+}
+
+/* Workspaces container - tree structure under groups */
+.workspace-sidebar-workspaces {
+	position: relative;
+	padding-left: 44px;
+	margin-left: 8px;
+}
+
+/* Vertical guide line for workspaces under groups - centered under group icon */
+.workspace-sidebar-workspaces::before {
+	content: '';
+	position: absolute;
+	left: 28px;
+	top: 0;
+	bottom: 8px;
+	width: 1px;
+	background: var(--background-modifier-border);
+}
+
+/* Workspace item */
+.workspace-sidebar-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	margin: 0 4px;
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background-color 0.1s;
+}
+
+/* Horizontal guide line connecting workspace to vertical line */
+.workspace-sidebar-item::before {
+	content: '';
+	position: absolute;
+	left: -16px;
+	top: 50%;
+	width: 14px;
+	height: 1px;
+	background: var(--background-modifier-border);
+}
+
+.workspace-sidebar-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.workspace-sidebar-item.is-active {
+	background: var(--background-modifier-active-hover);
+}
+
+.workspace-sidebar-item.is-active .workspace-sidebar-item-name {
+	font-weight: var(--font-weight-semibold);
+	color: var(--text-accent);
+}
+
+.workspace-sidebar-item.is-dragging {
+	opacity: 0.3;
+}
+
+.workspace-sidebar-item.drop-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-sidebar-item.drop-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
+}
+
+/* Workspace icon */
+.workspace-sidebar-item-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	flex-shrink: 0;
+}
+
+.workspace-sidebar-item-icon svg {
+	width: 14px;
+	height: 14px;
+}
+
+/* Workspace name */
+.workspace-sidebar-item-name {
+	flex: 1;
+	font-size: var(--font-ui-small);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Inline rename input */
+.workspace-sidebar-rename-input {
+	flex: 1;
+	background: var(--background-modifier-form-field);
+	border: 1px solid var(--interactive-accent);
+	border-radius: 4px;
+	padding: 2px 6px;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-family: inherit;
+	box-shadow: 0 0 0 2px hsla(var(--accent-hsl), 0.15);
+}
+
+.workspace-sidebar-rename-input:focus {
+	outline: none;
+}
+
+/* Action buttons on items (edit, delete) */
+.workspace-sidebar-group-actions,
+.workspace-sidebar-item-actions {
+	display: flex;
+	gap: 2px;
+	margin-left: auto;
+	opacity: 0;
+	transition: opacity 0.1s;
+}
+
+.workspace-sidebar-group-header:hover .workspace-sidebar-group-actions,
+.workspace-sidebar-item:hover .workspace-sidebar-item-actions {
+	opacity: 1;
+}
+
+.workspace-sidebar-item-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 20px;
+	height: 20px;
+	padding: 0;
+	border: none;
+	border-radius: 4px;
+	background: transparent;
+	color: var(--text-muted);
+	cursor: pointer;
+	transition: background-color 0.1s, color 0.1s;
+}
+
+.workspace-sidebar-item-btn svg {
+	width: 12px;
+	height: 12px;
+}
+
+.workspace-sidebar-item-btn:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.workspace-sidebar-delete-btn:hover {
+	color: var(--text-error);
+}
+
+/* Workspace chevron for expanding files */
+.workspace-sidebar-ws-chevron {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+	color: var(--text-muted);
+	flex-shrink: 0;
+	cursor: pointer;
+}
+
+.workspace-sidebar-ws-chevron svg {
+	width: 10px;
+	height: 10px;
+}
+
+.workspace-sidebar-ws-chevron-spacer {
+	width: 16px;
+	flex-shrink: 0;
+}
+
+/* File count badge */
+.workspace-sidebar-file-count {
+	font-size: var(--font-ui-smaller);
+	color: var(--text-faint);
+	margin-left: 4px;
+}
+
+/* Files container */
+.workspace-sidebar-files {
+	position: relative;
+	padding-left: 52px;
+	margin-left: 8px;
+}
+
+/* Tree guide line (vertical) - centered under workspace icon */
+.workspace-sidebar-files::before {
+	content: '';
+	position: absolute;
+	left: 32px;
+	top: 0;
+	bottom: 8px;
+	width: 1px;
+	background: var(--background-modifier-border);
+}
+
+/* Individual file item */
+.workspace-sidebar-file-item {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	margin: 0 4px;
+	border-radius: 4px;
+	font-size: var(--font-ui-smaller);
+	color: var(--text-muted);
+}
+
+/* Horizontal guide line to each file */
+.workspace-sidebar-file-item::before {
+	content: '';
+	position: absolute;
+	left: -20px;
+	top: 50%;
+	width: 14px;
+	height: 1px;
+	background: var(--background-modifier-border);
+}
+
+.workspace-sidebar-file-item.is-clickable {
+	cursor: pointer;
+}
+
+.workspace-sidebar-file-item.is-clickable:hover {
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.workspace-sidebar-file-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 14px;
+	flex-shrink: 0;
+	opacity: 0.6;
+}
+
+.workspace-sidebar-file-icon svg {
+	width: 12px;
+	height: 12px;
+}
+
+.workspace-sidebar-file-name {
+	flex: 1;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Duplicate indicator on files */
+.workspace-sidebar-file-dup {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-width: 16px;
+	height: 16px;
+	padding: 0 3px;
+	margin-left: 4px;
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--text-on-accent);
+	background: var(--interactive-accent);
+	border-radius: 8px;
+	flex-shrink: 0;
+}
+
+.workspace-sidebar-file-dup svg {
+	width: 10px;
+	height: 10px;
+}
+
+/* File dragging */
+.workspace-sidebar-file-item.is-dragging {
+	opacity: 0.3;
+}
+
+/* Workspace as drop target for files */
+.workspace-sidebar-item.drop-file-target {
+	background: hsla(var(--interactive-accent-hsl), 0.2);
+	outline: 2px dashed var(--interactive-accent);
+	outline-offset: -2px;
+}
+
+/* File reordering drop indicators */
+.workspace-sidebar-file-item.drop-above {
+	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
+}
+
+.workspace-sidebar-file-item.drop-below {
+	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }

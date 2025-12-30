@@ -2,12 +2,13 @@
 // WORKSPACE NAVIGATOR PLUGIN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { Plugin, Notice, setIcon } from 'obsidian';
+import { Plugin, Notice, setIcon, WorkspaceLeaf } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal, WorkspacePickerModal } from './workspace-modal';
 import { WorkspaceEditorModal } from './workspace-editor';
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
 import { createConfirmationDialog } from './confirm-modal';
+import { WorkspaceNavigatorView, VIEW_TYPE_WORKSPACE_NAVIGATOR } from './workspace-sidebar-view';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Type Definitions
@@ -58,11 +59,22 @@ export default class WorkspaceNavigator extends Plugin {
 		// Add settings tab
 		this.addSettingTab(new WorkspaceNavigatorSettingTab(this.app, this));
 
+		// Register the sidebar view
+		this.registerView(
+			VIEW_TYPE_WORKSPACE_NAVIGATOR,
+			(leaf) => new WorkspaceNavigatorView(leaf, this)
+		);
+
 		// Register commands
 		this.registerCommands();
 
 		// Register file menu (right-click on tab) context menu
 		this.registerFileMenu();
+
+		// Add ribbon icon to open sidebar view
+		this.addRibbonIcon('layout-template', 'Open workspace navigator', () => {
+			this.activateSidebarView();
+		});
 
 		// Set up status bar and tab indicators
 		this.app.workspace.onLayoutReady(() => {
@@ -94,6 +106,52 @@ export default class WorkspaceNavigator extends Plugin {
 		// Clean up status bar
 		if (this.statusBarItem) {
 			this.statusBarItem.remove();
+		}
+
+		// Clean up sidebar view
+		this.app.workspace.detachLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+	}
+
+	// ─────────────────────────────────────────────────────────────────
+	// Sidebar View Management
+	// ─────────────────────────────────────────────────────────────────
+
+	async activateSidebarView() {
+		const { workspace } = this.app;
+
+		let leaf: WorkspaceLeaf | null = null;
+		const leaves = workspace.getLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+
+		if (leaves.length > 0) {
+			// View already exists, reveal it
+			leaf = leaves[0];
+		} else {
+			// Create new leaf in right sidebar
+			leaf = workspace.getRightLeaf(false);
+			if (leaf) {
+				await leaf.setViewState({
+					type:   VIEW_TYPE_WORKSPACE_NAVIGATOR,
+					active: true,
+				});
+			}
+		}
+
+		// Reveal the leaf
+		if (leaf) {
+			workspace.revealLeaf(leaf);
+		}
+	}
+
+	/**
+	 * Refresh the sidebar view if it's open
+	 */
+	refreshSidebarView() {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+		for (const leaf of leaves) {
+			const view = leaf.view as WorkspaceNavigatorView;
+			if (view && typeof view.refresh === 'function') {
+				view.refresh();
+			}
 		}
 	}
 
@@ -182,6 +240,15 @@ export default class WorkspaceNavigator extends Plugin {
 			name: 'Open workspace switcher',
 			callback: () => {
 				new WorkspaceSwitcherModal(this.app, this).open();
+			}
+		});
+
+		// Open sidebar navigator
+		this.addCommand({
+			id: 'open-sidebar-navigator',
+			name: 'Open sidebar navigator',
+			callback: () => {
+				this.activateSidebarView();
 			}
 		});
 
