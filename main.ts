@@ -155,6 +155,32 @@ export default class WorkspaceNavigator extends Plugin {
 		}
 	}
 
+	/**
+	 * Notify sidebar that a workspace was renamed (preserves collapsed state)
+	 */
+	notifySidebarWorkspaceRenamed(oldName: string, newName: string) {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+		for (const leaf of leaves) {
+			const view = leaf.view as WorkspaceNavigatorView;
+			if (view && typeof view.onWorkspaceRenamed === 'function') {
+				view.onWorkspaceRenamed(oldName, newName);
+			}
+		}
+	}
+
+	/**
+	 * Notify sidebar that a group was renamed (preserves collapsed state)
+	 */
+	notifySidebarGroupRenamed(oldName: string, newName: string) {
+		const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+		for (const leaf of leaves) {
+			const view = leaf.view as WorkspaceNavigatorView;
+			if (view && typeof view.onGroupRenamed === 'function') {
+				view.onGroupRenamed(oldName, newName);
+			}
+		}
+	}
+
 	// ─────────────────────────────────────────────────────────────────
 	// Settings Management
 	// ─────────────────────────────────────────────────────────────────
@@ -208,7 +234,9 @@ export default class WorkspaceNavigator extends Plugin {
 	private async writeBackup(data: any): Promise<void> {
 		try {
 			const backupPath = this.settings.autoBackupPath || (this.app.vault.adapter as any).basePath;
-			const fileName   = 'workspace-navigator-backup.json';
+			const vaultName  = this.app.vault.getName();
+			const safeVaultName = vaultName.replace(/[^a-zA-Z0-9_-]/g, '_');
+			const fileName   = `workspace-navigator-backup-${safeVaultName}.json`;
 			const fullPath   = `${backupPath}/${fileName}`;
 
 			// Use Node.js fs for absolute paths outside vault

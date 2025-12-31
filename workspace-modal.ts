@@ -338,6 +338,19 @@ export class WorkspaceStyleModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// Action buttons
 		// ─────────────────────────────────────────────────────────────
+		const doSave = () => {
+			this.onSubmit({
+				group:      groupValue,
+				icon:       iconValue,
+				iconColor:  iconColorValue,
+				nameColor:  nameColorValue,
+				nameBold:   nameBoldValue,
+				nameItalic: nameItalicValue,
+				newName:    renameValue !== this.workspaceName ? renameValue : undefined
+			});
+			this.close();
+		};
+
 		new Setting(contentEl)
 			.addButton(btn => btn
 				.setButtonText('Clear All')
@@ -354,18 +367,14 @@ export class WorkspaceStyleModal extends Modal {
 			.addButton(btn => btn
 				.setButtonText('Save')
 				.setCta()
-				.onClick(() => {
-					this.onSubmit({
-						group:      groupValue,
-						icon:       iconValue,
-						iconColor:  iconColorValue,
-						nameColor:  nameColorValue,
-						nameBold:   nameBoldValue,
-						nameItalic: nameItalicValue,
-						newName:    renameValue !== this.workspaceName ? renameValue : undefined
-					});
-					this.close();
-				}));
+				.onClick(doSave));
+
+		// Handle Enter key to save
+		this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
+			evt.preventDefault();
+			doSave();
+			return false;
+		});
 	}
 
 	onClose() {
@@ -601,6 +610,25 @@ export class GroupStylePickerModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// Action buttons
 		// ─────────────────────────────────────────────────────────────
+		const doSave = () => {
+			const isNoGroup = this.groupName === '\x00nogroup';
+			// For "No Group", if user enters a name, that becomes newName
+			// For named groups, newName is set only if changed
+			const hasNewName = isNoGroup
+				? (renameValue && renameValue.length > 0)
+				: (renameValue !== this.groupName);
+
+			this.onSubmit({
+				newName:    hasNewName ? renameValue : null,
+				icon:       iconValue || null,
+				iconColor:  iconColorValue || null,
+				textColor:  textColorValue || null,
+				textBold:   textBoldValue,
+				textItalic: textItalicValue,
+			});
+			this.close();
+		};
+
 		new Setting(contentEl)
 			.addButton(btn => btn
 				.setButtonText('Clear All')
@@ -621,24 +649,14 @@ export class GroupStylePickerModal extends Modal {
 			.addButton(btn => btn
 				.setButtonText('Save')
 				.setCta()
-				.onClick(() => {
-					const isNoGroup = this.groupName === '\x00nogroup';
-					// For "No Group", if user enters a name, that becomes newName
-					// For named groups, newName is set only if changed
-					const hasNewName = isNoGroup
-						? (renameValue && renameValue.length > 0)
-						: (renameValue !== this.groupName);
+				.onClick(doSave));
 
-					this.onSubmit({
-						newName:    hasNewName ? renameValue : null,
-						icon:       iconValue || null,
-						iconColor:  iconColorValue || null,
-						textColor:  textColorValue || null,
-						textBold:   textBoldValue,
-						textItalic: textItalicValue,
-					});
-					this.close();
-				}));
+		// Handle Enter key to save
+		this.scope.register([], 'Enter', (evt: KeyboardEvent) => {
+			evt.preventDefault();
+			doSave();
+			return false;
+		});
 	}
 
 	onClose() {
@@ -1112,6 +1130,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Refresh
 			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
+			this.createActionButtons();
 		});
 		modal.open();
 	}
@@ -1165,6 +1184,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				// Refresh
 				this.lastRenderedGroup = undefined;
 				(this as any).updateSuggestions();
+				this.createActionButtons();
 			}
 		);
 		modal.open();
@@ -1267,6 +1287,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				if (moved) {
 					this.lastRenderedGroup = undefined;
 					(this as any).updateSuggestions();
+					this.createActionButtons();
 				}
 
 				this.cleanupDrag();
@@ -1338,6 +1359,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			if (moved) {
 				this.lastRenderedGroup = undefined;
 				(this as any).updateSuggestions();
+				this.createActionButtons();
 			}
 
 			// Clean up drag state
@@ -1848,6 +1870,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Update suggestions to show new name
 		(this as any).updateSuggestions();
 
+		// Re-add action buttons (updateSuggestions clears them)
+		this.createActionButtons();
+
+		// Refresh sidebar view (preserving collapsed state)
+		this.plugin.notifySidebarWorkspaceRenamed(oldName, newName);
+
 		new Notice(`Renamed workspace to "${newName}"`);
 	}
 
@@ -1880,6 +1908,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			// Update the suggestions list
 			(this as any).updateSuggestions();
+			this.createActionButtons();
 
 			new Notice(`Deleted workspace: ${workspaceName}`);
 		};
@@ -1936,6 +1965,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Update the suggestions list
 		(this as any).updateSuggestions();
+		this.createActionButtons();
 
 		new Notice(`Duplicated workspace to: ${newName}`);
 	}
@@ -2023,17 +2053,31 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				}
 
 				new Notice(`Created group "${newName}" with ${ungrouped.length} workspace(s)`);
+
+				await this.plugin.saveSettings();
+
+				// Refresh
+				this.lastRenderedGroup = undefined;
+				(this as any).updateSuggestions();
+				this.createActionButtons();
+
+				// For "No Group" -> new group, transfer collapsed state in sidebar
+				this.plugin.notifySidebarGroupRenamed('\x00nogroup', newName);
 			} else {
 				// Normal rename
 				workspaceManager.renameGroup(groupName, newName);
 				new Notice(`Renamed group to "${newName}"`);
+
+				await this.plugin.saveSettings();
+
+				// Refresh
+				this.lastRenderedGroup = undefined;
+				(this as any).updateSuggestions();
+				this.createActionButtons();
+
+				// Refresh sidebar view (preserving collapsed state)
+				this.plugin.notifySidebarGroupRenamed(groupName, newName);
 			}
-
-			await this.plugin.saveSettings();
-
-			// Refresh
-			this.lastRenderedGroup = undefined;
-			(this as any).updateSuggestions();
 		};
 
 		// Handle keydown - Enter to save, Escape to cancel
@@ -2149,6 +2193,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Refresh the suggestions to show updated style
 			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
+			this.createActionButtons();
+
+			// Refresh sidebar view (preserving collapsed state if renamed)
+			if (result.newName && result.newName !== groupName) {
+				this.plugin.notifySidebarGroupRenamed(groupName, result.newName);
+			} else {
+				this.plugin.refreshSidebarView();
+			}
 
 			if (!isNoGroup || !result.newName) {
 				new Notice(`Updated "${finalGroupName === '\x00nogroup' ? 'No Group' : finalGroupName}"`);
@@ -2201,6 +2253,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Refresh the suggestions
 		this.lastRenderedGroup = undefined;
 		(this as any).updateSuggestions();
+		this.createActionButtons();
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -2229,6 +2282,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Refresh the suggestions
 		this.lastRenderedGroup = undefined;
 		(this as any).updateSuggestions();
+		this.createActionButtons();
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -2284,6 +2338,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Update the suggestions list and status bar
 			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
+			this.createActionButtons();
 			this.plugin.updateStatusBar();
 
 			new Notice(`Updated "${finalName}"`);

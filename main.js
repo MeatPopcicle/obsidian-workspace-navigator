@@ -2206,17 +2206,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
         toggles[1].after(label);
       }
     });
-    new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
-      this.onSubmit({
-        group: "",
-        icon: "",
-        iconColor: "",
-        nameColor: "",
-        nameBold: false,
-        nameItalic: false
-      });
-      this.close();
-    })).addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close())).addButton((btn) => btn.setButtonText("Save").setCta().onClick(() => {
+    const doSave = () => {
       this.onSubmit({
         group: groupValue,
         icon: iconValue,
@@ -2227,7 +2217,23 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
         newName: renameValue !== this.workspaceName ? renameValue : void 0
       });
       this.close();
-    }));
+    };
+    new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
+      this.onSubmit({
+        group: "",
+        icon: "",
+        iconColor: "",
+        nameColor: "",
+        nameBold: false,
+        nameItalic: false
+      });
+      this.close();
+    })).addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close())).addButton((btn) => btn.setButtonText("Save").setCta().onClick(doSave));
+    this.scope.register([], "Enter", (evt) => {
+      evt.preventDefault();
+      doSave();
+      return false;
+    });
   }
   onClose() {
     this.contentEl.empty();
@@ -2400,17 +2406,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
         toggles[1].after(label);
       }
     });
-    new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
-      this.onSubmit({
-        newName: null,
-        icon: null,
-        iconColor: null,
-        textColor: null,
-        textBold: false,
-        textItalic: false
-      });
-      this.close();
-    })).addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close())).addButton((btn) => btn.setButtonText("Save").setCta().onClick(() => {
+    const doSave = () => {
       const isNoGroup2 = this.groupName === "\0nogroup";
       const hasNewName = isNoGroup2 ? renameValue && renameValue.length > 0 : renameValue !== this.groupName;
       this.onSubmit({
@@ -2422,7 +2418,23 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
         textItalic: textItalicValue
       });
       this.close();
-    }));
+    };
+    new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
+      this.onSubmit({
+        newName: null,
+        icon: null,
+        iconColor: null,
+        textColor: null,
+        textBold: false,
+        textItalic: false
+      });
+      this.close();
+    })).addButton((btn) => btn.setButtonText("Cancel").onClick(() => this.close())).addButton((btn) => btn.setButtonText("Save").setCta().onClick(doSave));
+    this.scope.register([], "Enter", (evt) => {
+      evt.preventDefault();
+      doSave();
+      return false;
+    });
   }
   onClose() {
     this.contentEl.empty();
@@ -2753,6 +2765,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       new import_obsidian4.Notice(`Created group "${trimmedName}"`);
       this.lastRenderedGroup = void 0;
       this.updateSuggestions();
+      this.createActionButtons();
     });
     modal.open();
   }
@@ -2798,6 +2811,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         new import_obsidian4.Notice(`Created workspace "${newName}"`);
         this.lastRenderedGroup = void 0;
         this.updateSuggestions();
+        this.createActionButtons();
       }
     );
     modal.open();
@@ -2877,6 +2891,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         if (moved) {
           this.lastRenderedGroup = void 0;
           this.updateSuggestions();
+          this.createActionButtons();
         }
         this.cleanupDrag();
         return;
@@ -2932,6 +2947,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       if (moved) {
         this.lastRenderedGroup = void 0;
         this.updateSuggestions();
+        this.createActionButtons();
       }
       this.cleanupDrag();
     };
@@ -3318,6 +3334,8 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     el.removeClass("is-renaming");
     el.dataset.workspaceName = newName;
     this.updateSuggestions();
+    this.createActionButtons();
+    this.plugin.notifySidebarWorkspaceRenamed(oldName, newName);
     new import_obsidian4.Notice(`Renamed workspace to "${newName}"`);
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3339,6 +3357,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.plugin.navigationLayouts.delete(workspaceName);
       this.plugin.saveSettings();
       this.updateSuggestions();
+      this.createActionButtons();
       new import_obsidian4.Notice(`Deleted workspace: ${workspaceName}`);
     };
     if (this.plugin.settings.showDeleteConfirmation) {
@@ -3379,6 +3398,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     this.plugin.saveSettings();
     this.updateSuggestions();
+    this.createActionButtons();
     new import_obsidian4.Notice(`Duplicated workspace to: ${newName}`);
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3444,13 +3464,20 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           workspaceManager.setGroupCollapsed("\0nogroup", false);
         }
         new import_obsidian4.Notice(`Created group "${newName}" with ${ungrouped.length} workspace(s)`);
+        await this.plugin.saveSettings();
+        this.lastRenderedGroup = void 0;
+        this.updateSuggestions();
+        this.createActionButtons();
+        this.plugin.notifySidebarGroupRenamed("\0nogroup", newName);
       } else {
         workspaceManager.renameGroup(groupName, newName);
         new import_obsidian4.Notice(`Renamed group to "${newName}"`);
+        await this.plugin.saveSettings();
+        this.lastRenderedGroup = void 0;
+        this.updateSuggestions();
+        this.createActionButtons();
+        this.plugin.notifySidebarGroupRenamed(groupName, newName);
       }
-      await this.plugin.saveSettings();
-      this.lastRenderedGroup = void 0;
-      this.updateSuggestions();
     };
     const handleKeydown = (evt) => {
       if (evt.key === "Enter") {
@@ -3549,6 +3576,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       await this.plugin.saveSettings();
       this.lastRenderedGroup = void 0;
       this.updateSuggestions();
+      this.createActionButtons();
+      if (result.newName && result.newName !== groupName) {
+        this.plugin.notifySidebarGroupRenamed(groupName, result.newName);
+      } else {
+        this.plugin.refreshSidebarView();
+      }
       if (!isNoGroup || !result.newName) {
         new import_obsidian4.Notice(`Updated "${finalGroupName === "\0nogroup" ? "No Group" : finalGroupName}"`);
       }
@@ -3592,6 +3625,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     await this.plugin.saveSettings();
     this.lastRenderedGroup = void 0;
     this.updateSuggestions();
+    this.createActionButtons();
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle group delete (ungroup all workspaces in the group)
@@ -3610,6 +3644,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     new import_obsidian4.Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
     this.lastRenderedGroup = void 0;
     this.updateSuggestions();
+    this.createActionButtons();
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle icon click
@@ -3653,6 +3688,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       await this.plugin.saveSettings();
       this.lastRenderedGroup = void 0;
       this.updateSuggestions();
+      this.createActionButtons();
       this.plugin.updateStatusBar();
       new import_obsidian4.Notice(`Updated "${finalName}"`);
     });
@@ -4186,6 +4222,7 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
       this.onOpen();
+      this.plugin.refreshSidebarView();
       new import_obsidian5.Notice(`Updated "${finalName}"`);
     });
     modal.open();
@@ -4226,6 +4263,7 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       new import_obsidian5.Notice(`Renamed to: ${newName}`);
       renameModal.close();
       this.onOpen();
+      this.plugin.refreshSidebarView();
     }));
     renameModal.open();
   }
@@ -6168,6 +6206,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const nameSpan = item.querySelector(".workspace-sidebar-item-name");
     if (!nameSpan)
       return;
+    item.addClass("is-renaming");
     const input = document.createElement("input");
     input.type = "text";
     input.value = workspaceName;
@@ -6175,7 +6214,11 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     nameSpan.replaceWith(input);
     input.focus();
     input.select();
+    let isFinishing = false;
     const finishRename = async () => {
+      if (isFinishing)
+        return;
+      isFinishing = true;
       const newName = input.value.trim();
       if (newName && newName !== workspaceName) {
         const workspaceManager = this.plugin.getWorkspaceManager();
@@ -6184,6 +6227,10 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
           await this.plugin.saveSettings();
           this.plugin.refreshWorkspaceCommands();
           this.plugin.updateStatusBar();
+          if (this.collapsedWorkspaces.has(workspaceName)) {
+            this.collapsedWorkspaces.delete(workspaceName);
+            this.collapsedWorkspaces.add(newName);
+          }
           new import_obsidian7.Notice(`Renamed to: ${newName}`);
         } else {
           new import_obsidian7.Notice(`Workspace "${newName}" already exists`);
@@ -6198,6 +6245,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
         input.blur();
       } else if (evt.key === "Escape") {
         evt.preventDefault();
+        isFinishing = true;
         this.renderTree();
       }
     }, true);
@@ -6211,6 +6259,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const nameSpan = header.querySelector(".workspace-sidebar-group-name");
     if (!nameSpan)
       return;
+    header.addClass("is-renaming");
     const input = document.createElement("input");
     input.type = "text";
     input.value = groupName;
@@ -6218,7 +6267,11 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     nameSpan.replaceWith(input);
     input.focus();
     input.select();
+    let isFinishing = false;
     const finishRename = async () => {
+      if (isFinishing)
+        return;
+      isFinishing = true;
       const newName = input.value.trim();
       if (newName && newName !== groupName) {
         const workspaceManager = this.plugin.getWorkspaceManager();
@@ -6226,6 +6279,10 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
         if (!groups.includes(newName)) {
           workspaceManager.renameGroup(groupName, newName);
           await this.plugin.saveSettings();
+          if (this.collapsedGroups.has(groupName)) {
+            this.collapsedGroups.delete(groupName);
+            this.collapsedGroups.add(newName);
+          }
           new import_obsidian7.Notice(`Renamed group to: ${newName}`);
         } else {
           new import_obsidian7.Notice(`Group "${newName}" already exists`);
@@ -6240,6 +6297,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
         input.blur();
       } else if (evt.key === "Escape") {
         evt.preventDefault();
+        isFinishing = true;
         this.renderTree();
       }
     }, true);
@@ -6489,6 +6547,26 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
   refresh() {
     this.renderTree();
   }
+  /**
+   * Update collapsed state when a workspace is renamed
+   */
+  onWorkspaceRenamed(oldName, newName) {
+    if (this.collapsedWorkspaces.has(oldName)) {
+      this.collapsedWorkspaces.delete(oldName);
+      this.collapsedWorkspaces.add(newName);
+    }
+    this.renderTree();
+  }
+  /**
+   * Update collapsed state when a group is renamed
+   */
+  onGroupRenamed(oldName, newName) {
+    if (this.collapsedGroups.has(oldName)) {
+      this.collapsedGroups.delete(oldName);
+      this.collapsedGroups.add(newName);
+    }
+    this.renderTree();
+  }
 };
 
 // main.ts
@@ -6581,6 +6659,30 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
       }
     }
   }
+  /**
+   * Notify sidebar that a workspace was renamed (preserves collapsed state)
+   */
+  notifySidebarWorkspaceRenamed(oldName, newName) {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+    for (const leaf of leaves) {
+      const view = leaf.view;
+      if (view && typeof view.onWorkspaceRenamed === "function") {
+        view.onWorkspaceRenamed(oldName, newName);
+      }
+    }
+  }
+  /**
+   * Notify sidebar that a group was renamed (preserves collapsed state)
+   */
+  notifySidebarGroupRenamed(oldName, newName) {
+    const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_WORKSPACE_NAVIGATOR);
+    for (const leaf of leaves) {
+      const view = leaf.view;
+      if (view && typeof view.onGroupRenamed === "function") {
+        view.onGroupRenamed(oldName, newName);
+      }
+    }
+  }
   // ─────────────────────────────────────────────────────────────────
   // Settings Management
   // ─────────────────────────────────────────────────────────────────
@@ -6623,7 +6725,9 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
   async writeBackup(data) {
     try {
       const backupPath = this.settings.autoBackupPath || this.app.vault.adapter.basePath;
-      const fileName = "workspace-navigator-backup.json";
+      const vaultName = this.app.vault.getName();
+      const safeVaultName = vaultName.replace(/[^a-zA-Z0-9_-]/g, "_");
+      const fileName = `workspace-navigator-backup-${safeVaultName}.json`;
       const fullPath = `${backupPath}/${fileName}`;
       const fs = require("fs").promises;
       await fs.writeFile(fullPath, JSON.stringify(data, null, 2), "utf8");

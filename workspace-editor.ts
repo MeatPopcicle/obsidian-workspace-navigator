@@ -593,8 +593,9 @@ export class WorkspaceEditorModal extends Modal {
 			// Update the status bar
 			this.plugin.updateStatusBar();
 
-			// Refresh the workspace list
+			// Refresh the workspace list and sidebar
 			this.onOpen();
+			this.plugin.refreshSidebarView();
 
 			new Notice(`Updated "${finalName}"`);
 		});
@@ -660,6 +661,7 @@ export class WorkspaceEditorModal extends Modal {
 
 					renameModal.close();
 					this.onOpen(); // Refresh list
+					this.plugin.refreshSidebarView();
 				}));
 
 		renameModal.open();

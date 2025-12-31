@@ -1183,7 +1183,9 @@
 }
 
 .workspace-sidebar-group-header:hover .workspace-sidebar-group-actions,
-.workspace-sidebar-item:hover .workspace-sidebar-item-actions {
+.workspace-sidebar-item:hover .workspace-sidebar-item-actions,
+.workspace-sidebar-group-header.is-renaming .workspace-sidebar-group-actions,
+.workspace-sidebar-item.is-renaming .workspace-sidebar-item-actions {
 	opacity: 1;
 }
 

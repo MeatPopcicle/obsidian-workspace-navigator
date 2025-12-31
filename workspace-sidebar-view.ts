@@ -955,6 +955,9 @@ export class WorkspaceNavigatorView extends ItemView {
 		const nameSpan = item.querySelector('.workspace-sidebar-item-name') as HTMLElement;
 		if (!nameSpan) return;
 
+		// Add renaming class to keep buttons visible
+		item.addClass('is-renaming');
+
 		// Create input
 		const input     = document.createElement('input');
 		input.type      = 'text';
@@ -966,7 +969,11 @@ export class WorkspaceNavigatorView extends ItemView {
 		input.focus();
 		input.select();
 
+		let isFinishing = false;
 		const finishRename = async () => {
+			if (isFinishing) return;
+			isFinishing = true;
+
 			const newName = input.value.trim();
 			if (newName && newName !== workspaceName) {
 				const workspaceManager = this.plugin.getWorkspaceManager();
@@ -975,6 +982,13 @@ export class WorkspaceNavigatorView extends ItemView {
 					await this.plugin.saveSettings();
 					this.plugin.refreshWorkspaceCommands();
 					this.plugin.updateStatusBar();
+
+					// Update collapsed state for the renamed workspace
+					if (this.collapsedWorkspaces.has(workspaceName)) {
+						this.collapsedWorkspaces.delete(workspaceName);
+						this.collapsedWorkspaces.add(newName);
+					}
+
 					new Notice(`Renamed to: ${newName}`);
 				} else {
 					new Notice(`Workspace "${newName}" already exists`);
@@ -990,6 +1004,7 @@ export class WorkspaceNavigatorView extends ItemView {
 				input.blur();
 			} else if (evt.key === 'Escape') {
 				evt.preventDefault();
+				isFinishing = true;
 				this.renderTree();
 			}
 		}, true);
@@ -1004,6 +1019,9 @@ export class WorkspaceNavigatorView extends ItemView {
 		const nameSpan = header.querySelector('.workspace-sidebar-group-name') as HTMLElement;
 		if (!nameSpan) return;
 
+		// Add renaming class to keep buttons visible
+		header.addClass('is-renaming');
+
 		// Create input
 		const input     = document.createElement('input');
 		input.type      = 'text';
@@ -1015,7 +1033,11 @@ export class WorkspaceNavigatorView extends ItemView {
 		input.focus();
 		input.select();
 
+		let isFinishing = false;
 		const finishRename = async () => {
+			if (isFinishing) return;
+			isFinishing = true;
+
 			const newName = input.value.trim();
 			if (newName && newName !== groupName) {
 				const workspaceManager = this.plugin.getWorkspaceManager();
@@ -1023,6 +1045,13 @@ export class WorkspaceNavigatorView extends ItemView {
 				if (!groups.includes(newName)) {
 					workspaceManager.renameGroup(groupName, newName);
 					await this.plugin.saveSettings();
+
+					// Update collapsed state for the renamed group
+					if (this.collapsedGroups.has(groupName)) {
+						this.collapsedGroups.delete(groupName);
+						this.collapsedGroups.add(newName);
+					}
+
 					new Notice(`Renamed group to: ${newName}`);
 				} else {
 					new Notice(`Group "${newName}" already exists`);
@@ -1038,6 +1067,7 @@ export class WorkspaceNavigatorView extends ItemView {
 				input.blur();
 			} else if (evt.key === 'Escape') {
 				evt.preventDefault();
+				isFinishing = true;
 				this.renderTree();
 			}
 		}, true);
@@ -1344,6 +1374,28 @@ export class WorkspaceNavigatorView extends ItemView {
 	// ─────────────────────────────────────────────────────────────────
 
 	refresh() {
+		this.renderTree();
+	}
+
+	/**
+	 * Update collapsed state when a workspace is renamed
+	 */
+	onWorkspaceRenamed(oldName: string, newName: string) {
+		if (this.collapsedWorkspaces.has(oldName)) {
+			this.collapsedWorkspaces.delete(oldName);
+			this.collapsedWorkspaces.add(newName);
+		}
+		this.renderTree();
+	}
+
+	/**
+	 * Update collapsed state when a group is renamed
+	 */
+	onGroupRenamed(oldName: string, newName: string) {
+		if (this.collapsedGroups.has(oldName)) {
+			this.collapsedGroups.delete(oldName);
+			this.collapsedGroups.add(newName);
+		}
 		this.renderTree();
 	}
 }
