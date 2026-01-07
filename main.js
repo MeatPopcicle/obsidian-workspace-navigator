@@ -1890,11 +1890,11 @@ var LUCIDE_ICONS = [
   "panels-top-left",
   "panel-left",
   "panel-right",
-  "columns",
-  "grid-2x2",
-  "grid-3x3",
+  "columns-2",
+  "grid",
+  "table",
   "square",
-  "squares",
+  "app-window",
   // Files & Folders
   "folder",
   "folder-open",
@@ -2008,7 +2008,38 @@ var LUCIDE_ICONS = [
   "clock",
   "timer",
   "hourglass",
-  "activity"
+  "activity",
+  // Domains & Industries
+  "banknote",
+  "wallet",
+  "credit-card",
+  "piggy-bank",
+  // Finance
+  "heart-pulse",
+  "pill",
+  "stethoscope",
+  "thermometer",
+  // Health
+  "scale",
+  "gavel",
+  "scroll",
+  "file-check",
+  // Legal
+  "graduation-cap",
+  "school",
+  "apple",
+  "pencil-ruler",
+  // Education
+  "shopping-cart",
+  "store",
+  "receipt",
+  "truck",
+  // Commerce
+  "plane",
+  "car",
+  "bike",
+  "ship"
+  // Travel
 ];
 var PRESET_COLORS = [
   { color: "#ef4444", name: "red" },

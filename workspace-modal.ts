@@ -16,8 +16,8 @@ import { renderGroupHeader, setGroupDropTarget, setGroupDragging, GroupHeaderCon
 const LUCIDE_ICONS: string[] = [
 	// Layouts & UI
 	'layout-grid', 'layout-template', 'layout-dashboard', 'layout-list',
-	'panels-top-left', 'panel-left', 'panel-right', 'columns',
-	'grid-2x2', 'grid-3x3', 'square', 'squares',
+	'panels-top-left', 'panel-left', 'panel-right', 'columns-2',
+	'grid', 'table', 'square', 'app-window',
 
 	// Files & Folders
 	'folder', 'folder-open', 'file', 'file-text',
@@ -64,6 +64,14 @@ const LUCIDE_ICONS: string[] = [
 	'lightbulb', 'rocket', 'target', 'crosshair',
 	'shield', 'lock', 'key', 'eye',
 	'clock', 'timer', 'hourglass', 'activity',
+
+	// Domains & Industries
+	'banknote', 'wallet', 'credit-card', 'piggy-bank',      // Finance
+	'heart-pulse', 'pill', 'stethoscope', 'thermometer',    // Health
+	'scale', 'gavel', 'scroll', 'file-check',               // Legal
+	'graduation-cap', 'school', 'apple', 'pencil-ruler',    // Education
+	'shopping-cart', 'store', 'receipt', 'truck',           // Commerce
+	'plane', 'car', 'bike', 'ship',                         // Travel
 ];
 
 // ───────────────────────────────────────────────────────────────────────────────
