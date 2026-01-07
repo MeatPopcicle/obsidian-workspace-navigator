@@ -1117,20 +1117,32 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				return;
 			}
 
+			// Add group to groupOrder so it appears even when empty
+			const order = workspaceManager.getGroupOrder();
+			order.push(trimmedName);
+			workspaceManager.setGroupOrder(order);
+
 			// Create group with styling
-			if (result.icon) workspaceManager.setGroupIcon(trimmedName, result.icon);
+			workspaceManager.setGroupIcon(trimmedName, result.icon || 'folder');
 			if (result.iconColor) workspaceManager.setGroupIconColor(trimmedName, result.iconColor);
 			if (result.textColor) workspaceManager.setGroupColor(trimmedName, result.textColor);
 			if (result.textBold) workspaceManager.setGroupBold(trimmedName, true);
 			if (result.textItalic) workspaceManager.setGroupItalic(trimmedName, true);
 
+			workspaceManager.logger.log(`[openNewGroupModal] Created group: ${trimmedName}`);
+			workspaceManager.logger.log(`[openNewGroupModal] groupOrder after: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
+
 			await this.plugin.saveSettings();
+			await workspaceManager.saveLog();
 			new Notice(`Created group "${trimmedName}"`);
 
-			// Refresh
+			// Refresh modal
 			this.lastRenderedGroup = undefined;
 			(this as any).updateSuggestions();
 			this.createActionButtons();
+
+			// Also refresh sidebar if open
+			this.plugin.refreshSidebarView();
 		});
 		modal.open();
 	}
@@ -1485,7 +1497,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				// For '\x00nogroup', get ungrouped workspaces (null group)
 				const actualGroup = isNoGroup ? null : group;
 				const workspaces = workspaceManager.getWorkspacesByGroupOrdered(actualGroup, useManualOrder);
-				result.push(...workspaces);
+
+				if (workspaces.length === 0 && !isNoGroup) {
+					// Empty named group - add placeholder so header is shown
+					result.push(`\x00empty:${group}`);
+				} else {
+					result.push(...workspaces);
+				}
 			}
 		}
 
@@ -1498,6 +1516,16 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	private isCollapsedGroupPlaceholder(item: string): string | null {
 		if (item.startsWith('\x00collapsed:')) {
 			return item.substring('\x00collapsed:'.length);
+		}
+		return null;
+	}
+
+	/**
+	 * Check if an item is an empty group placeholder
+	 */
+	private isEmptyGroupPlaceholder(item: string): string | null {
+		if (item.startsWith('\x00empty:')) {
+			return item.substring('\x00empty:'.length);
 		}
 		return null;
 	}
@@ -1519,6 +1547,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (collapsedGroup) {
 			return collapsedGroup === '\x00nogroup' ? 'No Group' : collapsedGroup;
 		}
+		// For empty group placeholders, return the group name for search
+		const emptyGroup = this.isEmptyGroupPlaceholder(workspace);
+		if (emptyGroup) {
+			return emptyGroup;
+		}
 		return workspace;
 	}
 
@@ -1537,6 +1570,24 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			el.empty();
 			el.addClass('workspace-group-header', 'is-collapsed');
 			this.renderGroupHeaderElement(el, collapsedGroup, true);
+			return;
+		}
+
+		// Check if this is an empty group placeholder
+		const emptyGroup = this.isEmptyGroupPlaceholder(item.item);
+		if (emptyGroup) {
+			// Render empty group header with "(empty)" indicator
+			this.lastRenderedGroup = emptyGroup;
+			el.empty();
+			el.addClass('workspace-group-header', 'is-empty');
+			this.renderGroupHeaderElement(el, emptyGroup, false);
+
+			// Add "(empty)" text
+			const emptyIndicator = el.createSpan('workspace-group-empty-indicator');
+			emptyIndicator.textContent = '(empty)';
+			emptyIndicator.style.opacity = '0.5';
+			emptyIndicator.style.fontStyle = 'italic';
+			emptyIndicator.style.marginLeft = '8px';
 			return;
 		}
 

@@ -195,11 +195,19 @@ export default class WorkspaceNavigator extends Plugin {
 			activeWorkspace: null,
 			version: '2.0.0'
 		};
+
 		this.workspaceManager = new WorkspaceManager(
 			this.app,
 			workspaceStorage,
 			() => this.settings.debugMode
 		);
+
+		// Log what we loaded to file
+		this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage exists: ${!!data?.workspaceStorage}`);
+		this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage?.groupOrder: ${JSON.stringify(data?.workspaceStorage?.groupOrder)}`);
+		this.workspaceManager.logger.log(`[loadSettings] workspaceStorage.groupOrder: ${JSON.stringify(workspaceStorage.groupOrder)}`);
+		this.workspaceManager.logger.log(`[loadSettings] workspaceStorage.groupIcons: ${JSON.stringify(workspaceStorage.groupIcons)}`);
+		await this.workspaceManager.saveLog();
 
 		// Restore navigation layouts from saved data
 		if (data?.navigationLayouts) {
@@ -208,14 +216,25 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	async saveSettings() {
+		// Capture stack trace for debugging
+		const stack = new Error().stack;
+
 		// Serialize saves to prevent race conditions
 		this.saveQueue = this.saveQueue.then(async () => {
 			// Include workspace manager storage in saved data
+			const storage = this.workspaceManager.getStorage();
+			this.workspaceManager.logger.log(`[saveSettings] CALLED FROM:\n${stack}`);
+			this.workspaceManager.logger.log(`[saveSettings] storage.groupOrder: ${JSON.stringify(storage.groupOrder)}`);
+			this.workspaceManager.logger.log(`[saveSettings] storage.groupIcons: ${JSON.stringify(storage.groupIcons)}`);
+
 			const dataToSave = {
 				...this.settings,
-				workspaceStorage: this.workspaceManager.getStorage(),
+				workspaceStorage: storage,
 				navigationLayouts: Object.fromEntries(this.navigationLayouts)
 			};
+			this.workspaceManager.logger.log(`[saveSettings] dataToSave.workspaceStorage.groupOrder: ${JSON.stringify(dataToSave.workspaceStorage?.groupOrder)}`);
+			await this.workspaceManager.saveLog();
+
 			await this.saveData(dataToSave);
 
 			// Auto-backup if enabled

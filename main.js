@@ -2751,8 +2751,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         new import_obsidian4.Notice(`Group "${trimmedName}" already exists`);
         return;
       }
-      if (result.icon)
-        workspaceManager.setGroupIcon(trimmedName, result.icon);
+      const order2 = workspaceManager.getGroupOrder();
+      order2.push(trimmedName);
+      workspaceManager.setGroupOrder(order2);
+      workspaceManager.setGroupIcon(trimmedName, result.icon || "folder");
       if (result.iconColor)
         workspaceManager.setGroupIconColor(trimmedName, result.iconColor);
       if (result.textColor)
@@ -2761,11 +2763,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         workspaceManager.setGroupBold(trimmedName, true);
       if (result.textItalic)
         workspaceManager.setGroupItalic(trimmedName, true);
+      workspaceManager.logger.log(`[openNewGroupModal] Created group: ${trimmedName}`);
+      workspaceManager.logger.log(`[openNewGroupModal] groupOrder after: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
       await this.plugin.saveSettings();
+      await workspaceManager.saveLog();
       new import_obsidian4.Notice(`Created group "${trimmedName}"`);
       this.lastRenderedGroup = void 0;
       this.updateSuggestions();
       this.createActionButtons();
+      this.plugin.refreshSidebarView();
     });
     modal.open();
   }
@@ -3043,7 +3049,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       } else {
         const actualGroup = isNoGroup ? null : group;
         const workspaces = workspaceManager.getWorkspacesByGroupOrdered(actualGroup, useManualOrder);
-        result.push(...workspaces);
+        if (workspaces.length === 0 && !isNoGroup) {
+          result.push(`\0empty:${group}`);
+        } else {
+          result.push(...workspaces);
+        }
       }
     }
     return result;
@@ -3054,6 +3064,15 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   isCollapsedGroupPlaceholder(item) {
     if (item.startsWith("\0collapsed:")) {
       return item.substring("\0collapsed:".length);
+    }
+    return null;
+  }
+  /**
+   * Check if an item is an empty group placeholder
+   */
+  isEmptyGroupPlaceholder(item) {
+    if (item.startsWith("\0empty:")) {
+      return item.substring("\0empty:".length);
     }
     return null;
   }
@@ -3071,6 +3090,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     if (collapsedGroup) {
       return collapsedGroup === "\0nogroup" ? "No Group" : collapsedGroup;
     }
+    const emptyGroup = this.isEmptyGroupPlaceholder(workspace);
+    if (emptyGroup) {
+      return emptyGroup;
+    }
     return workspace;
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3085,6 +3108,19 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       el.empty();
       el.addClass("workspace-group-header", "is-collapsed");
       this.renderGroupHeaderElement(el, collapsedGroup, true);
+      return;
+    }
+    const emptyGroup = this.isEmptyGroupPlaceholder(item.item);
+    if (emptyGroup) {
+      this.lastRenderedGroup = emptyGroup;
+      el.empty();
+      el.addClass("workspace-group-header", "is-empty");
+      this.renderGroupHeaderElement(el, emptyGroup, false);
+      const emptyIndicator = el.createSpan("workspace-group-empty-indicator");
+      emptyIndicator.textContent = "(empty)";
+      emptyIndicator.style.opacity = "0.5";
+      emptyIndicator.style.fontStyle = "italic";
+      emptyIndicator.style.marginLeft = "8px";
       return;
     }
     super.renderSuggestion(item, el);
@@ -4420,6 +4456,7 @@ var WorkspaceManager = class {
   }
   /**
    * Get all unique group names (alphabetically sorted)
+   * Includes groups from groupOrder that may be empty (no workspaces assigned)
    */
   getGroups() {
     const groups = /* @__PURE__ */ new Set();
@@ -4427,6 +4464,13 @@ var WorkspaceManager = class {
       const group = this.getWorkspaceGroup(name);
       if (group) {
         groups.add(group);
+      }
+    }
+    if (this.storage.groupOrder) {
+      for (const groupName of this.storage.groupOrder) {
+        if (groupName !== "\0nogroup") {
+          groups.add(groupName);
+        }
       }
     }
     return Array.from(groups).sort(
@@ -5673,6 +5717,8 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const useManualOrder = this.plugin.settings.manualSortOrder;
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     const allGroups = workspaceManager.getAllGroupsOrdered(useManualOrder);
+    workspaceManager.logger.log(`[renderTree] allGroups: ${JSON.stringify(allGroups)}`);
+    workspaceManager.logger.log(`[renderTree] groupOrder: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
     for (const groupName of allGroups) {
       this.renderGroup(groupName, activeWorkspace, useManualOrder);
     }
@@ -5689,7 +5735,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const displayName = isNoGroup ? "No Group" : groupName;
     const isCollapsed = this.collapsedGroups.has(groupName);
     const workspaces = isNoGroup ? workspaceManager.getWorkspacesByGroup(null) : workspaceManager.getWorkspacesByGroup(groupName);
-    if (workspaces.length === 0 && !isNoGroup)
+    if (workspaces.length === 0 && isNoGroup)
       return;
     const groupContainer = this.treeContainer.createDiv("workspace-sidebar-group");
     groupContainer.dataset.groupName = groupName;
@@ -6130,15 +6176,22 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     let name = baseName;
     let counter = 1;
     const groups = workspaceManager.getGroups();
+    workspaceManager.logger.log(`[createNewGroup] existing groups: ${JSON.stringify(groups)}`);
     while (groups.includes(name)) {
       counter++;
       name = `${baseName} ${counter}`;
     }
+    workspaceManager.logger.log(`[createNewGroup] new group name: ${name}`);
     const order2 = workspaceManager.getGroupOrder();
+    workspaceManager.logger.log(`[createNewGroup] groupOrder before: ${JSON.stringify(order2)}`);
     order2.push(name);
     workspaceManager.setGroupOrder(order2);
+    workspaceManager.logger.log(`[createNewGroup] groupOrder after setGroupOrder: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
     workspaceManager.setGroupIcon(name, "folder");
     await this.plugin.saveSettings();
+    workspaceManager.logger.log(`[createNewGroup] groups after save: ${JSON.stringify(workspaceManager.getGroups())}`);
+    workspaceManager.logger.log(`[createNewGroup] groupOrder after save: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
+    await workspaceManager.saveLog();
     this.renderTree();
     new import_obsidian7.Notice(`Created group: ${name}`);
     setTimeout(() => this.renameGroupInline(name), 100);
@@ -6687,6 +6740,7 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
   // Settings Management
   // ─────────────────────────────────────────────────────────────────
   async loadSettings() {
+    var _a;
     const data = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data);
     const workspaceStorage = (data == null ? void 0 : data.workspaceStorage) || {
@@ -6699,17 +6753,31 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
       workspaceStorage,
       () => this.settings.debugMode
     );
+    this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage exists: ${!!(data == null ? void 0 : data.workspaceStorage)}`);
+    this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage?.groupOrder: ${JSON.stringify((_a = data == null ? void 0 : data.workspaceStorage) == null ? void 0 : _a.groupOrder)}`);
+    this.workspaceManager.logger.log(`[loadSettings] workspaceStorage.groupOrder: ${JSON.stringify(workspaceStorage.groupOrder)}`);
+    this.workspaceManager.logger.log(`[loadSettings] workspaceStorage.groupIcons: ${JSON.stringify(workspaceStorage.groupIcons)}`);
+    await this.workspaceManager.saveLog();
     if (data == null ? void 0 : data.navigationLayouts) {
       this.navigationLayouts = new Map(Object.entries(data.navigationLayouts));
     }
   }
   async saveSettings() {
+    const stack = new Error().stack;
     this.saveQueue = this.saveQueue.then(async () => {
+      var _a;
+      const storage = this.workspaceManager.getStorage();
+      this.workspaceManager.logger.log(`[saveSettings] CALLED FROM:
+${stack}`);
+      this.workspaceManager.logger.log(`[saveSettings] storage.groupOrder: ${JSON.stringify(storage.groupOrder)}`);
+      this.workspaceManager.logger.log(`[saveSettings] storage.groupIcons: ${JSON.stringify(storage.groupIcons)}`);
       const dataToSave = {
         ...this.settings,
-        workspaceStorage: this.workspaceManager.getStorage(),
+        workspaceStorage: storage,
         navigationLayouts: Object.fromEntries(this.navigationLayouts)
       };
+      this.workspaceManager.logger.log(`[saveSettings] dataToSave.workspaceStorage.groupOrder: ${JSON.stringify((_a = dataToSave.workspaceStorage) == null ? void 0 : _a.groupOrder)}`);
+      await this.workspaceManager.saveLog();
       await this.saveData(dataToSave);
       if (this.settings.autoBackupEnabled) {
         await this.writeBackup(dataToSave);

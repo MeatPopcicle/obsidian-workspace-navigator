@@ -205,15 +205,29 @@ export class WorkspaceManager {
 
 	/**
 	 * Get all unique group names (alphabetically sorted)
+	 * Includes groups from groupOrder that may be empty (no workspaces assigned)
 	 */
 	getGroups(): string[] {
 		const groups = new Set<string>();
+
+		// Add groups that have workspaces assigned
 		for (const name of this.getWorkspaceNames()) {
 			const group = this.getWorkspaceGroup(name);
 			if (group) {
 				groups.add(group);
 			}
 		}
+
+		// Also add groups from groupOrder (these may be empty but explicitly created)
+		if (this.storage.groupOrder) {
+			for (const groupName of this.storage.groupOrder) {
+				// Skip the special "No Group" pseudo-group
+				if (groupName !== '\x00nogroup') {
+					groups.add(groupName);
+				}
+			}
+		}
+
 		return Array.from(groups).sort((a, b) =>
 			a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
 		);
