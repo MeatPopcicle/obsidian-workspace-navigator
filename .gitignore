@@ -1,5 +1,22 @@
-# User data (workspace layouts, settings)
+# Dependencies
+node_modules/
+
+# Build output (main.js IS committed for BRAT — do not ignore it)
+
+# User / test-vault data (workspace layouts, settings)
 data.json
 
-# Node
-node_modules/
+# Auto-generated development logs
+logs/
+
+# Reference copies of other plugins (kept locally, not part of this repo)
+_archive/
+
+# Dev-only scratch (UI mockups, experiments)
+dev/
+
+# Tooling / editor / test artifacts
+.playwright-mcp/
+.claude/
+.remember/
+.DS_Store
