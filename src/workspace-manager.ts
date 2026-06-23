@@ -621,7 +621,9 @@ export class WorkspaceManager {
 	 * Get saved group order
 	 */
 	getGroupOrder(): string[] {
-		return this.storage.groupOrder || [];
+		// Return a copy: callers (and reorder helpers) splice the result, and we
+		// don't want them mutating persisted state through the getter.
+		return [...(this.storage.groupOrder || [])];
 	}
 
 	/**
@@ -662,17 +664,11 @@ export class WorkspaceManager {
 		this.logger.log(`Moved group "${groupName}" ${position} "${targetGroup}"`);
 	}
 
-	/**
-	 * Clean up group order data (remove deleted groups, add missing ones)
-	 */
-	cleanupGroupOrder(): void {
-		if (!this.storage.groupOrder) return;
-
-		const existingGroups = new Set(this.getGroups());
-
-		// Remove groups that no longer exist
-		this.storage.groupOrder = this.storage.groupOrder.filter(name => existingGroups.has(name));
-	}
+	// Note: group-order cleanup is handled by pruneOrphanedGroupData(), which
+	// correctly preserves the '\x00nogroup' sentinel position. (An older
+	// cleanupGroupOrder() filtered against getGroups() — which excludes the
+	// sentinel — and so silently discarded the No-Group's saved placement; it
+	// was unused and has been removed.)
 
 	// ───────────────────────────────────────────────────────────────────
 	// Workspace Order Management (for manual sorting)
@@ -689,8 +685,9 @@ export class WorkspaceManager {
 	 * Get workspace order for a group
 	 */
 	getWorkspaceOrder(group: string | null): string[] {
+		// Return a copy (see getGroupOrder) so callers can't splice persisted state.
 		const key = this.getOrderKey(group);
-		return this.storage.workspaceOrder?.[key] || [];
+		return [...(this.storage.workspaceOrder?.[key] || [])];
 	}
 
 	/**
@@ -1623,6 +1620,11 @@ export class WorkspaceManager {
 				this.logger.log(`- Overwrite mode: clearing ${existingNames.length} existing workspaces`);
 				this.storage.workspaces = {};
 				// Don't clear activeWorkspace yet - we'll set it to first imported workspace
+
+				// Clearing workspaces orphans their group/order/style data; prune it
+				// so the imported set starts from a clean slate.
+				this.pruneOrphanedGroupData();
+				this.cleanupWorkspaceOrder();
 			}
 
 			// Import each workspace

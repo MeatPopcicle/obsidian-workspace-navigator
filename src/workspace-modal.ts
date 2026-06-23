@@ -2059,6 +2059,17 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					workspaceManager.setGroupColor(newName, textColor);
 					workspaceManager.setGroupColor('\x00nogroup', null);
 				}
+				// Transfer bold/italic too — this inline path previously dropped them
+				// while the edit-modal path kept them, so renaming "No Group" lost
+				// its bold/italic depending on which entry point was used.
+				if (workspaceManager.getGroupBold('\x00nogroup')) {
+					workspaceManager.setGroupBold(newName, true);
+					workspaceManager.setGroupBold('\x00nogroup', false);
+				}
+				if (workspaceManager.getGroupItalic('\x00nogroup')) {
+					workspaceManager.setGroupItalic(newName, true);
+					workspaceManager.setGroupItalic('\x00nogroup', false);
+				}
 				// Transfer collapsed state
 				if (workspaceManager.isGroupCollapsed('\x00nogroup')) {
 					workspaceManager.setGroupCollapsed(newName, true);

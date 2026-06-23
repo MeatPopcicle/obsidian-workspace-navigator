@@ -1106,6 +1106,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			const workspaceManager = this.plugin.getWorkspaceManager();
 			workspaceManager.deleteWorkspace(workspaceName);
 			this.plugin.navigationLayouts.delete(workspaceName);
+			this.collapsedWorkspaces.delete(workspaceName);  // don't leak a stale collapse entry
 			await this.plugin.saveSettings();
 			this.plugin.updateStatusBar();
 			this.renderTree();
@@ -1135,6 +1136,7 @@ export class WorkspaceNavigatorView extends ItemView {
 				// Centralized deletion: ungroups workspaces, removes from order,
 				// and clears all styling in one consistent operation.
 				workspaceManager.deleteGroup(groupName);
+				this.collapsedGroups.delete(groupName);  // don't leak a stale collapse entry
 
 				await this.plugin.saveSettings();
 				this.renderTree();

@@ -240,6 +240,17 @@ export class WorkspaceEditorModal extends Modal {
 			this.cleanupDrag();
 		};
 
+		// onOpen() doubles as the list-refresh path and is re-invoked many times
+		// over the modal's life. Remove any previously-registered global handlers
+		// before adding new ones, or each refresh leaks another document-level
+		// mousemove/mouseup pair (onClose would only ever remove the last).
+		if ((this as any)._dragMouseMove) {
+			document.removeEventListener('mousemove', (this as any)._dragMouseMove);
+		}
+		if ((this as any)._dragMouseUp) {
+			document.removeEventListener('mouseup', (this as any)._dragMouseUp);
+		}
+
 		// Store handlers for cleanup
 		(this as any)._dragMouseMove = onMouseMove;
 		(this as any)._dragMouseUp = onMouseUp;

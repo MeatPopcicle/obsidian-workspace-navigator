@@ -51,9 +51,17 @@ var ConfirmationModal = class extends import_obsidian.Modal {
         cls: "mod-cta",
         attr: { type: "submit" }
       });
+      let accepting = false;
       btnSubmit.addEventListener("click", async () => {
-        await onAccept();
-        this.close();
+        if (accepting)
+          return;
+        accepting = true;
+        btnSubmit.disabled = true;
+        try {
+          await onAccept();
+        } finally {
+          this.close();
+        }
       });
       setTimeout(() => {
         btnSubmit.focus();
@@ -148,6 +156,10 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       dropdown.addOption("", "(None)");
       for (const group of groups) {
         dropdown.addOption(group, group);
+      }
+      if (this.plugin.settings.defaultGroup && !groups.includes(this.plugin.settings.defaultGroup)) {
+        this.plugin.settings.defaultGroup = "";
+        this.plugin.saveSettings();
       }
       dropdown.setValue(this.plugin.settings.defaultGroup);
       dropdown.onChange(async (value) => {
@@ -3496,6 +3508,14 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           workspaceManager.setGroupColor(newName, textColor);
           workspaceManager.setGroupColor("\0nogroup", null);
         }
+        if (workspaceManager.getGroupBold("\0nogroup")) {
+          workspaceManager.setGroupBold(newName, true);
+          workspaceManager.setGroupBold("\0nogroup", false);
+        }
+        if (workspaceManager.getGroupItalic("\0nogroup")) {
+          workspaceManager.setGroupItalic(newName, true);
+          workspaceManager.setGroupItalic("\0nogroup", false);
+        }
         if (workspaceManager.isGroupCollapsed("\0nogroup")) {
           workspaceManager.setGroupCollapsed(newName, true);
           workspaceManager.setGroupCollapsed("\0nogroup", false);
@@ -3990,6 +4010,12 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
       }
       this.cleanupDrag();
     };
+    if (this._dragMouseMove) {
+      document.removeEventListener("mousemove", this._dragMouseMove);
+    }
+    if (this._dragMouseUp) {
+      document.removeEventListener("mouseup", this._dragMouseUp);
+    }
     this._dragMouseMove = onMouseMove;
     this._dragMouseUp = onMouseUp;
     document.addEventListener("mousemove", onMouseMove);
@@ -4748,7 +4774,7 @@ var WorkspaceManager = class {
    * Get saved group order
    */
   getGroupOrder() {
-    return this.storage.groupOrder || [];
+    return [...this.storage.groupOrder || []];
   }
   /**
    * Set group order
@@ -4778,15 +4804,11 @@ var WorkspaceManager = class {
     this.setGroupOrder(order2);
     this.logger.log(`Moved group "${groupName}" ${position} "${targetGroup}"`);
   }
-  /**
-   * Clean up group order data (remove deleted groups, add missing ones)
-   */
-  cleanupGroupOrder() {
-    if (!this.storage.groupOrder)
-      return;
-    const existingGroups = new Set(this.getGroups());
-    this.storage.groupOrder = this.storage.groupOrder.filter((name) => existingGroups.has(name));
-  }
+  // Note: group-order cleanup is handled by pruneOrphanedGroupData(), which
+  // correctly preserves the '\x00nogroup' sentinel position. (An older
+  // cleanupGroupOrder() filtered against getGroups() — which excludes the
+  // sentinel — and so silently discarded the No-Group's saved placement; it
+  // was unused and has been removed.)
   // ───────────────────────────────────────────────────────────────────
   // Workspace Order Management (for manual sorting)
   // ───────────────────────────────────────────────────────────────────
@@ -4802,7 +4824,7 @@ var WorkspaceManager = class {
   getWorkspaceOrder(group) {
     var _a;
     const key = this.getOrderKey(group);
-    return ((_a = this.storage.workspaceOrder) == null ? void 0 : _a[key]) || [];
+    return [...((_a = this.storage.workspaceOrder) == null ? void 0 : _a[key]) || []];
   }
   /**
    * Set workspace order for a group
@@ -5560,6 +5582,8 @@ ${JSON.stringify(Object.keys(coreData.workspaces || {}), null, 2)}
         const existingNames = Object.keys(this.storage.workspaces);
         this.logger.log(`- Overwrite mode: clearing ${existingNames.length} existing workspaces`);
         this.storage.workspaces = {};
+        this.pruneOrphanedGroupData();
+        this.cleanupWorkspaceOrder();
       }
       for (const [name, layout] of Object.entries(coreData.workspaces)) {
         try {
@@ -6400,6 +6424,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
       const workspaceManager = this.plugin.getWorkspaceManager();
       workspaceManager.deleteWorkspace(workspaceName);
       this.plugin.navigationLayouts.delete(workspaceName);
+      this.collapsedWorkspaces.delete(workspaceName);
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
       this.renderTree();
@@ -6424,6 +6449,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
       onAccept: async () => {
         const workspaceManager = this.plugin.getWorkspaceManager();
         workspaceManager.deleteGroup(groupName);
+        this.collapsedGroups.delete(groupName);
         await this.plugin.saveSettings();
         this.renderTree();
         new import_obsidian7.Notice(`Deleted group: ${groupName}`);
@@ -6677,6 +6703,7 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
   async onunload() {
     await this.workspaceManager.saveLog();
     this.updateWorkspaceDataAttribute(null);
+    document.querySelectorAll(".workspace-tab-indicator").forEach((el) => el.remove());
     if (this.autoSaveTimeout) {
       clearTimeout(this.autoSaveTimeout);
       this.autoSaveTimeout = null;

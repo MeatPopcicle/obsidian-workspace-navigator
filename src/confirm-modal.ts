@@ -50,9 +50,19 @@ export class ConfirmationModal extends Modal {
 				attr: { type: 'submit' }
 			});
 
+			let accepting = false;
 			btnSubmit.addEventListener('click', async () => {
-				await onAccept();
-				this.close();
+				// Guard against a double-click firing onAccept twice before close().
+				if (accepting) return;
+				accepting = true;
+				btnSubmit.disabled = true;
+				// finally{} ensures the modal always closes, even if onAccept throws —
+				// otherwise a thrown handler would leave the dialog wedged open.
+				try {
+					await onAccept();
+				} finally {
+					this.close();
+				}
 			});
 
 			// Focus the confirm button after a short delay

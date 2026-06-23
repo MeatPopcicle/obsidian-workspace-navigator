@@ -210,6 +210,13 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				for (const group of groups) {
 					dropdown.addOption(group, group);
 				}
+				// If the saved default points at a group that no longer exists,
+				// reset to (None) instead of silently showing the first option while
+				// still assigning new workspaces to the ghost group.
+				if (this.plugin.settings.defaultGroup && !groups.includes(this.plugin.settings.defaultGroup)) {
+					this.plugin.settings.defaultGroup = '';
+					this.plugin.saveSettings();
+				}
 				dropdown.setValue(this.plugin.settings.defaultGroup);
 				dropdown.onChange(async (value) => {
 					this.plugin.settings.defaultGroup = value;

@@ -97,6 +97,10 @@ export default class WorkspaceNavigator extends Plugin {
 		// Clean up CSS data attribute
 		this.updateWorkspaceDataAttribute(null);
 
+		// Remove tab indicators we injected into other plugins' tab headers;
+		// otherwise stale badges linger after the plugin is disabled/updated.
+		document.querySelectorAll('.workspace-tab-indicator').forEach(el => el.remove());
+
 		// Clean up auto-save timeout
 		if (this.autoSaveTimeout) {
 			clearTimeout(this.autoSaveTimeout);
