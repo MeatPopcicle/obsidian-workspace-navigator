@@ -5,7 +5,6 @@
 import { Plugin, Notice, setIcon, WorkspaceLeaf, Platform } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal, WorkspacePickerModal } from './workspace-modal';
-import { WorkspaceEditorModal } from './workspace-editor';
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
 import { createConfirmationDialog } from './confirm-modal';
 import { WorkspaceNavigatorView, VIEW_TYPE_WORKSPACE_NAVIGATOR } from './workspace-sidebar-view';
@@ -34,6 +33,7 @@ export default class WorkspaceNavigator extends Plugin {
 	statusBarItem:               HTMLElement | null = null;
 	navigationLayouts:           Map<string, NavigationLayoutState> = new Map();
 	isLoadingWorkspace:          boolean = false;
+	previousWorkspace:           string | null = null;  // for the "switch to last workspace" toggle
 	autoSaveTimeout:             NodeJS.Timeout | null = null;
 	private saveQueue:           Promise<void> = Promise.resolve();
 	private workspaceCommandIds: Set<string> = new Set();
@@ -307,12 +307,23 @@ export default class WorkspaceNavigator extends Plugin {
 			}
 		});
 
-		// Open workspace editor (manage workspaces)
+		// Toggle between the two most-recently-active workspaces (Alt-Tab style)
 		this.addCommand({
-			id: 'open-workspace-editor',
-			name: 'Manage workspaces',
-			callback: () => {
-				new WorkspaceEditorModal(this.app, this).open();
+			id: 'switch-to-last-workspace',
+			name: 'Switch to last workspace',
+			callback: async () => {
+				const prev = this.previousWorkspace;
+				if (!prev) {
+					new Notice('No previous workspace yet');
+					return;
+				}
+				if (!this.workspaceManager.hasWorkspace(prev)) {
+					new Notice(`Previous workspace "${prev}" no longer exists`);
+					this.previousWorkspace = null;
+					return;
+				}
+				await this.loadWorkspace(prev);
+				new Notice(`Switched to: ${prev}`);
 			}
 		});
 
@@ -951,6 +962,13 @@ export default class WorkspaceNavigator extends Plugin {
 	async loadWorkspace(name: string) {
 		const restoreFolderState = this.settings.rememberNavigationLayout &&
 		                           !this.settings.maintainLayoutAcrossWorkspaces;
+
+		// Remember the workspace we're leaving so "switch to last workspace" can
+		// bounce back to it (and repeated toggles ping-pong between the two).
+		const outgoing = this.workspaceManager.getActiveWorkspace();
+		if (outgoing && outgoing !== name) {
+			this.previousWorkspace = outgoing;
+		}
 
 		this.beforeWorkspaceLoad(name);
 		try {

@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 // GROUP HEADER RENDERING UTILITY
-// Shared between WorkspaceSwitcherModal and WorkspaceEditorModal
+// Used by the WorkspaceSwitcherModal (status-bar switcher)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { setIcon } from 'obsidian';
