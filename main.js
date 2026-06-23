@@ -4363,7 +4363,7 @@ var WorkspaceLogger = class {
   }
 };
 var globalLogger = null;
-var WorkspaceManager = class {
+var _WorkspaceManager = class _WorkspaceManager {
   constructor(app, initialStorage, debugEnabled) {
     this.app = app;
     this.storage = initialStorage || {
@@ -4555,6 +4555,16 @@ var WorkspaceManager = class {
       delete this.storage.groupIconColors[group];
     }
   }
+  /** The live per-group style map objects that currently exist on storage. */
+  groupStyleMaps() {
+    const out = [];
+    for (const key of _WorkspaceManager.GROUP_STYLE_MAP_KEYS) {
+      const map = this.storage[key];
+      if (map)
+        out.push(map);
+    }
+    return out;
+  }
   /**
    * Rename a group (updates all workspaces and transfers style data)
    */
@@ -4578,35 +4588,11 @@ var WorkspaceManager = class {
       this.storage.workspaceOrder[newName] = this.storage.workspaceOrder[oldName];
       delete this.storage.workspaceOrder[oldName];
     }
-    const icon = this.getGroupIcon(oldName);
-    if (icon) {
-      this.setGroupIcon(newName, icon);
-      this.setGroupIcon(oldName, null);
-    }
-    const iconColor = this.getGroupIconColor(oldName);
-    if (iconColor) {
-      this.setGroupIconColor(newName, iconColor);
-      this.setGroupIconColor(oldName, null);
-    }
-    const textColor = this.getGroupColor(oldName);
-    if (textColor) {
-      this.setGroupColor(newName, textColor);
-      this.setGroupColor(oldName, null);
-    }
-    const bold = this.getGroupBold(oldName);
-    if (bold) {
-      this.setGroupBold(newName, true);
-      this.setGroupBold(oldName, false);
-    }
-    const italic = this.getGroupItalic(oldName);
-    if (italic) {
-      this.setGroupItalic(newName, true);
-      this.setGroupItalic(oldName, false);
-    }
-    const collapsed = this.isGroupCollapsed(oldName);
-    if (collapsed) {
-      this.setGroupCollapsed(newName, true);
-      this.setGroupCollapsed(oldName, false);
+    for (const map of this.groupStyleMaps()) {
+      if (map[oldName] !== void 0) {
+        map[newName] = map[oldName];
+        delete map[oldName];
+      }
     }
   }
   /**
@@ -4629,12 +4615,9 @@ var WorkspaceManager = class {
     if (this.storage.workspaceOrder) {
       delete this.storage.workspaceOrder[groupName];
     }
-    this.setGroupIcon(groupName, null);
-    this.setGroupIconColor(groupName, null);
-    this.setGroupColor(groupName, null);
-    this.setGroupBold(groupName, false);
-    this.setGroupItalic(groupName, false);
-    this.setGroupCollapsed(groupName, false);
+    for (const map of this.groupStyleMaps()) {
+      delete map[groupName];
+    }
   }
   /**
    * Remove leftover group styling/order data for groups that no longer exist
@@ -4646,17 +4629,7 @@ var WorkspaceManager = class {
   pruneOrphanedGroupData() {
     const valid = new Set(this.getGroups());
     let removed = 0;
-    const styleMaps = [
-      this.storage.groupIcons,
-      this.storage.groupIconColors,
-      this.storage.groupColors,
-      this.storage.groupBold,
-      this.storage.groupItalic,
-      this.storage.collapsedGroups
-    ];
-    for (const map of styleMaps) {
-      if (!map)
-        continue;
+    for (const map of this.groupStyleMaps()) {
       for (const key of Object.keys(map)) {
         if (key === "\0nogroup")
           continue;
@@ -5636,6 +5609,19 @@ ${JSON.stringify(Object.keys(coreData.workspaces || {}), null, 2)}
     return result;
   }
 };
+// Single source of truth for the per-group style maps. Driving the bulk
+// rename/delete/prune operations off this table means a new style facet only
+// needs to be added in one place, and none can be forgotten (the historical
+// source of style/order drift bugs).
+_WorkspaceManager.GROUP_STYLE_MAP_KEYS = [
+  "groupIcons",
+  "groupIconColors",
+  "groupColors",
+  "groupBold",
+  "groupItalic",
+  "collapsedGroups"
+];
+var WorkspaceManager = _WorkspaceManager;
 
 // src/workspace-sidebar-view.ts
 var import_obsidian7 = require("obsidian");

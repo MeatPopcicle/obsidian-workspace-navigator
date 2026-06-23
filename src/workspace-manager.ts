@@ -356,6 +356,25 @@ export class WorkspaceManager {
 		}
 	}
 
+	// Single source of truth for the per-group style maps. Driving the bulk
+	// rename/delete/prune operations off this table means a new style facet only
+	// needs to be added in one place, and none can be forgotten (the historical
+	// source of style/order drift bugs).
+	private static readonly GROUP_STYLE_MAP_KEYS = [
+		'groupIcons', 'groupIconColors', 'groupColors',
+		'groupBold', 'groupItalic', 'collapsedGroups',
+	] as const;
+
+	/** The live per-group style map objects that currently exist on storage. */
+	private groupStyleMaps(): Array<Record<string, unknown>> {
+		const out: Array<Record<string, unknown>> = [];
+		for (const key of WorkspaceManager.GROUP_STYLE_MAP_KEYS) {
+			const map = this.storage[key] as Record<string, unknown> | undefined;
+			if (map) out.push(map);
+		}
+		return out;
+	}
+
 	/**
 	 * Rename a group (updates all workspaces and transfers style data)
 	 */
@@ -390,46 +409,15 @@ export class WorkspaceManager {
 			delete this.storage.workspaceOrder[oldName];
 		}
 
-		// Transfer group icon
-		const icon = this.getGroupIcon(oldName);
-		if (icon) {
-			this.setGroupIcon(newName, icon);
-			this.setGroupIcon(oldName, null);
-		}
-
-		// Transfer group icon color
-		const iconColor = this.getGroupIconColor(oldName);
-		if (iconColor) {
-			this.setGroupIconColor(newName, iconColor);
-			this.setGroupIconColor(oldName, null);
-		}
-
-		// Transfer group text color
-		const textColor = this.getGroupColor(oldName);
-		if (textColor) {
-			this.setGroupColor(newName, textColor);
-			this.setGroupColor(oldName, null);
-		}
-
-		// Transfer group bold
-		const bold = this.getGroupBold(oldName);
-		if (bold) {
-			this.setGroupBold(newName, true);
-			this.setGroupBold(oldName, false);
-		}
-
-		// Transfer group italic
-		const italic = this.getGroupItalic(oldName);
-		if (italic) {
-			this.setGroupItalic(newName, true);
-			this.setGroupItalic(oldName, false);
-		}
-
-		// Transfer collapsed state
-		const collapsed = this.isGroupCollapsed(oldName);
-		if (collapsed) {
-			this.setGroupCollapsed(newName, true);
-			this.setGroupCollapsed(oldName, false);
+		// Transfer every style facet (icon, icon color, text color, bold, italic,
+		// collapsed) to the new name. Driven by the style-map table so no facet
+		// can be missed. Values are only present when "set" (setters delete on
+		// null/false), so a plain move is equivalent to the old per-facet logic.
+		for (const map of this.groupStyleMaps()) {
+			if (map[oldName] !== undefined) {
+				map[newName] = map[oldName];
+				delete map[oldName];
+			}
 		}
 	}
 
@@ -461,13 +449,10 @@ export class WorkspaceManager {
 			delete this.storage.workspaceOrder[groupName];
 		}
 
-		// Clear every style facet
-		this.setGroupIcon(groupName, null);
-		this.setGroupIconColor(groupName, null);
-		this.setGroupColor(groupName, null);
-		this.setGroupBold(groupName, false);
-		this.setGroupItalic(groupName, false);
-		this.setGroupCollapsed(groupName, false);
+		// Clear every style facet (table-driven)
+		for (const map of this.groupStyleMaps()) {
+			delete map[groupName];
+		}
 	}
 
 	/**
@@ -481,16 +466,7 @@ export class WorkspaceManager {
 		const valid = new Set(this.getGroups());
 		let removed = 0;
 
-		const styleMaps: Array<Record<string, unknown> | undefined> = [
-			this.storage.groupIcons,
-			this.storage.groupIconColors,
-			this.storage.groupColors,
-			this.storage.groupBold,
-			this.storage.groupItalic,
-			this.storage.collapsedGroups,
-		];
-		for (const map of styleMaps) {
-			if (!map) continue;
+		for (const map of this.groupStyleMaps()) {
 			for (const key of Object.keys(map)) {
 				if (key === '\x00nogroup') continue;
 				if (!valid.has(key)) {
