@@ -372,6 +372,20 @@ export class WorkspaceManager {
 			this.setWorkspaceGroup(workspaceName, newName);
 		}
 
+		// Update manual order: replace oldName with newName in place so the
+		// group keeps its position (and no ghost of oldName lingers in the order).
+		if (this.storage.groupOrder) {
+			const idx = this.storage.groupOrder.indexOf(oldName);
+			if (idx !== -1) {
+				if (this.storage.groupOrder.includes(newName)) {
+					// Target name already in the order — just drop the old entry
+					this.storage.groupOrder.splice(idx, 1);
+				} else {
+					this.storage.groupOrder[idx] = newName;
+				}
+			}
+		}
+
 		// Transfer group icon
 		const icon = this.getGroupIcon(oldName);
 		if (icon) {
@@ -413,6 +427,82 @@ export class WorkspaceManager {
 			this.setGroupCollapsed(newName, true);
 			this.setGroupCollapsed(oldName, false);
 		}
+	}
+
+	/**
+	 * Delete a group entirely. Single source of truth for group deletion so
+	 * every UI path (sidebar, switcher modal) behaves identically: ungroup the
+	 * workspaces, remove the group from the manual order, and clear ALL of its
+	 * styling. Previously each view did a partial subset of this, which left
+	 * the group lingering in groupOrder (and thus reappearing) or leaked
+	 * orphaned style data.
+	 */
+	deleteGroup(groupName: string): void {
+		if (!groupName || groupName === '\x00nogroup') return;
+
+		// Move every workspace in this group back to ungrouped
+		for (const workspaceName of this.getWorkspacesByGroup(groupName)) {
+			this.setWorkspaceGroup(workspaceName, null);
+		}
+
+		// Remove from the manual order
+		if (this.storage.groupOrder) {
+			this.storage.groupOrder = this.storage.groupOrder.filter(g => g !== groupName);
+		}
+
+		// Clear every style facet
+		this.setGroupIcon(groupName, null);
+		this.setGroupIconColor(groupName, null);
+		this.setGroupColor(groupName, null);
+		this.setGroupBold(groupName, false);
+		this.setGroupItalic(groupName, false);
+		this.setGroupCollapsed(groupName, false);
+	}
+
+	/**
+	 * Remove leftover group styling/order data for groups that no longer exist
+	 * (no workspaces assigned AND not in the manual order). This cleans up
+	 * vaults corrupted by older delete/rename bugs that left ghosts behind.
+	 * Note: legitimately-empty groups (present in groupOrder) are preserved —
+	 * only truly dead residue is removed. Returns the count of entries removed.
+	 */
+	pruneOrphanedGroupData(): number {
+		const valid = new Set(this.getGroups());
+		let removed = 0;
+
+		const styleMaps: Array<Record<string, unknown> | undefined> = [
+			this.storage.groupIcons,
+			this.storage.groupIconColors,
+			this.storage.groupColors,
+			this.storage.groupBold,
+			this.storage.groupItalic,
+			this.storage.collapsedGroups,
+		];
+		for (const map of styleMaps) {
+			if (!map) continue;
+			for (const key of Object.keys(map)) {
+				if (key === '\x00nogroup') continue;
+				if (!valid.has(key)) {
+					delete map[key];
+					removed++;
+				}
+			}
+		}
+
+		// Dedupe the manual order (drop repeated entries); keep the '\x00nogroup'
+		// positional marker and any valid group (including empty ones).
+		if (this.storage.groupOrder) {
+			const seen = new Set<string>();
+			const cleaned = this.storage.groupOrder.filter(g => {
+				if (seen.has(g)) return false;
+				seen.add(g);
+				return true;
+			});
+			removed += this.storage.groupOrder.length - cleaned.length;
+			this.storage.groupOrder = cleaned;
+		}
+
+		return removed;
 	}
 
 	/**

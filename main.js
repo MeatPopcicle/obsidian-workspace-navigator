@@ -3700,13 +3700,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   async onGroupDelete(groupName) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
-    for (const workspace of workspacesInGroup) {
-      workspaceManager.setWorkspaceGroup(workspace, null);
-    }
-    workspaceManager.setGroupIcon(groupName, null);
-    workspaceManager.setGroupIconColor(groupName, null);
-    workspaceManager.setGroupColor(groupName, null);
-    workspaceManager.setGroupCollapsed(groupName, false);
+    workspaceManager.deleteGroup(groupName);
     await this.plugin.saveSettings();
     new import_obsidian4.Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
     this.lastRenderedGroup = void 0;
@@ -4621,6 +4615,16 @@ var WorkspaceManager = class {
     for (const workspaceName of this.getWorkspacesByGroup(oldName)) {
       this.setWorkspaceGroup(workspaceName, newName);
     }
+    if (this.storage.groupOrder) {
+      const idx = this.storage.groupOrder.indexOf(oldName);
+      if (idx !== -1) {
+        if (this.storage.groupOrder.includes(newName)) {
+          this.storage.groupOrder.splice(idx, 1);
+        } else {
+          this.storage.groupOrder[idx] = newName;
+        }
+      }
+    }
     const icon = this.getGroupIcon(oldName);
     if (icon) {
       this.setGroupIcon(newName, icon);
@@ -4651,6 +4655,73 @@ var WorkspaceManager = class {
       this.setGroupCollapsed(newName, true);
       this.setGroupCollapsed(oldName, false);
     }
+  }
+  /**
+   * Delete a group entirely. Single source of truth for group deletion so
+   * every UI path (sidebar, switcher modal) behaves identically: ungroup the
+   * workspaces, remove the group from the manual order, and clear ALL of its
+   * styling. Previously each view did a partial subset of this, which left
+   * the group lingering in groupOrder (and thus reappearing) or leaked
+   * orphaned style data.
+   */
+  deleteGroup(groupName) {
+    if (!groupName || groupName === "\0nogroup")
+      return;
+    for (const workspaceName of this.getWorkspacesByGroup(groupName)) {
+      this.setWorkspaceGroup(workspaceName, null);
+    }
+    if (this.storage.groupOrder) {
+      this.storage.groupOrder = this.storage.groupOrder.filter((g) => g !== groupName);
+    }
+    this.setGroupIcon(groupName, null);
+    this.setGroupIconColor(groupName, null);
+    this.setGroupColor(groupName, null);
+    this.setGroupBold(groupName, false);
+    this.setGroupItalic(groupName, false);
+    this.setGroupCollapsed(groupName, false);
+  }
+  /**
+   * Remove leftover group styling/order data for groups that no longer exist
+   * (no workspaces assigned AND not in the manual order). This cleans up
+   * vaults corrupted by older delete/rename bugs that left ghosts behind.
+   * Note: legitimately-empty groups (present in groupOrder) are preserved —
+   * only truly dead residue is removed. Returns the count of entries removed.
+   */
+  pruneOrphanedGroupData() {
+    const valid = new Set(this.getGroups());
+    let removed = 0;
+    const styleMaps = [
+      this.storage.groupIcons,
+      this.storage.groupIconColors,
+      this.storage.groupColors,
+      this.storage.groupBold,
+      this.storage.groupItalic,
+      this.storage.collapsedGroups
+    ];
+    for (const map of styleMaps) {
+      if (!map)
+        continue;
+      for (const key of Object.keys(map)) {
+        if (key === "\0nogroup")
+          continue;
+        if (!valid.has(key)) {
+          delete map[key];
+          removed++;
+        }
+      }
+    }
+    if (this.storage.groupOrder) {
+      const seen = /* @__PURE__ */ new Set();
+      const cleaned = this.storage.groupOrder.filter((g) => {
+        if (seen.has(g))
+          return false;
+        seen.add(g);
+        return true;
+      });
+      removed += this.storage.groupOrder.length - cleaned.length;
+      this.storage.groupOrder = cleaned;
+    }
+    return removed;
   }
   /**
    * Get group color
@@ -6432,21 +6503,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
       cta: "Delete",
       onAccept: async () => {
         const workspaceManager = this.plugin.getWorkspaceManager();
-        const workspaces = workspaceManager.getWorkspacesByGroup(groupName);
-        for (const ws of workspaces) {
-          workspaceManager.setWorkspaceGroup(ws, null);
-        }
-        const order2 = workspaceManager.getGroupOrder();
-        const idx = order2.indexOf(groupName);
-        if (idx !== -1) {
-          order2.splice(idx, 1);
-          workspaceManager.setGroupOrder(order2);
-        }
-        workspaceManager.setGroupIcon(groupName, null);
-        workspaceManager.setGroupIconColor(groupName, null);
-        workspaceManager.setGroupColor(groupName, null);
-        workspaceManager.setGroupBold(groupName, false);
-        workspaceManager.setGroupItalic(groupName, false);
+        workspaceManager.deleteGroup(groupName);
         await this.plugin.saveSettings();
         this.renderTree();
         new import_obsidian7.Notice(`Deleted group: ${groupName}`);
@@ -6784,6 +6841,10 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
       workspaceStorage,
       () => this.settings.debugMode
     );
+    const pruned = this.workspaceManager.pruneOrphanedGroupData();
+    if (pruned > 0) {
+      this.workspaceManager.logger.log(`[loadSettings] Pruned ${pruned} orphaned group data entr(ies)`);
+    }
     this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage exists: ${!!(data == null ? void 0 : data.workspaceStorage)}`);
     this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage?.groupOrder: ${JSON.stringify((_a = data == null ? void 0 : data.workspaceStorage) == null ? void 0 : _a.groupOrder)}`);
     this.workspaceManager.logger.log(`[loadSettings] workspaceStorage.groupOrder: ${JSON.stringify(workspaceStorage.groupOrder)}`);

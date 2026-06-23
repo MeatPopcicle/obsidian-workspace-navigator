@@ -1144,26 +1144,9 @@ export class WorkspaceNavigatorView extends ItemView {
 			onAccept: async () => {
 				const workspaceManager = this.plugin.getWorkspaceManager();
 
-				// Move all workspaces in this group to ungrouped
-				const workspaces = workspaceManager.getWorkspacesByGroup(groupName);
-				for (const ws of workspaces) {
-					workspaceManager.setWorkspaceGroup(ws, null);
-				}
-
-				// Remove group from order
-				const order = workspaceManager.getGroupOrder();
-				const idx   = order.indexOf(groupName);
-				if (idx !== -1) {
-					order.splice(idx, 1);
-					workspaceManager.setGroupOrder(order);
-				}
-
-				// Clear group styling
-				workspaceManager.setGroupIcon(groupName, null);
-				workspaceManager.setGroupIconColor(groupName, null);
-				workspaceManager.setGroupColor(groupName, null);
-				workspaceManager.setGroupBold(groupName, false);
-				workspaceManager.setGroupItalic(groupName, false);
+				// Centralized deletion: ungroups workspaces, removes from order,
+				// and clears all styling in one consistent operation.
+				workspaceManager.deleteGroup(groupName);
 
 				await this.plugin.saveSettings();
 				this.renderTree();

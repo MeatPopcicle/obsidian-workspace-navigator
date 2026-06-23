@@ -2323,16 +2323,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
 
-		// Remove group assignment from all workspaces in this group
-		for (const workspace of workspacesInGroup) {
-			workspaceManager.setWorkspaceGroup(workspace, null);
-		}
-
-		// Clear any group-level styling
-		workspaceManager.setGroupIcon(groupName, null);
-		workspaceManager.setGroupIconColor(groupName, null);
-		workspaceManager.setGroupColor(groupName, null);
-		workspaceManager.setGroupCollapsed(groupName, false);
+		// Centralized deletion: ungroups workspaces, removes the group from the
+		// manual order (previously missing here — the group reappeared), and
+		// clears all styling consistently.
+		workspaceManager.deleteGroup(groupName);
 
 		await this.plugin.saveSettings();
 

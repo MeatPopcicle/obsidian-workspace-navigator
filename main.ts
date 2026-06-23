@@ -202,6 +202,13 @@ export default class WorkspaceNavigator extends Plugin {
 			() => this.settings.debugMode
 		);
 
+		// One-time cleanup of orphaned group data left by older delete/rename
+		// bugs (ghost groups, dead style entries). Safe: preserves empty groups.
+		const pruned = this.workspaceManager.pruneOrphanedGroupData();
+		if (pruned > 0) {
+			this.workspaceManager.logger.log(`[loadSettings] Pruned ${pruned} orphaned group data entr(ies)`);
+		}
+
 		// Log what we loaded to file
 		this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage exists: ${!!data?.workspaceStorage}`);
 		this.workspaceManager.logger.log(`[loadSettings] data?.workspaceStorage?.groupOrder: ${JSON.stringify(data?.workspaceStorage?.groupOrder)}`);

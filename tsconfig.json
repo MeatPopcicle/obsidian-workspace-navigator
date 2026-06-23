@@ -23,6 +23,8 @@
   ],
   "exclude": [
     "node_modules",
+    "_archive",
+    "mockup",
     "obsidian-workspaces-plus"
   ]
 }
