@@ -208,19 +208,51 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Render each group
 		for (const groupName of allGroups) {
-			this.renderGroup(groupName, activeWorkspace, useManualOrder);
+			const el = this.renderGroup(groupName, activeWorkspace, useManualOrder);
+			if (el) this.treeContainer.appendChild(el);
 		}
 
 		// If no groups at all, still show ungrouped workspaces
 		if (allGroups.length === 0) {
 			const ungrouped = workspaceManager.getWorkspacesByGroup(null);
 			if (ungrouped.length > 0) {
-				this.renderGroup(NO_GROUP_KEY, activeWorkspace, useManualOrder);
+				const el = this.renderGroup(NO_GROUP_KEY, activeWorkspace, useManualOrder);
+				if (el) this.treeContainer.appendChild(el);
 			}
 		}
 	}
 
-	renderGroup(groupName: string, activeWorkspace: string | null, useManualOrder: boolean) {
+	/**
+	 * Re-render a single group's subtree in place instead of rebuilding the
+	 * whole tree. Used by collapse/expand toggles — the common, high-frequency
+	 * interactions — so toggling one group no longer tears down and rebuilds
+	 * every other group/workspace/file and its listeners. Produces the exact
+	 * same DOM renderGroup() would, just scoped. Falls back to a full render if
+	 * the group element isn't found (e.g. it just appeared/disappeared).
+	 */
+	rerenderGroup(groupName: string) {
+		const existing = this.treeContainer.querySelector(
+			`.workspace-sidebar-group[data-group-name="${CSS.escape(groupName)}"]`
+		) as HTMLElement | null;
+		if (!existing) {
+			this.renderTree();
+			return;
+		}
+		const workspaceManager = this.plugin.getWorkspaceManager();
+		const useManualOrder   = this.plugin.settings.manualSortOrder;
+		const activeWorkspace  = workspaceManager.getActiveWorkspace();
+		const fresh = this.renderGroup(groupName, activeWorkspace, useManualOrder);
+		if (fresh) {
+			existing.replaceWith(fresh);
+		} else {
+			existing.remove();  // group no longer renders (e.g. emptied "No Group")
+		}
+	}
+
+	// Builds a group's subtree as a detached element and returns it (or null if
+	// the group should not render). Detached so callers can either append it
+	// (full render) or swap it in place (incremental re-render on toggle).
+	renderGroup(groupName: string, activeWorkspace: string | null, useManualOrder: boolean): HTMLElement | null {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const isNoGroup        = groupName === NO_GROUP_KEY;
 		const displayName      = isNoGroup ? 'No Group' : groupName;
@@ -233,10 +265,10 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Show empty named groups (they're explicitly created by the user)
 		// Only skip empty "No Group" if there are no ungrouped workspaces
-		if (workspaces.length === 0 && isNoGroup) return;
+		if (workspaces.length === 0 && isNoGroup) return null;
 
-		// Group container
-		const groupContainer = this.treeContainer.createDiv('workspace-sidebar-group');
+		// Group container (detached; caller inserts it)
+		const groupContainer = createDiv('workspace-sidebar-group');
 		groupContainer.dataset.groupName = groupName;
 
 		// Group header
@@ -337,6 +369,8 @@ export class WorkspaceNavigatorView extends ItemView {
 				this.renderWorkspaceItem(workspacesContainer, wsName, activeWorkspace, useManualOrder, groupName);
 			}
 		}
+
+		return groupContainer;
 	}
 
 	renderWorkspaceItem(
@@ -656,7 +690,9 @@ export class WorkspaceNavigatorView extends ItemView {
 		} else {
 			this.collapsedWorkspaces.add(workspaceName);
 		}
-		this.renderTree();
+		// Incremental: re-render only the group containing this workspace.
+		const group = this.plugin.getWorkspaceManager().getWorkspaceGroup(workspaceName);
+		this.rerenderGroup(group || NO_GROUP_KEY);
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -669,7 +705,8 @@ export class WorkspaceNavigatorView extends ItemView {
 		} else {
 			this.collapsedGroups.add(groupName);
 		}
-		this.renderTree();
+		// Incremental: re-render only this group's subtree, not the whole tree.
+		this.rerenderGroup(groupName);
 
 		// Update expand/collapse button in header
 		const btn = this.containerEl.querySelector('.workspace-sidebar-action-btn:nth-child(3)') as HTMLElement;

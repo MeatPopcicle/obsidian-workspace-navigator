@@ -5776,15 +5776,48 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     const allGroups = workspaceManager.getAllGroupsOrdered(useManualOrder);
     for (const groupName of allGroups) {
-      this.renderGroup(groupName, activeWorkspace, useManualOrder);
+      const el = this.renderGroup(groupName, activeWorkspace, useManualOrder);
+      if (el)
+        this.treeContainer.appendChild(el);
     }
     if (allGroups.length === 0) {
       const ungrouped = workspaceManager.getWorkspacesByGroup(null);
       if (ungrouped.length > 0) {
-        this.renderGroup(NO_GROUP_KEY2, activeWorkspace, useManualOrder);
+        const el = this.renderGroup(NO_GROUP_KEY2, activeWorkspace, useManualOrder);
+        if (el)
+          this.treeContainer.appendChild(el);
       }
     }
   }
+  /**
+   * Re-render a single group's subtree in place instead of rebuilding the
+   * whole tree. Used by collapse/expand toggles — the common, high-frequency
+   * interactions — so toggling one group no longer tears down and rebuilds
+   * every other group/workspace/file and its listeners. Produces the exact
+   * same DOM renderGroup() would, just scoped. Falls back to a full render if
+   * the group element isn't found (e.g. it just appeared/disappeared).
+   */
+  rerenderGroup(groupName) {
+    const existing = this.treeContainer.querySelector(
+      `.workspace-sidebar-group[data-group-name="${CSS.escape(groupName)}"]`
+    );
+    if (!existing) {
+      this.renderTree();
+      return;
+    }
+    const workspaceManager = this.plugin.getWorkspaceManager();
+    const useManualOrder = this.plugin.settings.manualSortOrder;
+    const activeWorkspace = workspaceManager.getActiveWorkspace();
+    const fresh = this.renderGroup(groupName, activeWorkspace, useManualOrder);
+    if (fresh) {
+      existing.replaceWith(fresh);
+    } else {
+      existing.remove();
+    }
+  }
+  // Builds a group's subtree as a detached element and returns it (or null if
+  // the group should not render). Detached so callers can either append it
+  // (full render) or swap it in place (incremental re-render on toggle).
   renderGroup(groupName, activeWorkspace, useManualOrder) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const isNoGroup = groupName === NO_GROUP_KEY2;
@@ -5792,8 +5825,8 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const isCollapsed = this.collapsedGroups.has(groupName);
     const workspaces = isNoGroup ? workspaceManager.getWorkspacesByGroup(null) : workspaceManager.getWorkspacesByGroup(groupName);
     if (workspaces.length === 0 && isNoGroup)
-      return;
-    const groupContainer = this.treeContainer.createDiv("workspace-sidebar-group");
+      return null;
+    const groupContainer = createDiv("workspace-sidebar-group");
     groupContainer.dataset.groupName = groupName;
     const groupHeader = groupContainer.createDiv("workspace-sidebar-group-header");
     groupHeader.dataset.groupName = groupName;
@@ -5867,6 +5900,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
         this.renderWorkspaceItem(workspacesContainer, wsName, activeWorkspace, useManualOrder, groupName);
       }
     }
+    return groupContainer;
   }
   renderWorkspaceItem(container, workspaceName, activeWorkspace, useManualOrder, groupName) {
     const workspaceManager = this.plugin.getWorkspaceManager();
@@ -6102,7 +6136,8 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     } else {
       this.collapsedWorkspaces.add(workspaceName);
     }
-    this.renderTree();
+    const group = this.plugin.getWorkspaceManager().getWorkspaceGroup(workspaceName);
+    this.rerenderGroup(group || NO_GROUP_KEY2);
   }
   // ─────────────────────────────────────────────────────────────────
   // Group Toggle
@@ -6113,7 +6148,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     } else {
       this.collapsedGroups.add(groupName);
     }
-    this.renderTree();
+    this.rerenderGroup(groupName);
     const btn = this.containerEl.querySelector(".workspace-sidebar-action-btn:nth-child(3)");
     if (btn)
       this.updateExpandGroupsButton(btn);
