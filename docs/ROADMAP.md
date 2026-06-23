@@ -1,7 +1,18 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.12.0
-**Last Updated:** 2025-12-23
+**Current Version:** v2.16.0
+**Last Updated:** 2026-06-23
+
+---
+
+## Primary Surfaces
+
+The plugin is intentionally driven by **two** surfaces only:
+
+1. **Sidebar view** — the tree of groups → workspaces → files (primary).
+2. **Status-bar widget** — click to open the grouped switcher modal.
+
+The separate "Manage Workspaces" editor modal is **slated for removal** (see Planned) — its functionality is covered by the sidebar.
 
 ---
 
@@ -9,26 +20,27 @@
 
 ### Core Functionality
 - [x] Navigation layout memory per workspace (folder expansion states)
-- [x] Alphabetical/numeric workspace sorting
+- [x] Alphabetical/numeric workspace sorting (memoized)
 - [x] Manual sort order with drag-drop
 - [x] Status bar indicator with workspace name
-- [x] Fuzzy search modal for workspace switching
-- [x] Workspace renaming (Ctrl+Enter or hover button)
-- [x] Workspace deletion (Shift+Delete or trash icon)
-- [x] Workspace duplication (Ctrl+D)
-- [x] Create new workspace (Shift+Enter)
+- [x] Fuzzy search switcher modal (opened from the status bar)
+- [x] Workspace renaming (inline or hover button)
+- [x] Workspace deletion (trash icon / context menu)
+- [x] Workspace duplication
+- [x] Create new workspace
 - [x] Save shortcuts (Shift+Enter, Alt+Enter, Shift+Click)
-- [x] Active workspace indicator (checkmark)
+- [x] Active workspace indicator
 - [x] Auto-save on workspace switch
 - [x] Auto-save on layout change
 - [x] Import from core Workspaces plugin
-- [x] Debug mode with console logging
+- [x] Debug mode (gated logging + debug-only commands)
 
 ### Groups & Organization
 - [x] Workspace groups (categorization)
 - [x] Group drag-drop reordering
 - [x] "No Group" section reorderable
-- [x] Collapsible groups
+- [x] Collapsible groups (incremental re-render on toggle)
+- [x] Robust group lifecycle (rename/delete maintain order + styling; orphan pruning on load)
 
 ### Styling
 - [x] Workspace icons (Lucide icon picker)
@@ -44,46 +56,58 @@
 
 ---
 
-## Active Development
+## Planned
 
-### In Progress
-- [ ] Modal animations (experiment branch - needs performance testing)
-
-### Next Up
-- [ ] Ribbon icon control (show/hide ribbon button)
+### Next Up (greenlit)
+- [ ] **Last-workspace toggle** — a hotkey that bounces between the two most-recently-active workspaces (Alt-Tab for workspaces).
+- [ ] **Sidebar filter box** — type-to-filter the workspace tree (for vaults with many workspaces across clients).
+- [ ] **Unsaved-layout indicator** — subtle marker when the active workspace has drifted from its saved state.
+- [ ] **Per-workspace theming hook** — set a `data-workspace-name` (and, later, `data-space`) attribute on `<body>` so the whole UI can be tinted per workspace/client via CSS.
+- [ ] **Remove the "Manage Workspaces" editor modal** — consolidate everything to the sidebar + status-bar switcher. Delete `workspace-editor.ts` and its command/entry points.
 
 ---
 
-## Deprioritized (Personal Use)
+## Parked / Future
 
-These features are not needed for current use case but documented for potential future public release:
+- **Scoped Spaces** — the big evolution: multiple clients in a single vault, with the file explorer **and** the workspace list scoped to one client's subtree at a time (optionally with a per-space accent). A foundation exists on the `feature/scoped-spaces-v2` branch, but it predates the v2.13–2.16 restructure — when revisited, it should be **re-founded cleanly on current `main`**, not rebased from that branch.
 
-- Workspace descriptions (text field per workspace)
-- Workspace pinning (favorites at top)
-- Recent workspaces list
-- Workspace preview on hover
-- CSS data attribute (`data-workspace-name` on body for per-workspace theming)
-- File overrides with template variables (dynamic file loading)
+---
+
+## Won't Do (decided against)
+
+- **Centered switcher modal** — the last-workspace toggle covers the actual need; no separate centered command-palette switcher.
+- **Ribbon icon (show/hide)** — not wanted.
+- **Pinned / favorite workspaces** — redundant; quick workspace access is already the whole point of the plugin.
+- **Workspace templates** — not wanted (was an AI suggestion).
+- **Workspace descriptions, recent-list panel, hover preview, file overrides with template variables** — previously floated, not planned.
 
 ---
 
 ## Completed Phases
 
 ### Phase 1 - Core Features (v1.x)
-Completed: Delete, create, save shortcuts, active indicator
+Delete, create, save shortcuts, active indicator.
 
 ### Phase 2 - Enhanced UX (v2.0-2.5)
-Completed: Duplication, auto-save on layout change, import/export
+Duplication, auto-save on layout change, import/export.
 
 ### Phase 3 - Organization (v2.6-2.10)
-Completed: Groups, group styling, workspace styling, drag-drop reordering
+Groups, group styling, workspace styling, drag-drop reordering.
 
 ### Phase 4 - Polish (v2.11-2.12)
-Completed: Fixed px layout, transparent modal, search box removal
+Fixed px layout, transparent modal, search box removal.
+
+### Phase 5 - Audit & Hardening (v2.13-2.16)
+Full multi-pass code review and cleanup, landed in tiers:
+- **Safety:** fixed a `saveNavigationLayout` data-loss race, a stuck `isLoadingWorkspace` flag, and unmigrated workspace order on group rename/delete.
+- **Cruft:** removed leftover debug instrumentation, deleted dead code (incl. the unused `debug-logger.ts`), gated debug commands behind debug mode, guarded auto-backup for mobile, synced version files.
+- **Leaks & correctness:** listener leaks (editor refresh, tab indicators), the `\x00nogroup` sentinel bug, stale collapse-state, confirm-modal hardening, `defaultGroup` validation.
+- **Structure:** moved sources into `src/`, consolidated docs, expanded `.gitignore`; `STYLE_MAPS`-driven group styling, memoized name sort, incremental sidebar render, and a typed surface over Obsidian's private chooser internals.
 
 ---
 
 ## Notes
 
-- Search box permanently disabled (code retained)
-- Animation experiment on `experiment/modal-animations` branch
+- The two primary surfaces are the **sidebar** and the **status-bar switcher**; the standalone editor modal is on its way out (see Planned).
+- The switcher's search box remains disabled by default (code retained behind the `showSearchBox` setting).
+- Scoped Spaces work is parked on `feature/scoped-spaces-v2` (reference only — predates the restructure).
