@@ -21,7 +21,7 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// main.ts
+// src/main.ts
 var main_exports = {};
 __export(main_exports, {
   default: () => WorkspaceNavigator
@@ -29,10 +29,10 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian8 = require("obsidian");
 
-// settings.ts
+// src/settings.ts
 var import_obsidian2 = require("obsidian");
 
-// confirm-modal.ts
+// src/confirm-modal.ts
 var import_obsidian = require("obsidian");
 var ConfirmationModal = class extends import_obsidian.Modal {
   constructor(app, config) {
@@ -65,7 +65,7 @@ function createConfirmationDialog(app, config) {
   new ConfirmationModal(app, config).open();
 }
 
-// settings.ts
+// src/settings.ts
 var DEFAULT_SETTINGS = {
   rememberNavigationLayout: true,
   maintainLayoutAcrossWorkspaces: false,
@@ -214,7 +214,7 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
   }
 };
 
-// workspace-modal.ts
+// src/workspace-modal.ts
 var import_obsidian4 = require("obsidian");
 
 // node_modules/@popperjs/core/lib/enums.js
@@ -1675,7 +1675,7 @@ var createPopper = /* @__PURE__ */ popperGenerator({
   defaultModifiers
 });
 
-// group-header.ts
+// src/group-header.ts
 var import_obsidian3 = require("obsidian");
 var NO_GROUP_KEY = "\0nogroup";
 function renderGroupHeader(container, config) {
@@ -1880,7 +1880,7 @@ function setGroupDragging(container, isDragging) {
   container.style.opacity = isDragging ? "0.3" : "";
 }
 
-// workspace-modal.ts
+// src/workspace-modal.ts
 var LUCIDE_ICONS = [
   // Layouts & UI
   "layout-grid",
@@ -3846,7 +3846,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   }
 };
 
-// workspace-editor.ts
+// src/workspace-editor.ts
 var import_obsidian5 = require("obsidian");
 var WorkspaceEditorModal = class extends import_obsidian5.Modal {
   constructor(app, plugin) {
@@ -4367,7 +4367,7 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
   }
 };
 
-// workspace-manager.ts
+// src/workspace-manager.ts
 var import_obsidian6 = require("obsidian");
 var WorkspaceLogger = class {
   constructor(app, debugEnabled) {
@@ -5683,7 +5683,7 @@ ${JSON.stringify(Object.keys(coreData.workspaces || {}), null, 2)}
   }
 };
 
-// workspace-sidebar-view.ts
+// src/workspace-sidebar-view.ts
 var import_obsidian7 = require("obsidian");
 var VIEW_TYPE_WORKSPACE_NAVIGATOR = "workspace-navigator-view";
 var NO_GROUP_KEY2 = "\0nogroup";
@@ -6710,7 +6710,7 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
   }
 };
 
-// main.ts
+// src/main.ts
 var WorkspaceNavigator = class extends import_obsidian8.Plugin {
   constructor() {
     super(...arguments);
