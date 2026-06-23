@@ -786,7 +786,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	private draggedGroup:     string | null = null;
 	private draggedElement:   HTMLElement | null = null;
 	private dragGhost:        HTMLElement | null = null;
-	private isRenaming:       boolean = false;  // Flag to prevent selection during rename
 
 	constructor(app: App, plugin: WorkspaceNavigator) {
 		super(app);
@@ -1136,9 +1135,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			if (result.textColor) workspaceManager.setGroupColor(trimmedName, result.textColor);
 			if (result.textBold) workspaceManager.setGroupBold(trimmedName, true);
 			if (result.textItalic) workspaceManager.setGroupItalic(trimmedName, true);
-
-			workspaceManager.logger.log(`[openNewGroupModal] Created group: ${trimmedName}`);
-			workspaceManager.logger.log(`[openNewGroupModal] groupOrder after: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
 
 			await this.plugin.saveSettings();
 			await workspaceManager.saveLog();
@@ -1538,13 +1534,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		return null;
 	}
 
-	/**
-	 * Get the group for a workspace (used for rendering headers)
-	 */
-	private getWorkspaceGroup(name: string): string | null {
-		return this.plugin.getWorkspaceManager().getWorkspaceGroup(name);
-	}
-
 	// ─────────────────────────────────────────────────────────────────
 	// Get display text for workspace
 	// ─────────────────────────────────────────────────────────────────
@@ -1693,32 +1682,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const textContent = el.textContent || '';
 		el.empty();
 
-		// Add drag handle for moving workspace between groups (only show if groups exist)
-		const hasGroups = workspaceManager.getGroups().length > 0;
-
-		if (hasGroups) {
-			const dragHandle = el.createDiv('workspace-drag-handle');
-			dragHandle.setAttribute('aria-label', 'Drag to move to group');
-			// Inline structural styles (hidden but positioned for potential use)
-			dragHandle.style.display        = 'none';  // Hidden - drag from row instead
-			dragHandle.style.position       = 'absolute';
-			dragHandle.style.left           = '5px';
-			dragHandle.style.top            = '50%';
-			dragHandle.style.transform      = 'translateY(-50%)';
-			dragHandle.style.alignItems     = 'center';
-			dragHandle.style.justifyContent = 'center';
-			dragHandle.style.width          = '20px';
-			dragHandle.style.height         = '20px';
-			setIcon(dragHandle, 'grip-vertical');
-
-			dragHandle.addEventListener('mousedown', (evt) => {
-				evt.preventDefault();
-				evt.stopPropagation();
-				this.startWorkspaceDrag(evt, workspaceName, el);
-			});
-		}
-
-		// Also allow dragging from entire row when groups exist
+		// Allow dragging from the entire row to move a workspace between groups
 		if (hasNamedGroups) {
 			el.addEventListener('mousedown', (evt) => {
 				// Only start drag on left click, not on buttons
@@ -1797,16 +1761,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		});
 		deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.fill = 'var(--text-error)'; });
 		deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.fill = 'var(--text-muted)'; });
-
-		// Note: Duplicate button removed from UI but duplicateWorkspace() method still available
-		// Can be re-enabled by uncommenting this block:
-		// const duplicateBtn = el.createDiv('workspace-duplicate-btn');
-		// duplicateBtn.setAttribute('aria-label', 'Duplicate workspace');
-		// duplicateBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 6V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-3v3c0 .552-.45 1-1.007 1H4.007A1.001 1.001 0 0 1 3 21l.003-14c0-.552.45-1 1.007-1H7zM5.003 8L5 20h10V8H5.003zM9 6h8v10h2V4H9v2z"/></svg>`;
-		// duplicateBtn.addEventListener('click', (evt) => {
-		// 	evt.stopPropagation();
-		// 	this.duplicateWorkspace(workspaceName);
-		// });
 
 		// Create edit button (pencil - opens editor modal)
 		const editBtn = el.createDiv('workspace-rename-btn');

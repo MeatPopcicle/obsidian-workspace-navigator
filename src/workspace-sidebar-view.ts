@@ -29,7 +29,6 @@ export class WorkspaceNavigatorView extends ItemView {
 	// Drag state
 	draggedItem:       string | null = null;
 	draggedType:       'workspace' | 'group' | null = null;
-	dragIndicator:     HTMLElement | null = null;
 
 	// File drag state
 	draggedFile:          string | null = null;
@@ -206,8 +205,6 @@ export class WorkspaceNavigatorView extends ItemView {
 		// Get all groups (including NO_GROUP_KEY if there are ungrouped workspaces)
 		// This method handles both manual and alphabetical ordering
 		const allGroups = workspaceManager.getAllGroupsOrdered(useManualOrder);
-		workspaceManager.logger.log(`[renderTree] allGroups: ${JSON.stringify(allGroups)}`);
-		workspaceManager.logger.log(`[renderTree] groupOrder: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
 
 		// Render each group
 		for (const groupName of allGroups) {
@@ -859,31 +856,22 @@ export class WorkspaceNavigatorView extends ItemView {
 		let name     = baseName;
 		let counter  = 1;
 		const groups = workspaceManager.getGroups();
-		workspaceManager.logger.log(`[createNewGroup] existing groups: ${JSON.stringify(groups)}`);
 
 		while (groups.includes(name)) {
 			counter++;
 			name = `${baseName} ${counter}`;
 		}
-		workspaceManager.logger.log(`[createNewGroup] new group name: ${name}`);
 
 		// Create the group by adding it to the order (groups are implicit,
 		// but we add to order so it shows up even when empty)
 		const order = workspaceManager.getGroupOrder();
-		workspaceManager.logger.log(`[createNewGroup] groupOrder before: ${JSON.stringify(order)}`);
 		order.push(name);
 		workspaceManager.setGroupOrder(order);
-		workspaceManager.logger.log(`[createNewGroup] groupOrder after setGroupOrder: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
 
 		// Set a default icon so the group is distinguishable
 		workspaceManager.setGroupIcon(name, 'folder');
 
 		await this.plugin.saveSettings();
-
-		// Verify it was saved
-		workspaceManager.logger.log(`[createNewGroup] groups after save: ${JSON.stringify(workspaceManager.getGroups())}`);
-		workspaceManager.logger.log(`[createNewGroup] groupOrder after save: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
-		await workspaceManager.saveLog();
 
 		this.renderTree();
 

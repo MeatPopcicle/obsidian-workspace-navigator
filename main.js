@@ -2538,7 +2538,6 @@ var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
   }
 };
 var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
-  // Flag to prevent selection during rename
   constructor(app, plugin) {
     super(app);
     this.popper = null;
@@ -2547,7 +2546,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.draggedGroup = null;
     this.draggedElement = null;
     this.dragGhost = null;
-    this.isRenaming = false;
     // ─────────────────────────────────────────────────────────────────
     // Action buttons (top-right and bottom-right)
     // ─────────────────────────────────────────────────────────────────
@@ -2794,8 +2792,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         workspaceManager.setGroupBold(trimmedName, true);
       if (result.textItalic)
         workspaceManager.setGroupItalic(trimmedName, true);
-      workspaceManager.logger.log(`[openNewGroupModal] Created group: ${trimmedName}`);
-      workspaceManager.logger.log(`[openNewGroupModal] groupOrder after: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
       await this.plugin.saveSettings();
       await workspaceManager.saveLog();
       new import_obsidian4.Notice(`Created group "${trimmedName}"`);
@@ -3107,12 +3103,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     return null;
   }
-  /**
-   * Get the group for a workspace (used for rendering headers)
-   */
-  getWorkspaceGroup(name) {
-    return this.plugin.getWorkspaceManager().getWorkspaceGroup(name);
-  }
   // ─────────────────────────────────────────────────────────────────
   // Get display text for workspace
   // ─────────────────────────────────────────────────────────────────
@@ -3218,26 +3208,6 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     const textContent = el.textContent || "";
     el.empty();
-    const hasGroups = workspaceManager.getGroups().length > 0;
-    if (hasGroups) {
-      const dragHandle = el.createDiv("workspace-drag-handle");
-      dragHandle.setAttribute("aria-label", "Drag to move to group");
-      dragHandle.style.display = "none";
-      dragHandle.style.position = "absolute";
-      dragHandle.style.left = "5px";
-      dragHandle.style.top = "50%";
-      dragHandle.style.transform = "translateY(-50%)";
-      dragHandle.style.alignItems = "center";
-      dragHandle.style.justifyContent = "center";
-      dragHandle.style.width = "20px";
-      dragHandle.style.height = "20px";
-      (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
-      dragHandle.addEventListener("mousedown", (evt) => {
-        evt.preventDefault();
-        evt.stopPropagation();
-        this.startWorkspaceDrag(evt, workspaceName, el);
-      });
-    }
     if (hasNamedGroups) {
       el.addEventListener("mousedown", (evt) => {
         if (evt.button !== 0)
@@ -4288,46 +4258,6 @@ var WorkspaceEditorModal = class extends import_obsidian5.Modal {
     });
     modal.open();
   }
-  showRenameDialog(oldName) {
-    const workspaceManager = this.plugin.getWorkspaceManager();
-    const renameModal = new import_obsidian5.Modal(this.app);
-    renameModal.titleEl.setText("Rename Workspace");
-    let newNameInput;
-    new import_obsidian5.Setting(renameModal.contentEl).setName("New name").addText((text) => {
-      newNameInput = text;
-      text.setValue(oldName);
-      text.inputEl.select();
-    });
-    new import_obsidian5.Setting(renameModal.contentEl).addButton((button) => button.setButtonText("Cancel").onClick(() => {
-      renameModal.close();
-    })).addButton((button) => button.setButtonText("Rename").setCta().onClick(async () => {
-      const newName = newNameInput.getValue().trim();
-      if (!newName) {
-        new import_obsidian5.Notice("Please enter a name");
-        return;
-      }
-      if (newName === oldName) {
-        renameModal.close();
-        return;
-      }
-      if (workspaceManager.hasWorkspace(newName)) {
-        new import_obsidian5.Notice(`Workspace "${newName}" already exists`);
-        return;
-      }
-      workspaceManager.renameWorkspace(oldName, newName);
-      const layout = this.plugin.navigationLayouts.get(oldName);
-      if (layout) {
-        this.plugin.navigationLayouts.delete(oldName);
-        this.plugin.navigationLayouts.set(newName, layout);
-      }
-      await this.plugin.saveSettings();
-      new import_obsidian5.Notice(`Renamed to: ${newName}`);
-      renameModal.close();
-      this.onOpen();
-      this.plugin.refreshSidebarView();
-    }));
-    renameModal.open();
-  }
   async cloneWorkspace(sourceName) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     let newName = `${sourceName} (copy)`;
@@ -4389,13 +4319,6 @@ var WorkspaceLogger = class {
     const entry = `[${timestamp}] ${message}`;
     this.logs.push(entry);
     console.log(`[WorkspaceManager] ${message}`);
-  }
-  logOperation(operation, details) {
-    this.log(`
-## ${operation}`);
-    this.log(`\`\`\`json
-${JSON.stringify(details, null, 2)}
-\`\`\``);
   }
   async save() {
     if (this.logs.length === 0)
@@ -5702,7 +5625,6 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     // Drag state
     this.draggedItem = null;
     this.draggedType = null;
-    this.dragIndicator = null;
     // File drag state
     this.draggedFile = null;
     this.draggedFileWorkspace = null;
@@ -5826,8 +5748,6 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     const useManualOrder = this.plugin.settings.manualSortOrder;
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     const allGroups = workspaceManager.getAllGroupsOrdered(useManualOrder);
-    workspaceManager.logger.log(`[renderTree] allGroups: ${JSON.stringify(allGroups)}`);
-    workspaceManager.logger.log(`[renderTree] groupOrder: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
     for (const groupName of allGroups) {
       this.renderGroup(groupName, activeWorkspace, useManualOrder);
     }
@@ -6285,22 +6205,15 @@ var WorkspaceNavigatorView = class extends import_obsidian7.ItemView {
     let name = baseName;
     let counter = 1;
     const groups = workspaceManager.getGroups();
-    workspaceManager.logger.log(`[createNewGroup] existing groups: ${JSON.stringify(groups)}`);
     while (groups.includes(name)) {
       counter++;
       name = `${baseName} ${counter}`;
     }
-    workspaceManager.logger.log(`[createNewGroup] new group name: ${name}`);
     const order2 = workspaceManager.getGroupOrder();
-    workspaceManager.logger.log(`[createNewGroup] groupOrder before: ${JSON.stringify(order2)}`);
     order2.push(name);
     workspaceManager.setGroupOrder(order2);
-    workspaceManager.logger.log(`[createNewGroup] groupOrder after setGroupOrder: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
     workspaceManager.setGroupIcon(name, "folder");
     await this.plugin.saveSettings();
-    workspaceManager.logger.log(`[createNewGroup] groups after save: ${JSON.stringify(workspaceManager.getGroups())}`);
-    workspaceManager.logger.log(`[createNewGroup] groupOrder after save: ${JSON.stringify(workspaceManager.getGroupOrder())}`);
-    await workspaceManager.saveLog();
     this.renderTree();
     new import_obsidian7.Notice(`Created group: ${name}`);
     setTimeout(() => this.renameGroupInline(name), 100);
@@ -6862,21 +6775,13 @@ var WorkspaceNavigator = class extends import_obsidian8.Plugin {
     }
   }
   async saveSettings() {
-    const stack = new Error().stack;
     this.saveQueue = this.saveQueue.then(async () => {
-      var _a;
       const storage = this.workspaceManager.getStorage();
-      this.workspaceManager.logger.log(`[saveSettings] CALLED FROM:
-${stack}`);
-      this.workspaceManager.logger.log(`[saveSettings] storage.groupOrder: ${JSON.stringify(storage.groupOrder)}`);
-      this.workspaceManager.logger.log(`[saveSettings] storage.groupIcons: ${JSON.stringify(storage.groupIcons)}`);
       const dataToSave = {
         ...this.settings,
         workspaceStorage: storage,
         navigationLayouts: Object.fromEntries(this.navigationLayouts)
       };
-      this.workspaceManager.logger.log(`[saveSettings] dataToSave.workspaceStorage.groupOrder: ${JSON.stringify((_a = dataToSave.workspaceStorage) == null ? void 0 : _a.groupOrder)}`);
-      await this.workspaceManager.saveLog();
       await this.saveData(dataToSave);
       if (this.settings.autoBackupEnabled) {
         await this.writeBackup(dataToSave);
@@ -6890,6 +6795,9 @@ ${stack}`);
    * Write backup file to specified path
    */
   async writeBackup(data) {
+    if (!import_obsidian8.Platform.isDesktopApp) {
+      return;
+    }
     try {
       const backupPath = this.settings.autoBackupPath || this.app.vault.adapter.basePath;
       const vaultName = this.app.vault.getName();
@@ -7014,141 +6922,143 @@ ${stack}`);
         });
       }
     });
-    this.addCommand({
-      id: "debug-dump-workspace-data",
-      name: "Debug: Dump current workspace data",
-      callback: async () => {
-        const name = this.workspaceManager.getActiveWorkspace();
-        if (!name) {
-          new import_obsidian8.Notice("No active workspace");
-          return;
-        }
-        const workspace = this.workspaceManager.getWorkspace(name);
-        const folderState = await this.app.loadLocalStorage("file-explorer-unfold");
-        console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-        console.log("\u{1F50D} WORKSPACE DEBUG DUMP");
-        console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-        console.log(`Workspace Name: "${name}"`);
-        console.log(`
-Settings:`);
-        console.log(`  - Remember layout: ${this.settings.rememberNavigationLayout}`);
-        console.log(`  - Maintain across workspaces: ${this.settings.maintainLayoutAcrossWorkspaces}`);
-        console.log(`
-Current folder state (localStorage):`, folderState);
-        console.log(`
-Stored workspace data:`, workspace);
-        console.log(`
-All workspaces:`, this.workspaceManager.getWorkspaceNames());
-        console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-        new import_obsidian8.Notice(`Workspace data dumped to console (Ctrl+Shift+I)`);
-      }
-    });
-    this.addCommand({
-      id: "debug-export-diagnostics",
-      name: "Debug: Export diagnostics to file",
-      callback: async () => {
-        const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, -5);
-        const fileName = `workspace-navigator-debug-${timestamp}.md`;
-        const currentWorkspace = this.workspaceManager.getActiveWorkspace() || "None";
-        const folderState = await this.app.loadLocalStorage("file-explorer-unfold");
-        const allWorkspaces = this.workspaceManager.getWorkspaceNames();
-        let report = `# Workspace Navigator Debug Report
-
-`;
-        report += `**Generated:** ${(/* @__PURE__ */ new Date()).toLocaleString()}
-
-`;
-        report += `---
-
-`;
-        report += `## Settings
-
-`;
-        report += `- **Remember navigation layout:** ${this.settings.rememberNavigationLayout}
-`;
-        report += `- **Maintain layout across workspaces:** ${this.settings.maintainLayoutAcrossWorkspaces}
-`;
-        report += `- **Auto-save on switch:** ${this.settings.autoSaveOnSwitch}
-`;
-        report += `- **Manual sort order:** ${this.settings.manualSortOrder}
-`;
-        report += `- **Debug mode:** ${this.settings.debugMode}
-
-`;
-        report += `## Current State
-
-`;
-        report += `- **Active workspace:** ${currentWorkspace}
-`;
-        report += `- **Current folder state (localStorage):**
-\`\`\`json
-${JSON.stringify(folderState, null, 2)}
-\`\`\`
-
-`;
-        report += `## All Workspaces
-
-`;
-        report += `Total: ${allWorkspaces.length}
-
-`;
-        for (const wsName of allWorkspaces) {
-          const ws = this.workspaceManager.getWorkspace(wsName);
-          report += `### ${wsName}
-
-`;
-          if (ws == null ? void 0 : ws.folderExpandState) {
-            report += `**Stored folder state:**
-\`\`\`json
-${JSON.stringify(ws.folderExpandState, null, 2)}
-\`\`\`
-
-`;
-          } else {
-            report += `**Stored folder state:** None
-
-`;
+    if (this.settings.debugMode) {
+      this.addCommand({
+        id: "debug-dump-workspace-data",
+        name: "Debug: Dump current workspace data",
+        callback: async () => {
+          const name = this.workspaceManager.getActiveWorkspace();
+          if (!name) {
+            new import_obsidian8.Notice("No active workspace");
+            return;
           }
-          report += `**Full workspace data:**
-\`\`\`json
-${JSON.stringify(ws, null, 2)}
-\`\`\`
+          const workspace = this.workspaceManager.getWorkspace(name);
+          const folderState = await this.app.loadLocalStorage("file-explorer-unfold");
+          console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+          console.log("\u{1F50D} WORKSPACE DEBUG DUMP");
+          console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+          console.log(`Workspace Name: "${name}"`);
+          console.log(`
+Settings:`);
+          console.log(`  - Remember layout: ${this.settings.rememberNavigationLayout}`);
+          console.log(`  - Maintain across workspaces: ${this.settings.maintainLayoutAcrossWorkspaces}`);
+          console.log(`
+Current folder state (localStorage):`, folderState);
+          console.log(`
+Stored workspace data:`, workspace);
+          console.log(`
+All workspaces:`, this.workspaceManager.getWorkspaceNames());
+          console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
+          new import_obsidian8.Notice(`Workspace data dumped to console (Ctrl+Shift+I)`);
+        }
+      });
+      this.addCommand({
+        id: "debug-export-diagnostics",
+        name: "Debug: Export diagnostics to file",
+        callback: async () => {
+          const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, -5);
+          const fileName = `workspace-navigator-debug-${timestamp}.md`;
+          const currentWorkspace = this.workspaceManager.getActiveWorkspace() || "None";
+          const folderState = await this.app.loadLocalStorage("file-explorer-unfold");
+          const allWorkspaces = this.workspaceManager.getWorkspaceNames();
+          let report = `# Workspace Navigator Debug Report
+
+`;
+          report += `**Generated:** ${(/* @__PURE__ */ new Date()).toLocaleString()}
 
 `;
           report += `---
 
 `;
-        }
-        report += `## Navigation Layouts (Sidebar State)
+          report += `## Settings
 
 `;
-        if (this.navigationLayouts.size > 0) {
-          for (const [wsName, layout] of this.navigationLayouts.entries()) {
+          report += `- **Remember navigation layout:** ${this.settings.rememberNavigationLayout}
+`;
+          report += `- **Maintain layout across workspaces:** ${this.settings.maintainLayoutAcrossWorkspaces}
+`;
+          report += `- **Auto-save on switch:** ${this.settings.autoSaveOnSwitch}
+`;
+          report += `- **Manual sort order:** ${this.settings.manualSortOrder}
+`;
+          report += `- **Debug mode:** ${this.settings.debugMode}
+
+`;
+          report += `## Current State
+
+`;
+          report += `- **Active workspace:** ${currentWorkspace}
+`;
+          report += `- **Current folder state (localStorage):**
+\`\`\`json
+${JSON.stringify(folderState, null, 2)}
+\`\`\`
+
+`;
+          report += `## All Workspaces
+
+`;
+          report += `Total: ${allWorkspaces.length}
+
+`;
+          for (const wsName of allWorkspaces) {
+            const ws = this.workspaceManager.getWorkspace(wsName);
             report += `### ${wsName}
+
+`;
+            if (ws == null ? void 0 : ws.folderExpandState) {
+              report += `**Stored folder state:**
+\`\`\`json
+${JSON.stringify(ws.folderExpandState, null, 2)}
+\`\`\`
+
+`;
+            } else {
+              report += `**Stored folder state:** None
+
+`;
+            }
+            report += `**Full workspace data:**
+\`\`\`json
+${JSON.stringify(ws, null, 2)}
+\`\`\`
+
+`;
+            report += `---
+
+`;
+          }
+          report += `## Navigation Layouts (Sidebar State)
+
+`;
+          if (this.navigationLayouts.size > 0) {
+            for (const [wsName, layout] of this.navigationLayouts.entries()) {
+              report += `### ${wsName}
 \`\`\`json
 ${JSON.stringify(layout, null, 2)}
 \`\`\`
 
 `;
-          }
-        } else {
-          report += `No navigation layouts stored.
+            }
+          } else {
+            report += `No navigation layouts stored.
 
 `;
+          }
+          const configDir = this.app.vault.configDir;
+          const logsDir = `${configDir}/plugins/workspace-navigator/logs`;
+          const filePath = `${logsDir}/${fileName}`;
+          const adapter = this.app.vault.adapter;
+          if (!await adapter.exists(logsDir)) {
+            await adapter.mkdir(logsDir);
+          }
+          await adapter.write(filePath, report);
+          new import_obsidian8.Notice(`Debug report saved to plugin logs folder`);
+          await navigator.clipboard.writeText(report);
+          new import_obsidian8.Notice("Also copied to clipboard!");
         }
-        const configDir = this.app.vault.configDir;
-        const logsDir = `${configDir}/plugins/workspace-navigator/logs`;
-        const filePath = `${logsDir}/${fileName}`;
-        const adapter = this.app.vault.adapter;
-        if (!await adapter.exists(logsDir)) {
-          await adapter.mkdir(logsDir);
-        }
-        await adapter.write(filePath, report);
-        new import_obsidian8.Notice(`Debug report saved to plugin logs folder`);
-        await navigator.clipboard.writeText(report);
-        new import_obsidian8.Notice("Also copied to clipboard!");
-      }
-    });
+      });
+    }
     this.addCommand({
       id: "send-note-to-workspace",
       name: "Send current note to another workspace",

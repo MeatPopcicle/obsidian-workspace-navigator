@@ -6,7 +6,7 @@ import { App, Modal, Setting, Notice, TextComponent, setIcon } from 'obsidian';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { WorkspaceStyleModal, WorkspaceStyleResult } from './workspace-modal';
-import { renderGroupHeader, setGroupDropTarget, setGroupDragging, GroupHeaderConfig } from './group-header';
+import { renderGroupHeader, setGroupDragging, GroupHeaderConfig } from './group-header';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Workspace Editor Modal
@@ -600,71 +600,6 @@ export class WorkspaceEditorModal extends Modal {
 			new Notice(`Updated "${finalName}"`);
 		});
 		modal.open();
-	}
-
-	showRenameDialog(oldName: string) {
-		const workspaceManager = this.plugin.getWorkspaceManager();
-
-		// Create a simple rename modal
-		const renameModal = new Modal(this.app);
-		renameModal.titleEl.setText('Rename Workspace');
-
-		let newNameInput: TextComponent;
-
-		new Setting(renameModal.contentEl)
-			.setName('New name')
-			.addText(text => {
-				newNameInput = text;
-				text.setValue(oldName);
-				text.inputEl.select();
-			});
-
-		new Setting(renameModal.contentEl)
-			.addButton(button => button
-				.setButtonText('Cancel')
-				.onClick(() => {
-					renameModal.close();
-				}))
-			.addButton(button => button
-				.setButtonText('Rename')
-				.setCta()
-				.onClick(async () => {
-					const newName = newNameInput.getValue().trim();
-
-					if (!newName) {
-						new Notice('Please enter a name');
-						return;
-					}
-
-					if (newName === oldName) {
-						renameModal.close();
-						return;
-					}
-
-					if (workspaceManager.hasWorkspace(newName)) {
-						new Notice(`Workspace "${newName}" already exists`);
-						return;
-					}
-
-					// Perform rename
-					workspaceManager.renameWorkspace(oldName, newName);
-
-					// Rename navigation layout data
-					const layout = this.plugin.navigationLayouts.get(oldName);
-					if (layout) {
-						this.plugin.navigationLayouts.delete(oldName);
-						this.plugin.navigationLayouts.set(newName, layout);
-					}
-
-					await this.plugin.saveSettings();
-					new Notice(`Renamed to: ${newName}`);
-
-					renameModal.close();
-					this.onOpen(); // Refresh list
-					this.plugin.refreshSidebarView();
-				}));
-
-		renameModal.open();
 	}
 
 	async cloneWorkspace(sourceName: string) {

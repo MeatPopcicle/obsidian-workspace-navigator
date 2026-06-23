@@ -2,7 +2,7 @@
 // WORKSPACE NAVIGATOR PLUGIN
 // ═══════════════════════════════════════════════════════════════════════════════
 
-import { Plugin, Notice, setIcon, WorkspaceLeaf } from 'obsidian';
+import { Plugin, Notice, setIcon, WorkspaceLeaf, Platform } from 'obsidian';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal, WorkspacePickerModal } from './workspace-modal';
 import { WorkspaceEditorModal } from './workspace-editor';
@@ -223,24 +223,16 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	async saveSettings() {
-		// Capture stack trace for debugging
-		const stack = new Error().stack;
-
 		// Serialize saves to prevent race conditions
 		this.saveQueue = this.saveQueue.then(async () => {
 			// Include workspace manager storage in saved data
 			const storage = this.workspaceManager.getStorage();
-			this.workspaceManager.logger.log(`[saveSettings] CALLED FROM:\n${stack}`);
-			this.workspaceManager.logger.log(`[saveSettings] storage.groupOrder: ${JSON.stringify(storage.groupOrder)}`);
-			this.workspaceManager.logger.log(`[saveSettings] storage.groupIcons: ${JSON.stringify(storage.groupIcons)}`);
 
 			const dataToSave = {
 				...this.settings,
 				workspaceStorage: storage,
 				navigationLayouts: Object.fromEntries(this.navigationLayouts)
 			};
-			this.workspaceManager.logger.log(`[saveSettings] dataToSave.workspaceStorage.groupOrder: ${JSON.stringify(dataToSave.workspaceStorage?.groupOrder)}`);
-			await this.workspaceManager.saveLog();
 
 			await this.saveData(dataToSave);
 
@@ -258,6 +250,11 @@ export default class WorkspaceNavigator extends Plugin {
 	 * Write backup file to specified path
 	 */
 	private async writeBackup(data: any): Promise<void> {
+		// Backup uses Node's fs + an absolute filesystem path, which only exist on
+		// desktop. On mobile require('fs') / adapter.basePath would throw, so no-op.
+		if (!Platform.isDesktopApp) {
+			return;
+		}
 		try {
 			const backupPath = this.settings.autoBackupPath || (this.app.vault.adapter as any).basePath;
 			const vaultName  = this.app.vault.getName();
@@ -417,6 +414,9 @@ export default class WorkspaceNavigator extends Plugin {
 			}
 		});
 
+		// Debug-only commands — registered only when debug mode is enabled so they
+		// don't clutter every user's command palette.
+		if (this.settings.debugMode) {
 		// Debug: Dump workspace data
 		this.addCommand({
 			id: 'debug-dump-workspace-data',
@@ -526,6 +526,7 @@ export default class WorkspaceNavigator extends Plugin {
 				new Notice('Also copied to clipboard!');
 			}
 		});
+		} // end debug-only commands
 
 		// Send note to another workspace (without switching)
 		this.addCommand({

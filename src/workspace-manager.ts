@@ -39,11 +39,6 @@ class WorkspaceLogger {
 		console.log(`[WorkspaceManager] ${message}`);
 	}
 
-	logOperation(operation: string, details: any) {
-		this.log(`\n## ${operation}`);
-		this.log(`\`\`\`json\n${JSON.stringify(details, null, 2)}\n\`\`\``);
-	}
-
 	async save() {
 		if (this.logs.length === 0) return;
 
