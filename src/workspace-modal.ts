@@ -9,6 +9,33 @@ import { createPopper, Instance as PopperInstance } from '@popperjs/core';
 import { renderGroupHeader, setGroupDropTarget, setGroupDragging, GroupHeaderConfig } from './group-header';
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Obsidian private FuzzySuggestModal internals
+// ───────────────────────────────────────────────────────────────────────────────
+// The switcher modal drives keyboard navigation / rename / delete through the
+// undocumented `chooser` and `updateSuggestions()` internals of Obsidian's
+// FuzzySuggestModal. Centralizing the access behind a minimal typed surface
+// (instead of ~30 scattered `as any` casts) means member access is type-checked
+// and any future Obsidian change surfaces in exactly one place.
+
+interface ChooserInternals {
+	selectedItem:    number;
+	values:          FuzzyMatch<string>[] | null;
+	suggestions:     HTMLElement[];
+	setSelectedItem(index: number, evt?: Event | null): void;
+	setSuggestions(suggestions: unknown[] | null): void;
+	addMessage(message: string): void;
+	containerEl:     HTMLElement;
+}
+
+function chooserOf(modal: unknown): ChooserInternals {
+	return (modal as { chooser: ChooserInternals }).chooser;
+}
+
+function refreshSuggestions(modal: unknown): void {
+	(modal as { updateSuggestions(): void }).updateSuggestions();
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
 // Lucide Icons (same icon set used by Obsidian)
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -828,12 +855,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Arrow keys for navigation
 		this.scope.register([], 'ArrowDown', (evt: KeyboardEvent) => {
-			(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem + 1, evt);
+			chooserOf(this).setSelectedItem(chooserOf(this).selectedItem + 1, evt);
 			return false;
 		});
 
 		this.scope.register([], 'ArrowUp', (evt: KeyboardEvent) => {
-			(this as any).chooser.setSelectedItem((this as any).chooser.selectedItem - 1, evt);
+			chooserOf(this).setSelectedItem(chooserOf(this).selectedItem - 1, evt);
 			return false;
 		});
 
@@ -891,10 +918,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 
 		// Otherwise, proceed with normal item selection
-		const selectedItem = (this as any).chooser.selectedItem;
-		const values = (this as any).chooser.values;
+		const selectedItem = chooserOf(this).selectedItem;
+		const values = chooserOf(this).values;
+		// (typed accessor now flags that the chooser's values can be null)
 
-		if (selectedItem >= 0 && selectedItem < values.length) {
+		if (values && selectedItem >= 0 && selectedItem < values.length) {
 			const item = values[selectedItem];
 			this.selectSuggestion(item, evt);
 			return false;
@@ -941,7 +969,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Hide search box if disabled in settings
 		if (!this.plugin.settings.showSearchBox) {
-			const inputEl = (this as any).inputEl as HTMLInputElement;
+			const inputEl = this.inputEl as HTMLInputElement;
 			if (inputEl?.parentElement) {
 				inputEl.parentElement.style.display = 'none';
 			}
@@ -1101,7 +1129,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Save and refresh
 		this.plugin.saveSettings();
 		this.lastRenderedGroup = undefined;
-		(this as any).updateSuggestions();
+		refreshSuggestions(this);
 
 		// Re-add action buttons (updateSuggestions clears the container)
 		this.createActionButtons();
@@ -1142,7 +1170,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			// Refresh modal
 			this.lastRenderedGroup = undefined;
-			(this as any).updateSuggestions();
+			refreshSuggestions(this);
 			this.createActionButtons();
 
 			// Also refresh sidebar if open
@@ -1199,7 +1227,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				// Refresh
 				this.lastRenderedGroup = undefined;
-				(this as any).updateSuggestions();
+				refreshSuggestions(this);
 				this.createActionButtons();
 			}
 		);
@@ -1302,7 +1330,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				if (moved) {
 					this.lastRenderedGroup = undefined;
-					(this as any).updateSuggestions();
+					refreshSuggestions(this);
 					this.createActionButtons();
 				}
 
@@ -1374,7 +1402,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Refresh if moved
 			if (moved) {
 				this.lastRenderedGroup = undefined;
-				(this as any).updateSuggestions();
+				refreshSuggestions(this);
 				this.createActionButtons();
 			}
 
@@ -1788,8 +1816,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	onRenameClick(evt: MouseEvent | KeyboardEvent, el?: HTMLElement): void {
 		if (!el) {
-			const selectedItem = (this as any).chooser.selectedItem;
-			const suggestions = (this as any).chooser.suggestions;
+			const selectedItem = chooserOf(this).selectedItem;
+			const suggestions = chooserOf(this).suggestions;
 			if (selectedItem >= 0 && selectedItem < suggestions.length) {
 				el = suggestions[selectedItem];
 			}
@@ -1881,7 +1909,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		el.dataset.workspaceName = newName;
 
 		// Update suggestions to show new name
-		(this as any).updateSuggestions();
+		refreshSuggestions(this);
 
 		// Re-add action buttons (updateSuggestions clears them)
 		this.createActionButtons();
@@ -1902,9 +1930,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// If no workspace name provided, use the currently selected one
 		if (!workspaceName) {
-			const selectedItem = (this as any).chooser.selectedItem;
-			const suggestions = (this as any).chooser.values;
-			if (selectedItem >= 0 && selectedItem < suggestions.length) {
+			const selectedItem = chooserOf(this).selectedItem;
+			const suggestions = chooserOf(this).values;
+			if (suggestions && selectedItem >= 0 && selectedItem < suggestions.length) {
 				workspaceName = suggestions[selectedItem].item;
 			}
 		}
@@ -1920,7 +1948,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.plugin.saveSettings();
 
 			// Update the suggestions list
-			(this as any).updateSuggestions();
+			refreshSuggestions(this);
 			this.createActionButtons();
 
 			new Notice(`Deleted workspace: ${workspaceName}`);
@@ -1948,9 +1976,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// If no workspace name provided, use the currently selected one
 		if (!workspaceName) {
-			const selectedItem = (this as any).chooser.selectedItem;
-			const suggestions = (this as any).chooser.values;
-			if (selectedItem >= 0 && selectedItem < suggestions.length) {
+			const selectedItem = chooserOf(this).selectedItem;
+			const suggestions = chooserOf(this).values;
+			if (suggestions && selectedItem >= 0 && selectedItem < suggestions.length) {
 				workspaceName = suggestions[selectedItem].item;
 			}
 		}
@@ -1977,7 +2005,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.plugin.saveSettings();
 
 		// Update the suggestions list
-		(this as any).updateSuggestions();
+		refreshSuggestions(this);
 		this.createActionButtons();
 
 		new Notice(`Duplicated workspace to: ${newName}`);
@@ -2082,7 +2110,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				// Refresh
 				this.lastRenderedGroup = undefined;
-				(this as any).updateSuggestions();
+				refreshSuggestions(this);
 				this.createActionButtons();
 
 				// For "No Group" -> new group, transfer collapsed state in sidebar
@@ -2096,7 +2124,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				// Refresh
 				this.lastRenderedGroup = undefined;
-				(this as any).updateSuggestions();
+				refreshSuggestions(this);
 				this.createActionButtons();
 
 				// Refresh sidebar view (preserving collapsed state)
@@ -2216,7 +2244,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			// Refresh the suggestions to show updated style
 			this.lastRenderedGroup = undefined;
-			(this as any).updateSuggestions();
+			refreshSuggestions(this);
 			this.createActionButtons();
 
 			// Refresh sidebar view (preserving collapsed state if renamed)
@@ -2276,7 +2304,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Refresh the suggestions
 		this.lastRenderedGroup = undefined;
-		(this as any).updateSuggestions();
+		refreshSuggestions(this);
 		this.createActionButtons();
 	}
 
@@ -2299,7 +2327,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Refresh the suggestions
 		this.lastRenderedGroup = undefined;
-		(this as any).updateSuggestions();
+		refreshSuggestions(this);
 		this.createActionButtons();
 	}
 
@@ -2355,7 +2383,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			// Update the suggestions list and status bar
 			this.lastRenderedGroup = undefined;
-			(this as any).updateSuggestions();
+			refreshSuggestions(this);
 			this.createActionButtons();
 			this.plugin.updateStatusBar();
 
@@ -2370,11 +2398,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	onNoSuggestion(): void {
 		// Clear suggestions
-		(this as any).chooser.setSuggestions(null);
-		(this as any).chooser.addMessage('No matching workspace found.');
+		chooserOf(this).setSuggestions(null);
+		chooserOf(this).addMessage('No matching workspace found.');
 
 		// Add "Create new workspace" button
-		const el = (this as any).chooser.containerEl.querySelector('.suggestion-empty');
+		const el = chooserOf(this).containerEl.querySelector('.suggestion-empty');
 		if (el) {
 			el.createEl('button', {
 				text: 'Create new workspace',
@@ -2393,7 +2421,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 
 		// Get workspace name from input
-		const inputEl = (this as any).inputEl as HTMLInputElement;
+		const inputEl = this.inputEl as HTMLInputElement;
 		const workspaceName = inputEl?.value?.trim();
 
 		if (!workspaceName) {

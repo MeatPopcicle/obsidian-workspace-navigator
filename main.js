@@ -1893,6 +1893,12 @@ function setGroupDragging(container, isDragging) {
 }
 
 // src/workspace-modal.ts
+function chooserOf(modal) {
+  return modal.chooser;
+}
+function refreshSuggestions(modal) {
+  modal.updateSuggestions();
+}
 var LUCIDE_ICONS = [
   // Layouts & UI
   "layout-grid",
@@ -2589,11 +2595,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       return false;
     });
     this.scope.register([], "ArrowDown", (evt) => {
-      this.chooser.setSelectedItem(this.chooser.selectedItem + 1, evt);
+      chooserOf(this).setSelectedItem(chooserOf(this).selectedItem + 1, evt);
       return false;
     });
     this.scope.register([], "ArrowUp", (evt) => {
-      this.chooser.setSelectedItem(this.chooser.selectedItem - 1, evt);
+      chooserOf(this).setSelectedItem(chooserOf(this).selectedItem - 1, evt);
       return false;
     });
     this.scope.register([], "Enter", (evt) => {
@@ -2632,9 +2638,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.handleRename(targetEl);
       return false;
     }
-    const selectedItem = this.chooser.selectedItem;
-    const values = this.chooser.values;
-    if (selectedItem >= 0 && selectedItem < values.length) {
+    const selectedItem = chooserOf(this).selectedItem;
+    const values = chooserOf(this).values;
+    if (values && selectedItem >= 0 && selectedItem < values.length) {
       const item = values[selectedItem];
       this.selectSuggestion(item, evt);
       return false;
@@ -2777,7 +2783,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     this.plugin.saveSettings();
     this.lastRenderedGroup = void 0;
-    this.updateSuggestions();
+    refreshSuggestions(this);
     this.createActionButtons();
   }
   openNewGroupModal() {
@@ -2808,7 +2814,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       await workspaceManager.saveLog();
       new import_obsidian4.Notice(`Created group "${trimmedName}"`);
       this.lastRenderedGroup = void 0;
-      this.updateSuggestions();
+      refreshSuggestions(this);
       this.createActionButtons();
       this.plugin.refreshSidebarView();
     });
@@ -2855,7 +2861,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         await this.plugin.saveSettings();
         new import_obsidian4.Notice(`Created workspace "${newName}"`);
         this.lastRenderedGroup = void 0;
-        this.updateSuggestions();
+        refreshSuggestions(this);
         this.createActionButtons();
       }
     );
@@ -2935,7 +2941,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         }
         if (moved) {
           this.lastRenderedGroup = void 0;
-          this.updateSuggestions();
+          refreshSuggestions(this);
           this.createActionButtons();
         }
         this.cleanupDrag();
@@ -2991,7 +2997,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       }
       if (moved) {
         this.lastRenderedGroup = void 0;
-        this.updateSuggestions();
+        refreshSuggestions(this);
         this.createActionButtons();
       }
       this.cleanupDrag();
@@ -3314,8 +3320,8 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   // ─────────────────────────────────────────────────────────────────
   onRenameClick(evt, el) {
     if (!el) {
-      const selectedItem = this.chooser.selectedItem;
-      const suggestions = this.chooser.suggestions;
+      const selectedItem = chooserOf(this).selectedItem;
+      const suggestions = chooserOf(this).suggestions;
       if (selectedItem >= 0 && selectedItem < suggestions.length) {
         el = suggestions[selectedItem];
       }
@@ -3382,7 +3388,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     textSpan.contentEditable = "false";
     el.removeClass("is-renaming");
     el.dataset.workspaceName = newName;
-    this.updateSuggestions();
+    refreshSuggestions(this);
     this.createActionButtons();
     this.plugin.notifySidebarWorkspaceRenamed(oldName, newName);
     new import_obsidian4.Notice(`Renamed workspace to "${newName}"`);
@@ -3393,9 +3399,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   deleteWorkspace(workspaceName) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     if (!workspaceName) {
-      const selectedItem = this.chooser.selectedItem;
-      const suggestions = this.chooser.values;
-      if (selectedItem >= 0 && selectedItem < suggestions.length) {
+      const selectedItem = chooserOf(this).selectedItem;
+      const suggestions = chooserOf(this).values;
+      if (suggestions && selectedItem >= 0 && selectedItem < suggestions.length) {
         workspaceName = suggestions[selectedItem].item;
       }
     }
@@ -3405,7 +3411,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       workspaceManager.deleteWorkspace(workspaceName);
       this.plugin.navigationLayouts.delete(workspaceName);
       this.plugin.saveSettings();
-      this.updateSuggestions();
+      refreshSuggestions(this);
       this.createActionButtons();
       new import_obsidian4.Notice(`Deleted workspace: ${workspaceName}`);
     };
@@ -3426,9 +3432,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   duplicateWorkspace(workspaceName) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     if (!workspaceName) {
-      const selectedItem = this.chooser.selectedItem;
-      const suggestions = this.chooser.values;
-      if (selectedItem >= 0 && selectedItem < suggestions.length) {
+      const selectedItem = chooserOf(this).selectedItem;
+      const suggestions = chooserOf(this).values;
+      if (suggestions && selectedItem >= 0 && selectedItem < suggestions.length) {
         workspaceName = suggestions[selectedItem].item;
       }
     }
@@ -3446,7 +3452,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.plugin.navigationLayouts.set(newName, JSON.parse(JSON.stringify(layout)));
     }
     this.plugin.saveSettings();
-    this.updateSuggestions();
+    refreshSuggestions(this);
     this.createActionButtons();
     new import_obsidian4.Notice(`Duplicated workspace to: ${newName}`);
   }
@@ -3523,7 +3529,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         new import_obsidian4.Notice(`Created group "${newName}" with ${ungrouped.length} workspace(s)`);
         await this.plugin.saveSettings();
         this.lastRenderedGroup = void 0;
-        this.updateSuggestions();
+        refreshSuggestions(this);
         this.createActionButtons();
         this.plugin.notifySidebarGroupRenamed("\0nogroup", newName);
       } else {
@@ -3531,7 +3537,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         new import_obsidian4.Notice(`Renamed group to "${newName}"`);
         await this.plugin.saveSettings();
         this.lastRenderedGroup = void 0;
-        this.updateSuggestions();
+        refreshSuggestions(this);
         this.createActionButtons();
         this.plugin.notifySidebarGroupRenamed(groupName, newName);
       }
@@ -3632,7 +3638,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       workspaceManager.setGroupItalic(finalGroupName, result.textItalic);
       await this.plugin.saveSettings();
       this.lastRenderedGroup = void 0;
-      this.updateSuggestions();
+      refreshSuggestions(this);
       this.createActionButtons();
       if (result.newName && result.newName !== groupName) {
         this.plugin.notifySidebarGroupRenamed(groupName, result.newName);
@@ -3681,7 +3687,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     workspaceManager.toggleGroupCollapsed(groupName);
     await this.plugin.saveSettings();
     this.lastRenderedGroup = void 0;
-    this.updateSuggestions();
+    refreshSuggestions(this);
     this.createActionButtons();
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3694,7 +3700,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     await this.plugin.saveSettings();
     new import_obsidian4.Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
     this.lastRenderedGroup = void 0;
-    this.updateSuggestions();
+    refreshSuggestions(this);
     this.createActionButtons();
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3738,7 +3744,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       });
       await this.plugin.saveSettings();
       this.lastRenderedGroup = void 0;
-      this.updateSuggestions();
+      refreshSuggestions(this);
       this.createActionButtons();
       this.plugin.updateStatusBar();
       new import_obsidian4.Notice(`Updated "${finalName}"`);
@@ -3749,9 +3755,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   // Handle empty state (no matches found)
   // ─────────────────────────────────────────────────────────────────
   onNoSuggestion() {
-    this.chooser.setSuggestions(null);
-    this.chooser.addMessage("No matching workspace found.");
-    const el = this.chooser.containerEl.querySelector(".suggestion-empty");
+    chooserOf(this).setSuggestions(null);
+    chooserOf(this).addMessage("No matching workspace found.");
+    const el = chooserOf(this).containerEl.querySelector(".suggestion-empty");
     if (el) {
       el.createEl("button", {
         text: "Create new workspace",
