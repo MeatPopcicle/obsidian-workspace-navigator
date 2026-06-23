@@ -1,6 +1,6 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.16.0
+**Current Version:** v2.17.0
 **Last Updated:** 2026-06-23
 
 ---
