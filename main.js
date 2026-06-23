@@ -3007,22 +3007,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
   }
-  createDragGhost(el, workspaceName) {
+  createDragGhost(workspaceName) {
     this.dragGhost = document.createElement("div");
     this.dragGhost.addClass("workspace-drag-ghost");
-    this.dragGhost.style.position = "fixed";
-    this.dragGhost.style.zIndex = "10000";
-    this.dragGhost.style.display = "flex";
-    this.dragGhost.style.alignItems = "center";
-    this.dragGhost.style.gap = "6px";
-    this.dragGhost.style.padding = "6px 12px";
-    this.dragGhost.style.background = "var(--background-primary)";
-    this.dragGhost.style.border = "1px solid var(--interactive-accent)";
-    this.dragGhost.style.borderRadius = "4px";
-    this.dragGhost.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
-    this.dragGhost.style.fontSize = "var(--font-ui-small)";
-    this.dragGhost.style.pointerEvents = "none";
-    this.dragGhost.style.whiteSpace = "nowrap";
     const nameSpan = document.createElement("span");
     nameSpan.textContent = workspaceName;
     this.dragGhost.appendChild(nameSpan);
@@ -3054,7 +3041,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.draggedElement = el;
     el.addClass("is-dragging");
     document.body.addClass("workspace-dragging");
-    this.createDragGhost(el, workspaceName);
+    this.createDragGhost(workspaceName);
     this.dragGhost.style.left = `${evt.clientX + 10}px`;
     this.dragGhost.style.top = `${evt.clientY - 10}px`;
   }
@@ -3672,7 +3659,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         this.draggedElement = c;
         setGroupDragging(c, true);
         document.body.addClass("workspace-dragging");
-        this.createDragGhost(c, displayName);
+        this.createDragGhost(displayName);
         this.dragGhost.style.left = `${evt.clientX + 10}px`;
         this.dragGhost.style.top = `${evt.clientY - 10}px`;
       }
