@@ -1,6 +1,9 @@
-# Workspace Navigator - Feature Analysis & Roadmap
+# Workspace Navigator - Feature Analysis
 
-## Current Implementation Status (v1.0.6)
+> Historical feature analysis. For the current plan see [ROADMAP.md](./ROADMAP.md);
+> for the user-facing overview see the top-level [README](../README.md).
+
+## Implementation Status (baseline: v1.0.6)
 
 ### Implemented Features
 - ✅ Navigation layout memory per workspace (including folder expansion states)
