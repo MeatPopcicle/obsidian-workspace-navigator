@@ -860,11 +860,12 @@ export default class WorkspaceNavigator extends Plugin {
 		const layout = await this.getCurrentNavigationLayout();
 		this.navigationLayouts.set(workspaceName, layout);
 
-		// Persist to plugin data
-		await this.saveData({
-			...this.settings,
-			navigationLayouts: Object.fromEntries(this.navigationLayouts)
-		});
+		// Persist through saveSettings(), which serializes on saveQueue AND
+		// includes workspaceStorage. Writing a partial { settings, navigationLayouts }
+		// payload directly via saveData() here previously raced the queue and could
+		// land last, persisting a data.json with NO workspaceStorage — losing every
+		// saved workspace on next load.
+		await this.saveSettings();
 	}
 
 	/**
@@ -912,13 +913,16 @@ export default class WorkspaceNavigator extends Plugin {
 	}
 
 	async afterWorkspaceLoad(name: string) {
-		// Restore sidebar states (folder state is handled via workspace data injection)
-		await this.restoreNavigationLayout(name);
-		this.isLoadingWorkspace = false;
-		this.updateStatusBar();
-
-		// Set CSS data attribute for workspace-specific styling
-		this.updateWorkspaceDataAttribute(name);
+		// Restore sidebar states (folder state is handled via workspace data injection).
+		// finally{} guarantees the loading flag is cleared even if restore throws —
+		// otherwise a stuck flag permanently disables layout-change auto-save.
+		try {
+			await this.restoreNavigationLayout(name);
+		} finally {
+			this.isLoadingWorkspace = false;
+			this.updateStatusBar();
+			this.updateWorkspaceDataAttribute(name);
+		}
 	}
 
 	/**
@@ -944,7 +948,14 @@ export default class WorkspaceNavigator extends Plugin {
 		                           !this.settings.maintainLayoutAcrossWorkspaces;
 
 		this.beforeWorkspaceLoad(name);
-		await this.workspaceManager.loadWorkspace(name, restoreFolderState);
+		try {
+			await this.workspaceManager.loadWorkspace(name, restoreFolderState);
+		} catch (err) {
+			// Don't leave the loading flag stuck on if the load throws —
+			// that would permanently suppress layout-change auto-save.
+			this.isLoadingWorkspace = false;
+			throw err;
+		}
 		await this.saveSettings(); // Save after loading
 	}
 

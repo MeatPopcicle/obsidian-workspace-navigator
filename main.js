@@ -4625,6 +4625,10 @@ var WorkspaceManager = class {
         }
       }
     }
+    if (this.storage.workspaceOrder && this.storage.workspaceOrder[oldName] !== void 0) {
+      this.storage.workspaceOrder[newName] = this.storage.workspaceOrder[oldName];
+      delete this.storage.workspaceOrder[oldName];
+    }
     const icon = this.getGroupIcon(oldName);
     if (icon) {
       this.setGroupIcon(newName, icon);
@@ -4672,6 +4676,9 @@ var WorkspaceManager = class {
     }
     if (this.storage.groupOrder) {
       this.storage.groupOrder = this.storage.groupOrder.filter((g) => g !== groupName);
+    }
+    if (this.storage.workspaceOrder) {
+      delete this.storage.workspaceOrder[groupName];
     }
     this.setGroupIcon(groupName, null);
     this.setGroupIconColor(groupName, null);
@@ -7399,10 +7406,7 @@ ${JSON.stringify(layout, null, 2)}
     }
     const layout = await this.getCurrentNavigationLayout();
     this.navigationLayouts.set(workspaceName, layout);
-    await this.saveData({
-      ...this.settings,
-      navigationLayouts: Object.fromEntries(this.navigationLayouts)
-    });
+    await this.saveSettings();
   }
   /**
    * Restore navigation layout for a workspace (sidebar state only)
@@ -7441,10 +7445,13 @@ ${JSON.stringify(layout, null, 2)}
     this.isLoadingWorkspace = true;
   }
   async afterWorkspaceLoad(name) {
-    await this.restoreNavigationLayout(name);
-    this.isLoadingWorkspace = false;
-    this.updateStatusBar();
-    this.updateWorkspaceDataAttribute(name);
+    try {
+      await this.restoreNavigationLayout(name);
+    } finally {
+      this.isLoadingWorkspace = false;
+      this.updateStatusBar();
+      this.updateWorkspaceDataAttribute(name);
+    }
   }
   /**
    * Update body data-workspace-name attribute for CSS theming
@@ -7465,7 +7472,12 @@ ${JSON.stringify(layout, null, 2)}
   async loadWorkspace(name) {
     const restoreFolderState = this.settings.rememberNavigationLayout && !this.settings.maintainLayoutAcrossWorkspaces;
     this.beforeWorkspaceLoad(name);
-    await this.workspaceManager.loadWorkspace(name, restoreFolderState);
+    try {
+      await this.workspaceManager.loadWorkspace(name, restoreFolderState);
+    } catch (err) {
+      this.isLoadingWorkspace = false;
+      throw err;
+    }
     await this.saveSettings();
   }
   // ─────────────────────────────────────────────────────────────────

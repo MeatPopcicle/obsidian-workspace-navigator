@@ -386,6 +386,15 @@ export class WorkspaceManager {
 			}
 		}
 
+		// Migrate the manual workspace ordering, which is keyed by group name
+		// (getOrderKey returns the group name for a named group). Without this,
+		// the renamed group's manual workspace order is silently lost and the
+		// old key lingers as an orphan.
+		if (this.storage.workspaceOrder && this.storage.workspaceOrder[oldName] !== undefined) {
+			this.storage.workspaceOrder[newName] = this.storage.workspaceOrder[oldName];
+			delete this.storage.workspaceOrder[oldName];
+		}
+
 		// Transfer group icon
 		const icon = this.getGroupIcon(oldName);
 		if (icon) {
@@ -448,6 +457,13 @@ export class WorkspaceManager {
 		// Remove from the manual order
 		if (this.storage.groupOrder) {
 			this.storage.groupOrder = this.storage.groupOrder.filter(g => g !== groupName);
+		}
+
+		// Drop the group's manual workspace ordering (its workspaces are now
+		// ungrouped); otherwise the entry orphans and a future same-named group
+		// would inherit a stale order.
+		if (this.storage.workspaceOrder) {
+			delete this.storage.workspaceOrder[groupName];
 		}
 
 		// Clear every style facet
