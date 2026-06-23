@@ -119,6 +119,7 @@ export class WorkspaceManager {
 	storage: WorkspacesStorage;
 	logger: WorkspaceLogger;
 	private debugEnabled: () => boolean;
+	private sortedNamesCache: string[] | null = null;
 
 	constructor(app: App, initialStorage?: WorkspacesStorage, debugEnabled?: () => boolean) {
 		this.app = app;
@@ -152,10 +153,26 @@ export class WorkspaceManager {
 	 * Get list of all workspace names
 	 */
 	getWorkspaceNames(): string[] {
-		return Object.keys(this.storage.workspaces).sort((a, b) => {
-			// Natural sort for workspace names
-			return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-		});
+		// Memoize the natural sort: this is called many times per sidebar/modal
+		// render (getGroups, getWorkspacesByGroup, the ordered getters), and the
+		// localeCompare sort is the hot cost. Recompute when invalidated OR when
+		// the key count drifts — the count check self-heals any add/remove that
+		// didn't explicitly invalidate; only same-count renames rely on the
+		// explicit invalidateNameCache() calls in the mutators.
+		const keys = Object.keys(this.storage.workspaces);
+		if (!this.sortedNamesCache || this.sortedNamesCache.length !== keys.length) {
+			this.sortedNamesCache = keys.sort((a, b) =>
+				a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+			);
+		}
+		// Return a copy so callers (some of which sort/splice the result) can't
+		// corrupt the cached array.
+		return [...this.sortedNamesCache];
+	}
+
+	/** Invalidate the memoized sorted-names cache (call on any name-set change). */
+	private invalidateNameCache(): void {
+		this.sortedNamesCache = null;
 	}
 
 	/**
@@ -1109,6 +1126,7 @@ export class WorkspaceManager {
 		}
 
 		delete this.storage.workspaces[name];
+		this.invalidateNameCache();
 
 		// If this was the active workspace, clear it
 		if (this.storage.activeWorkspace === name) {
@@ -1150,6 +1168,7 @@ export class WorkspaceManager {
 		// Copy workspace data to new name
 		this.storage.workspaces[newName] = this.storage.workspaces[oldName];
 		delete this.storage.workspaces[oldName];
+		this.invalidateNameCache();  // same key count — the count self-heal can't catch a rename
 
 		// Update active workspace if it was renamed
 		if (this.storage.activeWorkspace === oldName) {

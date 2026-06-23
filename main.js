@@ -4365,6 +4365,7 @@ var WorkspaceLogger = class {
 var globalLogger = null;
 var _WorkspaceManager = class _WorkspaceManager {
   constructor(app, initialStorage, debugEnabled) {
+    this.sortedNamesCache = null;
     this.app = app;
     this.storage = initialStorage || {
       workspaces: {},
@@ -4388,9 +4389,17 @@ var _WorkspaceManager = class _WorkspaceManager {
    * Get list of all workspace names
    */
   getWorkspaceNames() {
-    return Object.keys(this.storage.workspaces).sort((a, b) => {
-      return a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" });
-    });
+    const keys = Object.keys(this.storage.workspaces);
+    if (!this.sortedNamesCache || this.sortedNamesCache.length !== keys.length) {
+      this.sortedNamesCache = keys.sort(
+        (a, b) => a.localeCompare(b, void 0, { numeric: true, sensitivity: "base" })
+      );
+    }
+    return [...this.sortedNamesCache];
+  }
+  /** Invalidate the memoized sorted-names cache (call on any name-set change). */
+  invalidateNameCache() {
+    this.sortedNamesCache = null;
   }
   /**
    * Check if a workspace exists
@@ -5174,6 +5183,7 @@ ${error.stack}
       return;
     }
     delete this.storage.workspaces[name];
+    this.invalidateNameCache();
     if (this.storage.activeWorkspace === name) {
       this.storage.activeWorkspace = null;
       this.logger.log(`- Cleared active workspace`);
@@ -5205,6 +5215,7 @@ ${error.stack}
     }
     this.storage.workspaces[newName] = this.storage.workspaces[oldName];
     delete this.storage.workspaces[oldName];
+    this.invalidateNameCache();
     if (this.storage.activeWorkspace === oldName) {
       this.storage.activeWorkspace = newName;
       this.logger.log(`- Updated active workspace to "${newName}"`);
