@@ -58,12 +58,16 @@ The separate "Manage Workspaces" editor modal is **slated for removal** (see Pla
 
 ## Planned
 
-### Next Up (greenlit)
-- [ ] **Last-workspace toggle** — a hotkey that bounces between the two most-recently-active workspaces (Alt-Tab for workspaces).
-- [ ] **Sidebar filter box** — type-to-filter the workspace tree (for vaults with many workspaces across clients).
-- [ ] **Unsaved-layout indicator** — subtle marker when the active workspace has drifted from its saved state.
-- [ ] **Per-workspace theming hook** — set a `data-workspace-name` (and, later, `data-space`) attribute on `<body>` so the whole UI can be tinted per workspace/client via CSS.
-- [ ] **Remove the "Manage Workspaces" editor modal** — consolidate everything to the sidebar + status-bar switcher. Delete `workspace-editor.ts` and its command/entry points.
+### Done this round (v2.17 work)
+- [x] **Last-workspace toggle** — "Switch to last workspace" command that bounces between the two most-recently-active workspaces. (Bind a hotkey in Settings → Hotkeys.)
+- [x] **Removed the "Manage Workspaces" editor modal** — consolidated to the sidebar + status-bar switcher; `workspace-editor.ts` and its CSS deleted.
+- [x] **Updated shipped defaults** — auto-save on switch **on**, auto-save on layout change **on**, manual sort order **on**, transparent modal **on**, show keyboard shortcuts **off**.
+
+### Deferred
+- [ ] **Sidebar filter box** — type-to-filter the workspace tree. Deferred; not clearly useful yet.
+
+### Future
+- [ ] **Per-workspace theming hook** — set a `data-workspace-name` (and, later, `data-space`) attribute on `<body>` so the whole UI can be tinted per workspace/client via CSS. Parked for later, alongside Scoped Spaces.
 
 ---
 
@@ -79,6 +83,7 @@ The separate "Manage Workspaces" editor modal is **slated for removal** (see Pla
 - **Ribbon icon (show/hide)** — not wanted.
 - **Pinned / favorite workspaces** — redundant; quick workspace access is already the whole point of the plugin.
 - **Workspace templates** — not wanted (was an AI suggestion).
+- **Unsaved-layout indicator** — with auto-save-on-switch and auto-save-on-layout-change both on (now the defaults), a workspace is effectively always saved (only a ~2s debounce window), so the indicator would never meaningfully show. It would only matter under a manual-save workflow, which isn't the intended use.
 - **Workspace descriptions, recent-list panel, hover preview, file overrides with template variables** — previously floated, not planned.
 
 ---
