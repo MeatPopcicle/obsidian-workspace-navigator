@@ -3273,7 +3273,8 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     if (activeWorkspace && workspaceName === activeWorkspace) {
       if (this.plugin.settings.highlightActiveWorkspace) {
         el.addClass("is-active");
-        el.style.backgroundColor = "hsla(var(--interactive-accent-hsl), 0.12)";
+        el.style.backgroundColor = "var(--background-secondary)";
+        el.style.backgroundImage = "linear-gradient(hsla(var(--interactive-accent-hsl), 0.12), hsla(var(--interactive-accent-hsl), 0.12))";
       }
       const activeCheck = el.createSpan("workspace-active-check");
       (0, import_obsidian4.setIcon)(activeCheck, "check");
