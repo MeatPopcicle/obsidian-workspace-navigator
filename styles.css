@@ -209,7 +209,8 @@
 }
 
 .workspace-suggestion-item.is-active {
-	font-weight: var(--font-weight-semibold);
+	background: hsla(var(--interactive-accent-hsl), 0.12);
+	box-shadow: inset 3px 0 0 0 var(--interactive-accent);
 }
 
 /* Active workspace handle - more prominent */
@@ -945,13 +946,13 @@
 	background: var(--background-modifier-hover);
 }
 
+/* Active-workspace emphasis: a left accent bar + a tinted fill. Deliberately
+   does NOT touch the name's color or weight, so a workspace's custom text
+   styling always shows through. Applied only when the "highlight active
+   workspace" setting is on (the .is-active class is added conditionally). */
 .workspace-sidebar-item.is-active {
-	background: var(--background-modifier-active-hover);
-}
-
-.workspace-sidebar-item.is-active .workspace-sidebar-item-name {
-	font-weight: var(--font-weight-semibold);
-	color: var(--text-accent);
+	background: hsla(var(--interactive-accent-hsl), 0.12);
+	box-shadow: inset 3px 0 0 0 var(--interactive-accent);
 }
 
 /* Active-workspace "you are here" checkmark (sidebar + switcher modal) */

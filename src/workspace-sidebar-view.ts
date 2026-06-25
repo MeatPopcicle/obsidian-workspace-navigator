@@ -390,7 +390,9 @@ export class WorkspaceNavigatorView extends ItemView {
 		// Workspace header row
 		const item = wsContainer.createDiv('workspace-sidebar-item');
 		item.dataset.workspaceName = workspaceName;
-		if (isActive) item.addClass('is-active');
+		// Structural emphasis (bar + fill) only when the setting is on; the
+		// checkmark below is added regardless so "active" is always identifiable.
+		if (isActive && this.plugin.settings.highlightActiveWorkspace) item.addClass('is-active');
 
 		// Make draggable if manual order
 		if (useManualOrder) {

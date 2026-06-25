@@ -1756,7 +1756,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// explicit "you are here" checkmark, positioned just left of the row buttons.
 		const activeWorkspace = workspaceManager.getActiveWorkspace();
 		if (activeWorkspace && workspaceName === activeWorkspace) {
-			el.addClass('is-active');
+			// Structural emphasis (bar + fill) only when the setting is on; the
+			// checkmark is added regardless.
+			if (this.plugin.settings.highlightActiveWorkspace) {
+				el.addClass('is-active');
+			}
 
 			const activeCheck = el.createSpan('workspace-active-check');
 			setIcon(activeCheck, 'check');

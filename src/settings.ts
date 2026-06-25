@@ -18,6 +18,7 @@ export interface WorkspaceNavigatorSettings {
 	// UI preferences
 	showStatusBar:                   boolean;
 	showGroupInStatusBar:            boolean;
+	highlightActiveWorkspace:        boolean;
 	showInstructions:                boolean;
 	showSearchBox:                   boolean;
 	transparentModal:                boolean;
@@ -46,6 +47,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	maintainLayoutAcrossWorkspaces:  false,
 	showStatusBar:                   true,
 	showGroupInStatusBar:            true,
+	highlightActiveWorkspace:        true,
 	showInstructions:                false,
 	showSearchBox:                   false,
 	transparentModal:                true,
@@ -147,6 +149,17 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					this.plugin.settings.showGroupInStatusBar = value;
 					await this.plugin.saveSettings();
 					this.plugin.updateStatusBar();
+				}));
+
+		new Setting(containerEl)
+			.setName('Highlight active workspace')
+			.setDesc('Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.highlightActiveWorkspace)
+				.onChange(async (value) => {
+					this.plugin.settings.highlightActiveWorkspace = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSidebarView();
 				}));
 
 		new Setting(containerEl)

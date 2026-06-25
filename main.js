@@ -79,6 +79,7 @@ var DEFAULT_SETTINGS = {
   maintainLayoutAcrossWorkspaces: false,
   showStatusBar: true,
   showGroupInStatusBar: true,
+  highlightActiveWorkspace: true,
   showInstructions: false,
   showSearchBox: false,
   transparentModal: true,
@@ -126,6 +127,11 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       this.plugin.settings.showGroupInStatusBar = value;
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Highlight active workspace").setDesc("Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.").addToggle((toggle) => toggle.setValue(this.plugin.settings.highlightActiveWorkspace).onChange(async (value) => {
+      this.plugin.settings.highlightActiveWorkspace = value;
+      await this.plugin.saveSettings();
+      this.plugin.refreshSidebarView();
     }));
     new import_obsidian2.Setting(containerEl).setName("Show keyboard shortcuts").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
       this.plugin.settings.showInstructions = value;
@@ -3265,7 +3271,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       textSpan.style.fontStyle = "italic";
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     if (activeWorkspace && workspaceName === activeWorkspace) {
-      el.addClass("is-active");
+      if (this.plugin.settings.highlightActiveWorkspace) {
+        el.addClass("is-active");
+      }
       const activeCheck = el.createSpan("workspace-active-check");
       (0, import_obsidian4.setIcon)(activeCheck, "check");
       activeCheck.setAttribute("aria-label", "Current workspace");
@@ -5425,7 +5433,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     wsContainer.dataset.workspaceName = workspaceName;
     const item = wsContainer.createDiv("workspace-sidebar-item");
     item.dataset.workspaceName = workspaceName;
-    if (isActive)
+    if (isActive && this.plugin.settings.highlightActiveWorkspace)
       item.addClass("is-active");
     if (useManualOrder) {
       item.draggable = true;
