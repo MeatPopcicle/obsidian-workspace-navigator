@@ -1,6 +1,6 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.18.0
+**Current Version:** v2.19.0
 **Last Updated:** 2026-06-25
 
 ---
@@ -112,6 +112,11 @@ Full multi-pass code review and cleanup, landed in tiers:
 ### Phase 6 - Surfaces & active marker (v2.17-2.18)
 - **v2.17:** removed the Manage Workspaces editor modal (sidebar + status-bar switcher only); added the "Switch to last workspace" toggle; new shipped defaults.
 - **v2.18:** status bar can show the active workspace's group (configurable); explicit active-workspace checkmark in the sidebar and switcher; configurable active-row highlight (accent bar + tinted fill) that no longer overrides custom name colors.
+
+### Phase 7 - Theming & settings (v2.19)
+- **Style Settings integration:** plugin-specific `--wn-*` CSS variables exposed via a `/* @settings */` block — active-highlight colors, tree guide-line color/visibility, row hover, badge colors, and sizing (density, font scale, bar width, checkmark size, corner radius). Defaults inherit the theme.
+- **Style Settings shortcut:** an "Open Style Settings" button in the settings tab, plus toggleable palette buttons in the sidebar header and switcher (gated on Style Settings being installed).
+- **Settings panel redesign:** six purpose-based collapsible sections with indented, conditionally-shown dependent options.
 
 ---
 
