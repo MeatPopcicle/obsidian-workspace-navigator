@@ -80,6 +80,8 @@ var DEFAULT_SETTINGS = {
   showStatusBar: true,
   showGroupInStatusBar: true,
   highlightActiveWorkspace: true,
+  showStyleSettingsInSidebar: true,
+  showStyleSettingsInModal: true,
   showInstructions: false,
   showSearchBox: false,
   transparentModal: true,
@@ -132,6 +134,22 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       this.plugin.settings.highlightActiveWorkspace = value;
       await this.plugin.saveSettings();
       this.plugin.refreshSidebarView();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Theming").setHeading();
+    const styleSettingsRow = new import_obsidian2.Setting(containerEl).setName("Style Settings");
+    if (this.plugin.isStyleSettingsEnabled()) {
+      styleSettingsRow.setDesc("Theme Workspace Navigator (active highlight, guide lines, density, sizing) with the Style Settings plugin.").addButton((button) => button.setButtonText("Open Style Settings").setCta().onClick(() => this.plugin.openStyleSettings()));
+    } else {
+      styleSettingsRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
+    }
+    new import_obsidian2.Setting(containerEl).setName("Show Style Settings button in sidebar").setDesc("Add a button to the sidebar header that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInSidebar).onChange(async (value) => {
+      this.plugin.settings.showStyleSettingsInSidebar = value;
+      await this.plugin.saveSettings();
+      this.plugin.refreshSidebarView();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Show Style Settings button in switcher").setDesc("Add a button to the switcher modal that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInModal).onChange(async (value) => {
+      this.plugin.settings.showStyleSettingsInModal = value;
+      await this.plugin.saveSettings();
     }));
     new import_obsidian2.Setting(containerEl).setName("Show keyboard shortcuts").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
       this.plugin.settings.showInstructions = value;
@@ -2757,6 +2775,19 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.plugin.activateSidebarView();
     });
     bottomActions.appendChild(sidebarBtn);
+    if (this.plugin.settings.showStyleSettingsInModal && this.plugin.isStyleSettingsEnabled()) {
+      const styleBtn = document.createElement("button");
+      styleBtn.className = "workspace-action-btn btn-style-settings";
+      (0, import_obsidian4.setIcon)(styleBtn, "palette");
+      styleBtn.setAttribute("aria-label", "Open Style Settings");
+      styleBtn.addEventListener("click", (evt) => {
+        evt.preventDefault();
+        evt.stopPropagation();
+        this.close();
+        this.plugin.openStyleSettings();
+      });
+      bottomActions.appendChild(styleBtn);
+    }
     const settingsBtn = document.createElement("button");
     settingsBtn.className = "workspace-action-btn btn-settings";
     (0, import_obsidian4.setIcon)(settingsBtn, "settings");
@@ -5235,6 +5266,12 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       this.toggleAllWorkspaceFiles();
       this.updateExpandWorkspacesButton(expandWorkspacesBtn);
     });
+    if (this.plugin.settings.showStyleSettingsInSidebar && this.plugin.isStyleSettingsEnabled()) {
+      const styleBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+      (0, import_obsidian6.setIcon)(styleBtn, "palette");
+      styleBtn.setAttribute("aria-label", "Open Style Settings");
+      styleBtn.addEventListener("click", () => this.plugin.openStyleSettings());
+    }
     const settingsBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
     (0, import_obsidian6.setIcon)(settingsBtn, "settings");
     settingsBtn.setAttribute("aria-label", "Open plugin settings");
@@ -6317,6 +6354,22 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
         view.refresh();
       }
     }
+  }
+  // ─────────────────────────────────────────────────────────────────
+  // Style Settings integration
+  // ─────────────────────────────────────────────────────────────────
+  /** Whether the community Style Settings plugin is installed and enabled. */
+  isStyleSettingsEnabled() {
+    var _a, _b;
+    return !!((_b = (_a = this.app.plugins) == null ? void 0 : _a.enabledPlugins) == null ? void 0 : _b.has("obsidian-style-settings"));
+  }
+  /** Open Obsidian Settings on the Style Settings tab (our theming knobs live there). */
+  openStyleSettings() {
+    const setting = this.app.setting;
+    if (!setting)
+      return;
+    setting.open();
+    setting.openTabById("obsidian-style-settings");
   }
   /**
    * Notify sidebar that a workspace was renamed (preserves collapsed state)

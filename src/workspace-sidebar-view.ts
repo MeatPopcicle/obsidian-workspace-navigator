@@ -116,6 +116,14 @@ export class WorkspaceNavigatorView extends ItemView {
 			this.updateExpandWorkspacesButton(expandWorkspacesBtn);
 		});
 
+		// Style Settings button (only when enabled in settings AND the plugin is installed)
+		if (this.plugin.settings.showStyleSettingsInSidebar && this.plugin.isStyleSettingsEnabled()) {
+			const styleBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+			setIcon(styleBtn, 'palette');
+			styleBtn.setAttribute('aria-label', 'Open Style Settings');
+			styleBtn.addEventListener('click', () => this.plugin.openStyleSettings());
+		}
+
 		// Settings button
 		const settingsBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
 		setIcon(settingsBtn, 'settings');

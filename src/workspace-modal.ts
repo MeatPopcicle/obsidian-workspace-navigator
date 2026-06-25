@@ -1075,6 +1075,21 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		});
 		bottomActions.appendChild(sidebarBtn);
 
+		// Style Settings button (palette icon) — only when enabled in settings AND installed
+		if (this.plugin.settings.showStyleSettingsInModal && this.plugin.isStyleSettingsEnabled()) {
+			const styleBtn = document.createElement('button');
+			styleBtn.className = 'workspace-action-btn btn-style-settings';
+			setIcon(styleBtn, 'palette');
+			styleBtn.setAttribute('aria-label', 'Open Style Settings');
+			styleBtn.addEventListener('click', (evt) => {
+				evt.preventDefault();
+				evt.stopPropagation();
+				this.close();
+				this.plugin.openStyleSettings();
+			});
+			bottomActions.appendChild(styleBtn);
+		}
+
 		// Settings button (gear icon)
 		const settingsBtn = document.createElement('button');
 		settingsBtn.className = 'workspace-action-btn btn-settings';

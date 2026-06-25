@@ -159,6 +159,23 @@ export default class WorkspaceNavigator extends Plugin {
 		}
 	}
 
+	// ─────────────────────────────────────────────────────────────────
+	// Style Settings integration
+	// ─────────────────────────────────────────────────────────────────
+
+	/** Whether the community Style Settings plugin is installed and enabled. */
+	isStyleSettingsEnabled(): boolean {
+		return !!(this.app as any).plugins?.enabledPlugins?.has('obsidian-style-settings');
+	}
+
+	/** Open Obsidian Settings on the Style Settings tab (our theming knobs live there). */
+	openStyleSettings(): void {
+		const setting = (this.app as any).setting;
+		if (!setting) return;
+		setting.open();
+		setting.openTabById('obsidian-style-settings');
+	}
+
 	/**
 	 * Notify sidebar that a workspace was renamed (preserves collapsed state)
 	 */

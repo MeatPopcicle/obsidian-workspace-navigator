@@ -19,6 +19,8 @@ export interface WorkspaceNavigatorSettings {
 	showStatusBar:                   boolean;
 	showGroupInStatusBar:            boolean;
 	highlightActiveWorkspace:        boolean;
+	showStyleSettingsInSidebar:      boolean;
+	showStyleSettingsInModal:        boolean;
 	showInstructions:                boolean;
 	showSearchBox:                   boolean;
 	transparentModal:                boolean;
@@ -48,6 +50,8 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showStatusBar:                   true,
 	showGroupInStatusBar:            true,
 	highlightActiveWorkspace:        true,
+	showStyleSettingsInSidebar:      true,
+	showStyleSettingsInModal:        true,
 	showInstructions:                false,
 	showSearchBox:                   false,
 	transparentModal:                true,
@@ -160,6 +164,41 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					this.plugin.settings.highlightActiveWorkspace = value;
 					await this.plugin.saveSettings();
 					this.plugin.refreshSidebarView();
+				}));
+
+		new Setting(containerEl).setName('Theming').setHeading();
+
+		const styleSettingsRow = new Setting(containerEl).setName('Style Settings');
+		if (this.plugin.isStyleSettingsEnabled()) {
+			styleSettingsRow
+				.setDesc('Theme Workspace Navigator (active highlight, guide lines, density, sizing) with the Style Settings plugin.')
+				.addButton(button => button
+					.setButtonText('Open Style Settings')
+					.setCta()
+					.onClick(() => this.plugin.openStyleSettings()));
+		} else {
+			styleSettingsRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
+		}
+
+		new Setting(containerEl)
+			.setName('Show Style Settings button in sidebar')
+			.setDesc('Add a button to the sidebar header that opens Style Settings.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showStyleSettingsInSidebar)
+				.onChange(async (value) => {
+					this.plugin.settings.showStyleSettingsInSidebar = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSidebarView();
+				}));
+
+		new Setting(containerEl)
+			.setName('Show Style Settings button in switcher')
+			.setDesc('Add a button to the switcher modal that opens Style Settings.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showStyleSettingsInModal)
+				.onChange(async (value) => {
+					this.plugin.settings.showStyleSettingsInModal = value;
+					await this.plugin.saveSettings();
 				}));
 
 		new Setting(containerEl)
