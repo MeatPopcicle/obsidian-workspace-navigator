@@ -39,6 +39,102 @@ settings:
 		format: hex
 		default-light: '#'
 		default-dark: '#'
+	-
+		id: wn-layout-heading
+		title: Guides & colors
+		type: heading
+		level: 3
+		collapsed: true
+	-
+		id: wn-guide-color
+		title: Tree guide line color
+		description: Color of the connector lines between groups, workspaces, and files.
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: wn-hide-guides
+		title: Hide tree guide lines
+		description: Hide the connector lines entirely.
+		type: class-toggle
+		default: false
+	-
+		id: wn-hover
+		title: Row hover color
+		description: Background color when hovering rows and buttons.
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: wn-count-color
+		title: Count badge color
+		description: Color of the file-count and collapsed-group count badges.
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: wn-dup-bg
+		title: Duplicate-file badge color
+		description: Background of the badge marking files open in other workspaces.
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: wn-size-heading
+		title: Sizing
+		type: heading
+		level: 3
+		collapsed: true
+	-
+		id: wn-density
+		title: Row density
+		description: Vertical padding multiplier for rows (1 = default, lower = more compact).
+		type: variable-number-slider
+		default: 1
+		min: 0.5
+		max: 2
+		step: 0.1
+	-
+		id: wn-font-scale
+		title: Text size
+		description: Scale for sidebar text (1 = theme default).
+		type: variable-number-slider
+		default: 1
+		min: 0.8
+		max: 1.4
+		step: 0.05
+	-
+		id: wn-bar-width
+		title: Active bar width
+		description: Width of the active-workspace accent bar, in pixels.
+		type: variable-number-slider
+		default: 3
+		min: 0
+		max: 8
+		step: 1
+	-
+		id: wn-check-size
+		title: Checkmark size
+		description: Size of the active-workspace checkmark, in pixels.
+		type: variable-number-slider
+		default: 14
+		min: 10
+		max: 20
+		step: 1
+	-
+		id: wn-radius
+		title: Row corner radius
+		description: Corner radius of rows, in pixels.
+		type: variable-number-slider
+		default: 4
+		min: 0
+		max: 12
+		step: 1
 
 */
 
@@ -56,7 +152,7 @@ settings:
 }
 
 .workspace-navigator-status:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--wn-hover, var(--background-modifier-hover));
 }
 
 .workspace-navigator-icon {
@@ -250,7 +346,7 @@ settings:
 
 .workspace-suggestion-item.is-active {
 	background: var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12));
-	box-shadow: inset 3px 0 0 0 var(--wn-active-bar, var(--interactive-accent));
+	box-shadow: inset calc(var(--wn-bar-width, 3) * 1px) 0 0 0 var(--wn-active-bar, var(--interactive-accent));
 }
 
 /* Active workspace handle - more prominent */
@@ -468,7 +564,7 @@ settings:
 }
 
 .workspace-icon-btn-grid:hover {
-	background-color: var(--background-modifier-hover);
+	background-color: var(--wn-hover, var(--background-modifier-hover));
 }
 
 .workspace-icon-btn-grid.is-selected {
@@ -630,7 +726,7 @@ settings:
 }
 
 .workspace-action-btn:hover {
-	background: var(--background-modifier-hover);
+	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
@@ -844,7 +940,7 @@ settings:
 }
 
 .workspace-sidebar-action-btn:hover {
-	background: var(--background-modifier-hover);
+	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
@@ -865,15 +961,15 @@ settings:
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	padding: 4px 8px;
+	padding: calc(4px * var(--wn-density, 1)) 8px;
 	cursor: pointer;
-	border-radius: 4px;
+	border-radius: calc(var(--wn-radius, 4) * 1px);
 	margin: 0 4px;
 	transition: background-color 0.1s;
 }
 
 .workspace-sidebar-group-header:hover {
-	background: var(--background-modifier-hover);
+	background: var(--wn-hover, var(--background-modifier-hover));
 }
 
 .workspace-sidebar-group-header.is-dragging {
@@ -926,7 +1022,7 @@ settings:
 /* Group name */
 .workspace-sidebar-group-name {
 	flex: 1;
-	font-size: var(--font-ui-small);
+	font-size: calc(var(--font-ui-small) * var(--wn-font-scale, 1));
 	color: var(--text-muted);
 	white-space: nowrap;
 	overflow: hidden;
@@ -936,7 +1032,7 @@ settings:
 /* Count badge */
 .workspace-sidebar-count {
 	font-size: var(--font-ui-smaller);
-	color: var(--text-faint);
+	color: var(--wn-count-color, var(--text-faint));
 	margin-left: 4px;
 }
 
@@ -955,7 +1051,7 @@ settings:
 	top: 0;
 	bottom: 8px;
 	width: 1px;
-	background: var(--background-modifier-border);
+	background: var(--wn-guide-color, var(--background-modifier-border));
 }
 
 /* Workspace item */
@@ -964,9 +1060,9 @@ settings:
 	display: flex;
 	align-items: center;
 	gap: 6px;
-	padding: 4px 8px;
+	padding: calc(4px * var(--wn-density, 1)) 8px;
 	margin: 0 4px;
-	border-radius: 4px;
+	border-radius: calc(var(--wn-radius, 4) * 1px);
 	cursor: pointer;
 	transition: background-color 0.1s;
 }
@@ -979,11 +1075,11 @@ settings:
 	top: 50%;
 	width: 14px;
 	height: 1px;
-	background: var(--background-modifier-border);
+	background: var(--wn-guide-color, var(--background-modifier-border));
 }
 
 .workspace-sidebar-item:hover {
-	background: var(--background-modifier-hover);
+	background: var(--wn-hover, var(--background-modifier-hover));
 }
 
 /* Active-workspace emphasis: a left accent bar + a tinted fill. Deliberately
@@ -992,7 +1088,7 @@ settings:
    workspace" setting is on (the .is-active class is added conditionally). */
 .workspace-sidebar-item.is-active {
 	background: var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12));
-	box-shadow: inset 3px 0 0 0 var(--wn-active-bar, var(--interactive-accent));
+	box-shadow: inset calc(var(--wn-bar-width, 3) * 1px) 0 0 0 var(--wn-active-bar, var(--interactive-accent));
 }
 
 /* Active-workspace "you are here" checkmark (sidebar + switcher modal) */
@@ -1006,13 +1102,13 @@ settings:
 }
 
 .workspace-sidebar-active-check svg {
-	width: 14px;
-	height: 14px;
+	width: calc(var(--wn-check-size, 14) * 1px);
+	height: calc(var(--wn-check-size, 14) * 1px);
 }
 
 .workspace-active-check svg {
-	width: 15px;
-	height: 15px;
+	width: calc(var(--wn-check-size, 14) * 1px);
+	height: calc(var(--wn-check-size, 14) * 1px);
 }
 
 .workspace-sidebar-item.is-dragging {
@@ -1045,7 +1141,7 @@ settings:
 /* Workspace name */
 .workspace-sidebar-item-name {
 	flex: 1;
-	font-size: var(--font-ui-small);
+	font-size: calc(var(--font-ui-small) * var(--wn-font-scale, 1));
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -1106,7 +1202,7 @@ settings:
 }
 
 .workspace-sidebar-item-btn:hover {
-	background: var(--background-modifier-hover);
+	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
@@ -1139,7 +1235,7 @@ settings:
 /* File count badge */
 .workspace-sidebar-file-count {
 	font-size: var(--font-ui-smaller);
-	color: var(--text-faint);
+	color: var(--wn-count-color, var(--text-faint));
 	margin-left: 4px;
 }
 
@@ -1158,7 +1254,7 @@ settings:
 	top: 0;
 	bottom: 8px;
 	width: 1px;
-	background: var(--background-modifier-border);
+	background: var(--wn-guide-color, var(--background-modifier-border));
 }
 
 /* Individual file item */
@@ -1167,10 +1263,10 @@ settings:
 	display: flex;
 	align-items: center;
 	gap: 4px;
-	padding: 2px 8px;
+	padding: calc(2px * var(--wn-density, 1)) 8px;
 	margin: 0 4px;
-	border-radius: 4px;
-	font-size: var(--font-ui-smaller);
+	border-radius: calc(var(--wn-radius, 4) * 1px);
+	font-size: calc(var(--font-ui-smaller) * var(--wn-font-scale, 1));
 	color: var(--text-muted);
 }
 
@@ -1182,7 +1278,7 @@ settings:
 	top: 50%;
 	width: 14px;
 	height: 1px;
-	background: var(--background-modifier-border);
+	background: var(--wn-guide-color, var(--background-modifier-border));
 }
 
 .workspace-sidebar-file-item.is-clickable {
@@ -1190,7 +1286,7 @@ settings:
 }
 
 .workspace-sidebar-file-item.is-clickable:hover {
-	background: var(--background-modifier-hover);
+	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
@@ -1228,7 +1324,7 @@ settings:
 	font-size: 10px;
 	font-weight: 600;
 	color: var(--text-on-accent);
-	background: var(--interactive-accent);
+	background: var(--wn-dup-bg, var(--interactive-accent));
 	border-radius: 8px;
 	flex-shrink: 0;
 }
@@ -1257,4 +1353,12 @@ settings:
 
 .workspace-sidebar-file-item.drop-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
+}
+
+/* Style Settings: "Hide tree guide lines" toggle adds .wn-hide-guides to body */
+body.wn-hide-guides .workspace-sidebar-workspaces::before,
+body.wn-hide-guides .workspace-sidebar-item::before,
+body.wn-hide-guides .workspace-sidebar-files::before,
+body.wn-hide-guides .workspace-sidebar-file-item::before {
+	display: none;
 }
