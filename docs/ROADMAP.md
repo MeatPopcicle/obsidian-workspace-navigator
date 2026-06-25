@@ -1,7 +1,7 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.17.0
-**Last Updated:** 2026-06-23
+**Current Version:** v2.18.0
+**Last Updated:** 2026-06-25
 
 ---
 
@@ -108,6 +108,10 @@ Full multi-pass code review and cleanup, landed in tiers:
 - **Cruft:** removed leftover debug instrumentation, deleted dead code (incl. the unused `debug-logger.ts`), gated debug commands behind debug mode, guarded auto-backup for mobile, synced version files.
 - **Leaks & correctness:** listener leaks (editor refresh, tab indicators), the `\x00nogroup` sentinel bug, stale collapse-state, confirm-modal hardening, `defaultGroup` validation.
 - **Structure:** moved sources into `src/`, consolidated docs, expanded `.gitignore`; `STYLE_MAPS`-driven group styling, memoized name sort, incremental sidebar render, and a typed surface over Obsidian's private chooser internals.
+
+### Phase 6 - Surfaces & active marker (v2.17-2.18)
+- **v2.17:** removed the Manage Workspaces editor modal (sidebar + status-bar switcher only); added the "Switch to last workspace" toggle; new shipped defaults.
+- **v2.18:** status bar can show the active workspace's group (configurable); explicit active-workspace checkmark in the sidebar and switcher; configurable active-row highlight (accent bar + tinted fill) that no longer overrides custom name colors.
 
 ---
 
