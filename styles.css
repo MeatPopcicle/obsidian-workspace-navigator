@@ -1362,3 +1362,44 @@ body.wn-hide-guides .workspace-sidebar-files::before,
 body.wn-hide-guides .workspace-sidebar-file-item::before {
 	display: none;
 }
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Settings panel: collapsible sections + indented dependent rows               */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.wn-settings-section {
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wn-settings-summary {
+	cursor: pointer;
+	list-style: none;
+	font-weight: var(--font-weight-semibold, 600);
+	color: var(--text-normal);
+	padding: 10px 2px;
+}
+
+.wn-settings-summary::-webkit-details-marker {
+	display: none;
+}
+
+.wn-settings-summary::before {
+	content: '\25B8';                 /* ▸ */
+	display: inline-block;
+	width: 1.2em;
+	color: var(--text-muted);
+}
+
+.wn-settings-section[open] > .wn-settings-summary::before {
+	content: '\25BE';                 /* ▾ */
+}
+
+.wn-settings-body {
+	padding-bottom: 6px;
+}
+
+.wn-setting-indent {
+	margin-left: 1.25em;
+	border-left: 2px solid var(--background-modifier-border);
+	padding-left: 0.75em;
+}

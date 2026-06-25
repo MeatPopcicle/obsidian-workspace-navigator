@@ -81,33 +81,50 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 		const { containerEl } = this;
 		containerEl.empty();
 
-		// ─────────────────────────────────────────────────────────────────
-		// Layout Memory
-		// ─────────────────────────────────────────────────────────────────
+		// A collapsible section (native <details>); returns the body element to
+		// append Settings into. Top sections start open; advanced ones collapsed.
+		const section = (title: string, collapsed = false): HTMLElement => {
+			const details = containerEl.createEl('details', { cls: 'wn-settings-section' });
+			if (!collapsed) details.setAttribute('open', '');
+			details.createEl('summary', { cls: 'wn-settings-summary', text: title });
+			return details.createDiv('wn-settings-body');
+		};
+		// Mark a setting as an indented dependent (sub-option) and set its
+		// initial visibility. Toggle .settingEl.style.display to show/hide later.
+		const dependent = (setting: Setting, visible: boolean): Setting => {
+			setting.settingEl.addClass('wn-setting-indent');
+			setting.settingEl.style.display = visible ? '' : 'none';
+			return setting;
+		};
 
-		containerEl.createEl('h2', { text: 'Layout Memory' });
+		// ── Saving & layout ──────────────────────────────────────────────
+		const saving = section('Saving & layout');
 
-		new Setting(containerEl)
+		new Setting(saving)
 			.setName('Remember navigation layout per workspace')
-			.setDesc('Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When disabled, navigation state carries over from the previous workspace.')
+			.setDesc('Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When off, navigation state carries over from the previous workspace.')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.rememberNavigationLayout)
 				.onChange(async (value) => {
 					this.plugin.settings.rememberNavigationLayout = value;
 					await this.plugin.saveSettings();
+					maintainSetting.settingEl.style.display = value ? '' : 'none';
 				}));
 
-		new Setting(containerEl)
-			.setName('Maintain layout across workspaces')
-			.setDesc('Keep current navigation layout when switching instead of loading saved layout. Only works when "Remember navigation layout" is enabled.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces)
-				.onChange(async (value) => {
-					this.plugin.settings.maintainLayoutAcrossWorkspaces = value;
-					await this.plugin.saveSettings();
-				}));
+		const maintainSetting = dependent(
+			new Setting(saving)
+				.setName('Maintain layout across workspaces')
+				.setDesc('Keep the current navigation layout when switching, instead of loading each workspace\'s saved layout.')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces)
+					.onChange(async (value) => {
+						this.plugin.settings.maintainLayoutAcrossWorkspaces = value;
+						await this.plugin.saveSettings();
+					})),
+			this.plugin.settings.rememberNavigationLayout
+		);
 
-		new Setting(containerEl)
+		new Setting(saving)
 			.setName('Auto-save on workspace switch')
 			.setDesc('Automatically save the current workspace layout before switching to another.')
 			.addToggle(toggle => toggle
@@ -117,7 +134,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(saving)
 			.setName('Auto-save on layout change')
 			.setDesc('Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.')
 			.addToggle(toggle => toggle
@@ -127,134 +144,15 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// ─────────────────────────────────────────────────────────────────
-		// Switcher Appearance
-		// ─────────────────────────────────────────────────────────────────
+		// ── Workspaces ───────────────────────────────────────────────────
+		const workspaces = section('Workspaces');
 
-		containerEl.createEl('h2', { text: 'Switcher Appearance' });
-
-		new Setting(containerEl)
-			.setName('Show status bar indicator')
-			.setDesc('Display the current workspace name in the status bar.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showStatusBar)
-				.onChange(async (value) => {
-					this.plugin.settings.showStatusBar = value;
-					await this.plugin.saveSettings();
-					this.plugin.updateStatusBar();
-				}));
-
-		new Setting(containerEl)
-			.setName('Show group in status bar')
-			.setDesc('Also show the active workspace\'s group in the status bar (e.g. "Group › Workspace").')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showGroupInStatusBar)
-				.onChange(async (value) => {
-					this.plugin.settings.showGroupInStatusBar = value;
-					await this.plugin.saveSettings();
-					this.plugin.updateStatusBar();
-				}));
-
-		new Setting(containerEl)
-			.setName('Highlight active workspace')
-			.setDesc('Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.highlightActiveWorkspace)
-				.onChange(async (value) => {
-					this.plugin.settings.highlightActiveWorkspace = value;
-					await this.plugin.saveSettings();
-					this.plugin.refreshSidebarView();
-				}));
-
-		new Setting(containerEl).setName('Theming').setHeading();
-
-		const styleSettingsRow = new Setting(containerEl).setName('Style Settings');
-		if (this.plugin.isStyleSettingsEnabled()) {
-			styleSettingsRow
-				.setDesc('Theme Workspace Navigator (active highlight, guide lines, density, sizing) with the Style Settings plugin.')
-				.addButton(button => button
-					.setButtonText('Open Style Settings')
-					.setCta()
-					.onClick(() => this.plugin.openStyleSettings()));
-		} else {
-			styleSettingsRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
-		}
-
-		new Setting(containerEl)
-			.setName('Show Style Settings button in sidebar')
-			.setDesc('Add a button to the sidebar header that opens Style Settings.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showStyleSettingsInSidebar)
-				.onChange(async (value) => {
-					this.plugin.settings.showStyleSettingsInSidebar = value;
-					await this.plugin.saveSettings();
-					this.plugin.refreshSidebarView();
-				}));
-
-		new Setting(containerEl)
-			.setName('Show Style Settings button in switcher')
-			.setDesc('Add a button to the switcher modal that opens Style Settings.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showStyleSettingsInModal)
-				.onChange(async (value) => {
-					this.plugin.settings.showStyleSettingsInModal = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Show keyboard shortcuts')
-			.setDesc('Display keyboard shortcut hints at the bottom of the switcher modal.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showInstructions)
-				.onChange(async (value) => {
-					this.plugin.settings.showInstructions = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Transparent modal')
-			.setDesc('Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.transparentModal)
-				.onChange(async (value) => {
-					this.plugin.settings.transparentModal = value;
-					await this.plugin.saveSettings();
-				}));
-
-		new Setting(containerEl)
-			.setName('Reset all workspace styles')
-			.setDesc('Clear all icons, colors, and formatting from all workspaces.')
-			.addButton(button => button
-				.setButtonText('Reset Styles')
-				.setWarning()
-				.onClick(async () => {
-					createConfirmationDialog(this.app, {
-						title:   'Reset All Styles?',
-						text:    'This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.',
-						cta:     'Reset All',
-						onAccept: async () => {
-							this.plugin.getWorkspaceManager().clearAllStyles();
-							this.plugin.updateStatusBar();
-							await this.plugin.saveSettings();
-							new Notice('All workspace styles have been reset');
-						}
-					});
-				}));
-
-		// ─────────────────────────────────────────────────────────────────
-		// Workspace Behavior
-		// ─────────────────────────────────────────────────────────────────
-
-		containerEl.createEl('h2', { text: 'Workspace Behavior' });
-
-		// Dynamic description for sort order toggle
-		const getSortDescription = (isManual: boolean) => {
-			return isManual
+		const getSortDescription = (isManual: boolean) =>
+			isManual
 				? 'Currently: Manual order — drag workspaces to reorder within groups.'
 				: 'Currently: Alphabetical order (A-Z, 0-9).';
-		};
 
-		const sortSetting = new Setting(containerEl)
+		const sortSetting = new Setting(workspaces)
 			.setName('Manual sort order')
 			.setDesc(getSortDescription(this.plugin.settings.manualSortOrder))
 			.addToggle(toggle => toggle
@@ -262,11 +160,10 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				.onChange(async (value) => {
 					this.plugin.settings.manualSortOrder = value;
 					await this.plugin.saveSettings();
-					// Update description dynamically
 					sortSetting.setDesc(getSortDescription(value));
 				}));
 
-		new Setting(containerEl)
+		new Setting(workspaces)
 			.setName('Default group for new workspaces')
 			.setDesc('Automatically assign new workspaces to this group.')
 			.addDropdown(dropdown => {
@@ -276,8 +173,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					dropdown.addOption(group, group);
 				}
 				// If the saved default points at a group that no longer exists,
-				// reset to (None) instead of silently showing the first option while
-				// still assigning new workspaces to the ghost group.
+				// reset to (None) instead of silently assigning to a ghost group.
 				if (this.plugin.settings.defaultGroup && !groups.includes(this.plugin.settings.defaultGroup)) {
 					this.plugin.settings.defaultGroup = '';
 					this.plugin.saveSettings();
@@ -289,7 +185,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				});
 			});
 
-		new Setting(containerEl)
+		new Setting(workspaces)
 			.setName('Confirm before deleting')
 			.setDesc('Show a confirmation dialog before deleting a workspace.')
 			.addToggle(toggle => toggle
@@ -299,15 +195,113 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		// ─────────────────────────────────────────────────────────────────
-		// Import/Export Settings
-		// ─────────────────────────────────────────────────────────────────
+		// ── Appearance ───────────────────────────────────────────────────
+		const appearance = section('Appearance');
 
-		containerEl.createEl('h2', { text: 'Import / Export' });
+		new Setting(appearance)
+			.setName('Highlight active workspace')
+			.setDesc('Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.highlightActiveWorkspace)
+				.onChange(async (value) => {
+					this.plugin.settings.highlightActiveWorkspace = value;
+					await this.plugin.saveSettings();
+					this.plugin.refreshSidebarView();
+				}));
 
-		new Setting(containerEl)
+		new Setting(appearance)
+			.setName('Transparent switcher modal')
+			.setDesc('Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.transparentModal)
+				.onChange(async (value) => {
+					this.plugin.settings.transparentModal = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(appearance)
+			.setName('Keyboard-shortcut hints in switcher')
+			.setDesc('Display keyboard shortcut hints at the bottom of the switcher modal.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showInstructions)
+				.onChange(async (value) => {
+					this.plugin.settings.showInstructions = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(appearance)
+			.setName('Show status-bar indicator')
+			.setDesc('Display the current workspace name in the status bar.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showStatusBar)
+				.onChange(async (value) => {
+					this.plugin.settings.showStatusBar = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateStatusBar();
+					statusGroupSetting.settingEl.style.display = value ? '' : 'none';
+				}));
+
+		const statusGroupSetting = dependent(
+			new Setting(appearance)
+				.setName('Show group in status bar')
+				.setDesc('Also show the active workspace\'s group (e.g. "Group › Workspace").')
+				.addToggle(toggle => toggle
+					.setValue(this.plugin.settings.showGroupInStatusBar)
+					.onChange(async (value) => {
+						this.plugin.settings.showGroupInStatusBar = value;
+						await this.plugin.saveSettings();
+						this.plugin.updateStatusBar();
+					})),
+			this.plugin.settings.showStatusBar
+		);
+
+		// ── Theming (Style Settings) ─────────────────────────────────────
+		const theming = section('Theming (Style Settings)');
+		const ssRow = new Setting(theming).setName('Style Settings');
+		if (this.plugin.isStyleSettingsEnabled()) {
+			ssRow
+				.setDesc('Theme the active highlight, guide lines, density, and sizing.')
+				.addButton(button => button
+					.setButtonText('Open Style Settings')
+					.setCta()
+					.onClick(() => this.plugin.openStyleSettings()));
+
+			dependent(
+				new Setting(theming)
+					.setName('Show shortcut button in sidebar')
+					.setDesc('Add a button to the sidebar header that opens Style Settings.')
+					.addToggle(toggle => toggle
+						.setValue(this.plugin.settings.showStyleSettingsInSidebar)
+						.onChange(async (value) => {
+							this.plugin.settings.showStyleSettingsInSidebar = value;
+							await this.plugin.saveSettings();
+							this.plugin.refreshSidebarView();
+						})),
+				true
+			);
+
+			dependent(
+				new Setting(theming)
+					.setName('Show shortcut button in switcher')
+					.setDesc('Add a button to the switcher modal that opens Style Settings.')
+					.addToggle(toggle => toggle
+						.setValue(this.plugin.settings.showStyleSettingsInModal)
+						.onChange(async (value) => {
+							this.plugin.settings.showStyleSettingsInModal = value;
+							await this.plugin.saveSettings();
+						})),
+				true
+			);
+		} else {
+			ssRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
+		}
+
+		// ── Import & backup (advanced, collapsed) ────────────────────────
+		const importBackup = section('Import & backup', true);
+
+		new Setting(importBackup)
 			.setName('Import from Obsidian core Workspaces plugin')
-			.setDesc('Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name will be skipped.')
+			.setDesc('Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name are skipped.')
 			.addButton(button => button
 				.setButtonText('Import')
 				.onClick(async () => {
@@ -325,9 +319,9 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					}
 				}));
 
-		new Setting(containerEl)
+		new Setting(importBackup)
 			.setName('Import and overwrite')
-			.setDesc('Import all workspaces from the core plugin. WARNING: This will DELETE all existing workspaces first!')
+			.setDesc('Import all workspaces from the core plugin. WARNING: deletes all existing workspaces first.')
 			.addButton(button => button
 				.setButtonText('Import (Overwrite)')
 				.setWarning()
@@ -352,45 +346,60 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					});
 				}));
 
-		// ─────────────────────────────────────────────────────────────────
-		// Backup Settings
-		// ─────────────────────────────────────────────────────────────────
-
-		containerEl.createEl('h2', { text: 'Backup' });
-
-		new Setting(containerEl)
+		new Setting(importBackup)
 			.setName('Auto-backup on save')
-			.setDesc('Automatically write a backup of all settings and workspaces whenever configuration changes.')
+			.setDesc('Automatically write a backup of all settings and workspaces whenever configuration changes. (Desktop only.)')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.autoBackupEnabled)
 				.onChange(async (value) => {
 					this.plugin.settings.autoBackupEnabled = value;
 					await this.plugin.saveSettings();
+					backupPathSetting.settingEl.style.display = value ? '' : 'none';
 					if (value && !this.plugin.settings.autoBackupPath) {
-						new Notice('Set a backup path below to enable auto-backup.');
+						new Notice('Set a backup folder below to enable auto-backup.');
 					}
 				}));
 
-		new Setting(containerEl)
-			.setName('Backup path')
-			.setDesc('Directory path where backup file will be saved (e.g., /home/user/backups or C:\\backups). Leave empty to use vault root.')
-			.addText(text => text
-				.setPlaceholder('Enter absolute path...')
-				.setValue(this.plugin.settings.autoBackupPath)
-				.onChange(async (value) => {
-					this.plugin.settings.autoBackupPath = value.trim();
-					await this.plugin.saveSettings();
+		const backupPathSetting = dependent(
+			new Setting(importBackup)
+				.setName('Backup folder')
+				.setDesc('Absolute path where the backup file is saved (e.g. /home/user/backups or C:\\backups). Leave empty to use the vault root.')
+				.addText(text => text
+					.setPlaceholder('Enter absolute path...')
+					.setValue(this.plugin.settings.autoBackupPath)
+					.onChange(async (value) => {
+						this.plugin.settings.autoBackupPath = value.trim();
+						await this.plugin.saveSettings();
+					})),
+			this.plugin.settings.autoBackupEnabled
+		);
+
+		// ── Maintenance (advanced, collapsed) ────────────────────────────
+		const maintenance = section('Maintenance', true);
+
+		new Setting(maintenance)
+			.setName('Reset all workspace styles')
+			.setDesc('Clear all icons, colors, and formatting from all workspaces.')
+			.addButton(button => button
+				.setButtonText('Reset Styles')
+				.setWarning()
+				.onClick(async () => {
+					createConfirmationDialog(this.app, {
+						title:   'Reset All Styles?',
+						text:    'This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.',
+						cta:     'Reset All',
+						onAccept: async () => {
+							this.plugin.getWorkspaceManager().clearAllStyles();
+							this.plugin.updateStatusBar();
+							await this.plugin.saveSettings();
+							new Notice('All workspace styles have been reset');
+						}
+					});
 				}));
 
-		// ─────────────────────────────────────────────────────────────────
-		// Debug Settings
-		// ─────────────────────────────────────────────────────────────────
-
-		containerEl.createEl('h2', { text: 'Debug Settings' });
-
-		new Setting(containerEl)
-			.setName('Enable debug mode')
-			.setDesc('Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view)')
+		new Setting(maintenance)
+			.setName('Debug mode')
+			.setDesc('Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).')
 			.addToggle(toggle => toggle
 				.setValue(this.plugin.settings.debugMode)
 				.onChange(async (value) => {

@@ -102,86 +102,47 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
   display() {
     const { containerEl } = this;
     containerEl.empty();
-    containerEl.createEl("h2", { text: "Layout Memory" });
-    new import_obsidian2.Setting(containerEl).setName("Remember navigation layout per workspace").setDesc("Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When disabled, navigation state carries over from the previous workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.rememberNavigationLayout).onChange(async (value) => {
+    const section = (title, collapsed = false) => {
+      const details = containerEl.createEl("details", { cls: "wn-settings-section" });
+      if (!collapsed)
+        details.setAttribute("open", "");
+      details.createEl("summary", { cls: "wn-settings-summary", text: title });
+      return details.createDiv("wn-settings-body");
+    };
+    const dependent = (setting, visible) => {
+      setting.settingEl.addClass("wn-setting-indent");
+      setting.settingEl.style.display = visible ? "" : "none";
+      return setting;
+    };
+    const saving = section("Saving & layout");
+    new import_obsidian2.Setting(saving).setName("Remember navigation layout per workspace").setDesc("Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When off, navigation state carries over from the previous workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.rememberNavigationLayout).onChange(async (value) => {
       this.plugin.settings.rememberNavigationLayout = value;
       await this.plugin.saveSettings();
+      maintainSetting.settingEl.style.display = value ? "" : "none";
     }));
-    new import_obsidian2.Setting(containerEl).setName("Maintain layout across workspaces").setDesc('Keep current navigation layout when switching instead of loading saved layout. Only works when "Remember navigation layout" is enabled.').addToggle((toggle) => toggle.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces).onChange(async (value) => {
-      this.plugin.settings.maintainLayoutAcrossWorkspaces = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Auto-save on workspace switch").setDesc("Automatically save the current workspace layout before switching to another.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnSwitch).onChange(async (value) => {
+    const maintainSetting = dependent(
+      new import_obsidian2.Setting(saving).setName("Maintain layout across workspaces").setDesc("Keep the current navigation layout when switching, instead of loading each workspace's saved layout.").addToggle((toggle) => toggle.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces).onChange(async (value) => {
+        this.plugin.settings.maintainLayoutAcrossWorkspaces = value;
+        await this.plugin.saveSettings();
+      })),
+      this.plugin.settings.rememberNavigationLayout
+    );
+    new import_obsidian2.Setting(saving).setName("Auto-save on workspace switch").setDesc("Automatically save the current workspace layout before switching to another.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnSwitch).onChange(async (value) => {
       this.plugin.settings.autoSaveOnSwitch = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(containerEl).setName("Auto-save on layout change").setDesc("Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnLayoutChange).onChange(async (value) => {
+    new import_obsidian2.Setting(saving).setName("Auto-save on layout change").setDesc("Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnLayoutChange).onChange(async (value) => {
       this.plugin.settings.autoSaveOnLayoutChange = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "Switcher Appearance" });
-    new import_obsidian2.Setting(containerEl).setName("Show status bar indicator").setDesc("Display the current workspace name in the status bar.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
-      this.plugin.settings.showStatusBar = value;
-      await this.plugin.saveSettings();
-      this.plugin.updateStatusBar();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Show group in status bar").setDesc(`Also show the active workspace's group in the status bar (e.g. "Group \u203A Workspace").`).addToggle((toggle) => toggle.setValue(this.plugin.settings.showGroupInStatusBar).onChange(async (value) => {
-      this.plugin.settings.showGroupInStatusBar = value;
-      await this.plugin.saveSettings();
-      this.plugin.updateStatusBar();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Highlight active workspace").setDesc("Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.").addToggle((toggle) => toggle.setValue(this.plugin.settings.highlightActiveWorkspace).onChange(async (value) => {
-      this.plugin.settings.highlightActiveWorkspace = value;
-      await this.plugin.saveSettings();
-      this.plugin.refreshSidebarView();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Theming").setHeading();
-    const styleSettingsRow = new import_obsidian2.Setting(containerEl).setName("Style Settings");
-    if (this.plugin.isStyleSettingsEnabled()) {
-      styleSettingsRow.setDesc("Theme Workspace Navigator (active highlight, guide lines, density, sizing) with the Style Settings plugin.").addButton((button) => button.setButtonText("Open Style Settings").setCta().onClick(() => this.plugin.openStyleSettings()));
-    } else {
-      styleSettingsRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
-    }
-    new import_obsidian2.Setting(containerEl).setName("Show Style Settings button in sidebar").setDesc("Add a button to the sidebar header that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInSidebar).onChange(async (value) => {
-      this.plugin.settings.showStyleSettingsInSidebar = value;
-      await this.plugin.saveSettings();
-      this.plugin.refreshSidebarView();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Show Style Settings button in switcher").setDesc("Add a button to the switcher modal that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInModal).onChange(async (value) => {
-      this.plugin.settings.showStyleSettingsInModal = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Show keyboard shortcuts").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
-      this.plugin.settings.showInstructions = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Transparent modal").setDesc("Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.").addToggle((toggle) => toggle.setValue(this.plugin.settings.transparentModal).onChange(async (value) => {
-      this.plugin.settings.transparentModal = value;
-      await this.plugin.saveSettings();
-    }));
-    new import_obsidian2.Setting(containerEl).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
-      createConfirmationDialog(this.app, {
-        title: "Reset All Styles?",
-        text: "This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.",
-        cta: "Reset All",
-        onAccept: async () => {
-          this.plugin.getWorkspaceManager().clearAllStyles();
-          this.plugin.updateStatusBar();
-          await this.plugin.saveSettings();
-          new import_obsidian2.Notice("All workspace styles have been reset");
-        }
-      });
-    }));
-    containerEl.createEl("h2", { text: "Workspace Behavior" });
-    const getSortDescription = (isManual) => {
-      return isManual ? "Currently: Manual order \u2014 drag workspaces to reorder within groups." : "Currently: Alphabetical order (A-Z, 0-9).";
-    };
-    const sortSetting = new import_obsidian2.Setting(containerEl).setName("Manual sort order").setDesc(getSortDescription(this.plugin.settings.manualSortOrder)).addToggle((toggle) => toggle.setValue(this.plugin.settings.manualSortOrder).onChange(async (value) => {
+    const workspaces = section("Workspaces");
+    const getSortDescription = (isManual) => isManual ? "Currently: Manual order \u2014 drag workspaces to reorder within groups." : "Currently: Alphabetical order (A-Z, 0-9).";
+    const sortSetting = new import_obsidian2.Setting(workspaces).setName("Manual sort order").setDesc(getSortDescription(this.plugin.settings.manualSortOrder)).addToggle((toggle) => toggle.setValue(this.plugin.settings.manualSortOrder).onChange(async (value) => {
       this.plugin.settings.manualSortOrder = value;
       await this.plugin.saveSettings();
       sortSetting.setDesc(getSortDescription(value));
     }));
-    new import_obsidian2.Setting(containerEl).setName("Default group for new workspaces").setDesc("Automatically assign new workspaces to this group.").addDropdown((dropdown) => {
+    new import_obsidian2.Setting(workspaces).setName("Default group for new workspaces").setDesc("Automatically assign new workspaces to this group.").addDropdown((dropdown) => {
       const groups = this.plugin.getWorkspaceManager().getGroups();
       dropdown.addOption("", "(None)");
       for (const group of groups) {
@@ -197,12 +158,62 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian2.Setting(containerEl).setName("Confirm before deleting").setDesc("Show a confirmation dialog before deleting a workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showDeleteConfirmation).onChange(async (value) => {
+    new import_obsidian2.Setting(workspaces).setName("Confirm before deleting").setDesc("Show a confirmation dialog before deleting a workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showDeleteConfirmation).onChange(async (value) => {
       this.plugin.settings.showDeleteConfirmation = value;
       await this.plugin.saveSettings();
     }));
-    containerEl.createEl("h2", { text: "Import / Export" });
-    new import_obsidian2.Setting(containerEl).setName("Import from Obsidian core Workspaces plugin").setDesc("Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name will be skipped.").addButton((button) => button.setButtonText("Import").onClick(async () => {
+    const appearance = section("Appearance");
+    new import_obsidian2.Setting(appearance).setName("Highlight active workspace").setDesc("Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.").addToggle((toggle) => toggle.setValue(this.plugin.settings.highlightActiveWorkspace).onChange(async (value) => {
+      this.plugin.settings.highlightActiveWorkspace = value;
+      await this.plugin.saveSettings();
+      this.plugin.refreshSidebarView();
+    }));
+    new import_obsidian2.Setting(appearance).setName("Transparent switcher modal").setDesc("Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.").addToggle((toggle) => toggle.setValue(this.plugin.settings.transparentModal).onChange(async (value) => {
+      this.plugin.settings.transparentModal = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(appearance).setName("Keyboard-shortcut hints in switcher").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
+      this.plugin.settings.showInstructions = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian2.Setting(appearance).setName("Show status-bar indicator").setDesc("Display the current workspace name in the status bar.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
+      this.plugin.settings.showStatusBar = value;
+      await this.plugin.saveSettings();
+      this.plugin.updateStatusBar();
+      statusGroupSetting.settingEl.style.display = value ? "" : "none";
+    }));
+    const statusGroupSetting = dependent(
+      new import_obsidian2.Setting(appearance).setName("Show group in status bar").setDesc(`Also show the active workspace's group (e.g. "Group \u203A Workspace").`).addToggle((toggle) => toggle.setValue(this.plugin.settings.showGroupInStatusBar).onChange(async (value) => {
+        this.plugin.settings.showGroupInStatusBar = value;
+        await this.plugin.saveSettings();
+        this.plugin.updateStatusBar();
+      })),
+      this.plugin.settings.showStatusBar
+    );
+    const theming = section("Theming (Style Settings)");
+    const ssRow = new import_obsidian2.Setting(theming).setName("Style Settings");
+    if (this.plugin.isStyleSettingsEnabled()) {
+      ssRow.setDesc("Theme the active highlight, guide lines, density, and sizing.").addButton((button) => button.setButtonText("Open Style Settings").setCta().onClick(() => this.plugin.openStyleSettings()));
+      dependent(
+        new import_obsidian2.Setting(theming).setName("Show shortcut button in sidebar").setDesc("Add a button to the sidebar header that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInSidebar).onChange(async (value) => {
+          this.plugin.settings.showStyleSettingsInSidebar = value;
+          await this.plugin.saveSettings();
+          this.plugin.refreshSidebarView();
+        })),
+        true
+      );
+      dependent(
+        new import_obsidian2.Setting(theming).setName("Show shortcut button in switcher").setDesc("Add a button to the switcher modal that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInModal).onChange(async (value) => {
+          this.plugin.settings.showStyleSettingsInModal = value;
+          await this.plugin.saveSettings();
+        })),
+        true
+      );
+    } else {
+      ssRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
+    }
+    const importBackup = section("Import & backup", true);
+    new import_obsidian2.Setting(importBackup).setName("Import from Obsidian core Workspaces plugin").setDesc("Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name are skipped.").addButton((button) => button.setButtonText("Import").onClick(async () => {
       const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(false);
       await this.plugin.saveSettings();
       if (result.imported.length > 0) {
@@ -215,7 +226,7 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         new import_obsidian2.Notice("No workspaces to import");
       }
     }));
-    new import_obsidian2.Setting(containerEl).setName("Import and overwrite").setDesc("Import all workspaces from the core plugin. WARNING: This will DELETE all existing workspaces first!").addButton((button) => button.setButtonText("Import (Overwrite)").setWarning().onClick(async () => {
+    new import_obsidian2.Setting(importBackup).setName("Import and overwrite").setDesc("Import all workspaces from the core plugin. WARNING: deletes all existing workspaces first.").addButton((button) => button.setButtonText("Import (Overwrite)").setWarning().onClick(async () => {
       const existingCount = this.plugin.getWorkspaceManager().getWorkspaceNames().length;
       createConfirmationDialog(this.app, {
         title: "Overwrite All Workspaces?",
@@ -233,20 +244,36 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         }
       });
     }));
-    containerEl.createEl("h2", { text: "Backup" });
-    new import_obsidian2.Setting(containerEl).setName("Auto-backup on save").setDesc("Automatically write a backup of all settings and workspaces whenever configuration changes.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoBackupEnabled).onChange(async (value) => {
+    new import_obsidian2.Setting(importBackup).setName("Auto-backup on save").setDesc("Automatically write a backup of all settings and workspaces whenever configuration changes. (Desktop only.)").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoBackupEnabled).onChange(async (value) => {
       this.plugin.settings.autoBackupEnabled = value;
       await this.plugin.saveSettings();
+      backupPathSetting.settingEl.style.display = value ? "" : "none";
       if (value && !this.plugin.settings.autoBackupPath) {
-        new import_obsidian2.Notice("Set a backup path below to enable auto-backup.");
+        new import_obsidian2.Notice("Set a backup folder below to enable auto-backup.");
       }
     }));
-    new import_obsidian2.Setting(containerEl).setName("Backup path").setDesc("Directory path where backup file will be saved (e.g., /home/user/backups or C:\\backups). Leave empty to use vault root.").addText((text) => text.setPlaceholder("Enter absolute path...").setValue(this.plugin.settings.autoBackupPath).onChange(async (value) => {
-      this.plugin.settings.autoBackupPath = value.trim();
-      await this.plugin.saveSettings();
+    const backupPathSetting = dependent(
+      new import_obsidian2.Setting(importBackup).setName("Backup folder").setDesc("Absolute path where the backup file is saved (e.g. /home/user/backups or C:\\backups). Leave empty to use the vault root.").addText((text) => text.setPlaceholder("Enter absolute path...").setValue(this.plugin.settings.autoBackupPath).onChange(async (value) => {
+        this.plugin.settings.autoBackupPath = value.trim();
+        await this.plugin.saveSettings();
+      })),
+      this.plugin.settings.autoBackupEnabled
+    );
+    const maintenance = section("Maintenance", true);
+    new import_obsidian2.Setting(maintenance).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
+      createConfirmationDialog(this.app, {
+        title: "Reset All Styles?",
+        text: "This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.",
+        cta: "Reset All",
+        onAccept: async () => {
+          this.plugin.getWorkspaceManager().clearAllStyles();
+          this.plugin.updateStatusBar();
+          await this.plugin.saveSettings();
+          new import_obsidian2.Notice("All workspace styles have been reset");
+        }
+      });
     }));
-    containerEl.createEl("h2", { text: "Debug Settings" });
-    new import_obsidian2.Setting(containerEl).setName("Enable debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view)").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
+    new import_obsidian2.Setting(maintenance).setName("Debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
       this.plugin.settings.debugMode = value;
       await this.plugin.saveSettings();
       if (value) {
