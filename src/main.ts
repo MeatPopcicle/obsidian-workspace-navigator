@@ -938,6 +938,10 @@ export default class WorkspaceNavigator extends Plugin {
 			this.isLoadingWorkspace = false;
 			this.updateStatusBar();
 			this.updateWorkspaceDataAttribute(name);
+			// Re-render the sidebar so its active marker (highlight + checkmark)
+			// follows switches made from anywhere — the switcher modal, the
+			// last-workspace toggle, commands — not just sidebar clicks.
+			this.refreshSidebarView();
 		}
 	}
 

@@ -1760,6 +1760,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// checkmark is added regardless.
 			if (this.plugin.settings.highlightActiveWorkspace) {
 				el.addClass('is-active');
+				// The card styling above sets an inline background-color that would
+				// otherwise beat the .is-active CSS background, so set the tinted
+				// fill inline here too (the accent bar comes from the CSS class).
+				el.style.backgroundColor = 'hsla(var(--interactive-accent-hsl), 0.12)';
 			}
 
 			const activeCheck = el.createSpan('workspace-active-check');
