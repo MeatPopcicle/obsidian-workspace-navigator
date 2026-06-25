@@ -2,6 +2,46 @@
 /* WORKSPACE NAVIGATOR STYLES                                                   */
 /* ═══════════════════════════════════════════════════════════════════════════ */
 
+/* @settings
+
+name: Workspace Navigator
+id: workspace-navigator
+settings:
+	-
+		id: wn-heading
+		title: Workspace Navigator
+		type: heading
+		level: 2
+		collapsed: true
+		description: Theme the active-workspace highlight (sidebar + switcher). Leave a color empty to inherit your theme's accent.
+	-
+		id: wn-active-bar
+		title: 'Active workspace: accent bar'
+		description: Color of the accent bar on the active workspace's left edge.
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: wn-active-fill
+		title: 'Active workspace: background fill'
+		description: Background tint of the active workspace row. Use the opacity slider for a subtle tint.
+		type: variable-themed-color
+		opacity: true
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+	-
+		id: wn-checkmark
+		title: 'Active workspace: checkmark'
+		description: Color of the current-workspace checkmark.
+		type: variable-themed-color
+		format: hex
+		default-light: '#'
+		default-dark: '#'
+
+*/
+
 /* ─────────────────────────────────────────────────────────────────────────── */
 /* Status Bar                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
@@ -209,8 +249,8 @@
 }
 
 .workspace-suggestion-item.is-active {
-	background: hsla(var(--interactive-accent-hsl), 0.12);
-	box-shadow: inset 3px 0 0 0 var(--interactive-accent);
+	background: var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12));
+	box-shadow: inset 3px 0 0 0 var(--wn-active-bar, var(--interactive-accent));
 }
 
 /* Active workspace handle - more prominent */
@@ -951,8 +991,8 @@
    styling always shows through. Applied only when the "highlight active
    workspace" setting is on (the .is-active class is added conditionally). */
 .workspace-sidebar-item.is-active {
-	background: hsla(var(--interactive-accent-hsl), 0.12);
-	box-shadow: inset 3px 0 0 0 var(--interactive-accent);
+	background: var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12));
+	box-shadow: inset 3px 0 0 0 var(--wn-active-bar, var(--interactive-accent));
 }
 
 /* Active-workspace "you are here" checkmark (sidebar + switcher modal) */
@@ -960,7 +1000,7 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	color: var(--text-accent);
+	color: var(--wn-checkmark, var(--text-accent));
 	flex-shrink: 0;
 	margin-left: 4px;
 }

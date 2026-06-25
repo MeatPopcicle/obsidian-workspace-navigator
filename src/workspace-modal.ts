@@ -1765,7 +1765,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				// a flat gradient. Beats the card's inline background-color; the
 				// accent bar comes from the .is-active CSS class.
 				el.style.backgroundColor = 'var(--background-secondary)';
-				el.style.backgroundImage = 'linear-gradient(hsla(var(--interactive-accent-hsl), 0.12), hsla(var(--interactive-accent-hsl), 0.12))';
+				el.style.backgroundImage = 'linear-gradient(var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)), var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)))';
 			}
 
 			const activeCheck = el.createSpan('workspace-active-check');
@@ -1778,7 +1778,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			activeCheck.style.right     = '56px';
 			activeCheck.style.display   = 'inline-flex';
 			activeCheck.style.alignItems = 'center';
-			activeCheck.style.color     = 'var(--text-accent)';
+			activeCheck.style.color     = 'var(--wn-checkmark, var(--text-accent))';
 		}
 
 		// Create delete button

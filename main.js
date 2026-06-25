@@ -3274,7 +3274,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       if (this.plugin.settings.highlightActiveWorkspace) {
         el.addClass("is-active");
         el.style.backgroundColor = "var(--background-secondary)";
-        el.style.backgroundImage = "linear-gradient(hsla(var(--interactive-accent-hsl), 0.12), hsla(var(--interactive-accent-hsl), 0.12))";
+        el.style.backgroundImage = "linear-gradient(var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)), var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)))";
       }
       const activeCheck = el.createSpan("workspace-active-check");
       (0, import_obsidian4.setIcon)(activeCheck, "check");
@@ -3285,7 +3285,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       activeCheck.style.right = "56px";
       activeCheck.style.display = "inline-flex";
       activeCheck.style.alignItems = "center";
-      activeCheck.style.color = "var(--text-accent)";
+      activeCheck.style.color = "var(--wn-checkmark, var(--text-accent))";
     }
     const deleteBtn = el.createDiv("workspace-delete-btn");
     deleteBtn.setAttribute("aria-label", "Delete workspace");
