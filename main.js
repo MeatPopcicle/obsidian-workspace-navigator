@@ -78,6 +78,7 @@ var DEFAULT_SETTINGS = {
   rememberNavigationLayout: true,
   maintainLayoutAcrossWorkspaces: false,
   showStatusBar: true,
+  showGroupInStatusBar: true,
   showInstructions: false,
   showSearchBox: false,
   transparentModal: true,
@@ -118,6 +119,11 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
     containerEl.createEl("h2", { text: "Switcher Appearance" });
     new import_obsidian2.Setting(containerEl).setName("Show status bar indicator").setDesc("Display the current workspace name in the status bar.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
       this.plugin.settings.showStatusBar = value;
+      await this.plugin.saveSettings();
+      this.plugin.updateStatusBar();
+    }));
+    new import_obsidian2.Setting(containerEl).setName("Show group in status bar").setDesc(`Also show the active workspace's group in the status bar (e.g. "Group \u203A Workspace").`).addToggle((toggle) => toggle.setValue(this.plugin.settings.showGroupInStatusBar).onChange(async (value) => {
+      this.plugin.settings.showGroupInStatusBar = value;
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
     }));
@@ -3260,6 +3266,16 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const activeWorkspace = workspaceManager.getActiveWorkspace();
     if (activeWorkspace && workspaceName === activeWorkspace) {
       el.addClass("is-active");
+      const activeCheck = el.createSpan("workspace-active-check");
+      (0, import_obsidian4.setIcon)(activeCheck, "check");
+      activeCheck.setAttribute("aria-label", "Current workspace");
+      activeCheck.style.position = "absolute";
+      activeCheck.style.top = "50%";
+      activeCheck.style.transform = "translateY(-50%)";
+      activeCheck.style.right = "56px";
+      activeCheck.style.display = "inline-flex";
+      activeCheck.style.alignItems = "center";
+      activeCheck.style.color = "var(--text-accent)";
     }
     const deleteBtn = el.createDiv("workspace-delete-btn");
     deleteBtn.setAttribute("aria-label", "Delete workspace");
@@ -5451,6 +5467,11 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       nameSpan.style.fontWeight = "bold";
     if (wsStyle.italic)
       nameSpan.style.fontStyle = "italic";
+    if (isActive) {
+      const activeCheck = item.createSpan("workspace-sidebar-active-check");
+      (0, import_obsidian6.setIcon)(activeCheck, "check");
+      activeCheck.setAttribute("aria-label", "Current workspace");
+    }
     if (openFiles.length > 0) {
       const countBadge = item.createSpan("workspace-sidebar-file-count");
       countBadge.textContent = `(${openFiles.length})`;
@@ -7007,8 +7028,14 @@ ${JSON.stringify(layout, null, 2)}
     const textEl = this.statusBarItem.querySelector(".workspace-navigator-text");
     if (textEl) {
       const workspaceName = this.workspaceManager.getActiveWorkspace();
-      const displayName = workspaceName || "No workspace";
-      textEl.setText(displayName);
+      if (!workspaceName) {
+        textEl.setText("No workspace");
+      } else if (this.settings.showGroupInStatusBar) {
+        const group = this.workspaceManager.getWorkspaceGroup(workspaceName);
+        textEl.setText(group ? `${group} \u203A ${workspaceName}` : workspaceName);
+      } else {
+        textEl.setText(workspaceName);
+      }
     }
   }
   // ─────────────────────────────────────────────────────────────────

@@ -1030,8 +1030,14 @@ export default class WorkspaceNavigator extends Plugin {
 		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text') as HTMLElement;
 		if (textEl) {
 			const workspaceName = this.workspaceManager.getActiveWorkspace();
-			const displayName   = workspaceName || 'No workspace';
-			textEl.setText(displayName);
+			if (!workspaceName) {
+				textEl.setText('No workspace');
+			} else if (this.settings.showGroupInStatusBar) {
+				const group = this.workspaceManager.getWorkspaceGroup(workspaceName);
+				textEl.setText(group ? `${group} › ${workspaceName}` : workspaceName);
+			} else {
+				textEl.setText(workspaceName);
+			}
 		}
 	}
 

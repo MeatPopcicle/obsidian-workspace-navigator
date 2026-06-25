@@ -444,6 +444,13 @@ export class WorkspaceNavigatorView extends ItemView {
 		if (wsStyle.bold) nameSpan.style.fontWeight = 'bold';
 		if (wsStyle.italic) nameSpan.style.fontStyle = 'italic';
 
+		// Active-workspace marker — an explicit checkmark for "you are here"
+		if (isActive) {
+			const activeCheck = item.createSpan('workspace-sidebar-active-check');
+			setIcon(activeCheck, 'check');
+			activeCheck.setAttribute('aria-label', 'Current workspace');
+		}
+
 		// File count badge
 		if (openFiles.length > 0) {
 			const countBadge = item.createSpan('workspace-sidebar-file-count');

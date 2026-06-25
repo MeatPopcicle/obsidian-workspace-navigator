@@ -1752,10 +1752,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (nameStyle.bold) textSpan.style.fontWeight = 'bold';
 		if (nameStyle.italic) textSpan.style.fontStyle = 'italic';
 
-		// Add active workspace indicator (left border accent via CSS class)
+		// Add active workspace indicator (left border accent via CSS class) plus an
+		// explicit "you are here" checkmark, positioned just left of the row buttons.
 		const activeWorkspace = workspaceManager.getActiveWorkspace();
 		if (activeWorkspace && workspaceName === activeWorkspace) {
 			el.addClass('is-active');
+
+			const activeCheck = el.createSpan('workspace-active-check');
+			setIcon(activeCheck, 'check');
+			activeCheck.setAttribute('aria-label', 'Current workspace');
+			// Inline structural styles (theme-proof), matching the row buttons
+			activeCheck.style.position  = 'absolute';
+			activeCheck.style.top       = '50%';
+			activeCheck.style.transform = 'translateY(-50%)';
+			activeCheck.style.right     = '56px';
+			activeCheck.style.display   = 'inline-flex';
+			activeCheck.style.alignItems = 'center';
+			activeCheck.style.color     = 'var(--text-accent)';
 		}
 
 		// Create delete button

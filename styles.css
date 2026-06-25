@@ -954,6 +954,26 @@
 	color: var(--text-accent);
 }
 
+/* Active-workspace "you are here" checkmark (sidebar + switcher modal) */
+.workspace-sidebar-active-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	color: var(--text-accent);
+	flex-shrink: 0;
+	margin-left: 4px;
+}
+
+.workspace-sidebar-active-check svg {
+	width: 14px;
+	height: 14px;
+}
+
+.workspace-active-check svg {
+	width: 15px;
+	height: 15px;
+}
+
 .workspace-sidebar-item.is-dragging {
 	opacity: 0.3;
 }

@@ -17,6 +17,7 @@ export interface WorkspaceNavigatorSettings {
 
 	// UI preferences
 	showStatusBar:                   boolean;
+	showGroupInStatusBar:            boolean;
 	showInstructions:                boolean;
 	showSearchBox:                   boolean;
 	transparentModal:                boolean;
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	rememberNavigationLayout:        true,
 	maintainLayoutAcrossWorkspaces:  false,
 	showStatusBar:                   true,
+	showGroupInStatusBar:            true,
 	showInstructions:                false,
 	showSearchBox:                   false,
 	transparentModal:                true,
@@ -132,6 +134,17 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 				.setValue(this.plugin.settings.showStatusBar)
 				.onChange(async (value) => {
 					this.plugin.settings.showStatusBar = value;
+					await this.plugin.saveSettings();
+					this.plugin.updateStatusBar();
+				}));
+
+		new Setting(containerEl)
+			.setName('Show group in status bar')
+			.setDesc('Also show the active workspace\'s group in the status bar (e.g. "Group › Workspace").')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.showGroupInStatusBar)
+				.onChange(async (value) => {
+					this.plugin.settings.showGroupInStatusBar = value;
 					await this.plugin.saveSettings();
 					this.plugin.updateStatusBar();
 				}));
