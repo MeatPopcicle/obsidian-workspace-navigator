@@ -1607,7 +1607,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.lastRenderedGroup = emptyGroup;
 			el.empty();
 			el.addClass('workspace-group-header', 'is-empty');
-			this.renderGroupHeaderElement(el, emptyGroup, false);
+			this.renderGroupHeaderElement(el, emptyGroup, false, true);
 
 			// Add "(empty)" text
 			const emptyIndicator = el.createSpan('workspace-group-empty-indicator');
@@ -2290,7 +2290,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// Render group header (shared between normal and collapsed groups)
 	// ─────────────────────────────────────────────────────────────────
 
-	renderGroupHeaderElement(container: HTMLElement, groupName: string, isCollapsed: boolean): void {
+	renderGroupHeaderElement(container: HTMLElement, groupName: string, isCollapsed: boolean, isEmpty = false): void {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const isNoGroup    = groupName === '\x00nogroup';
 		const displayName  = isNoGroup ? 'No Group' : groupName;
@@ -2298,6 +2298,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const config: GroupHeaderConfig = {
 			groupName,
 			isCollapsed,
+			isEmpty,
 			useManualOrder:   this.plugin.settings.manualSortOrder,
 			workspaceManager,
 			onToggleCollapse: (gn) => this.onGroupToggleCollapse(gn),
@@ -2486,6 +2487,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const collapsedGroup = this.isCollapsedGroupPlaceholder(workspace);
 		if (collapsedGroup) {
 			await this.onGroupToggleCollapse(collapsedGroup);
+			return;
+		}
+
+		// Empty group placeholder - it's a heading, not a workspace. Toggle it
+		// open/closed rather than falling through to a bogus workspace switch.
+		const emptyGroup = this.isEmptyGroupPlaceholder(workspace);
+		if (emptyGroup) {
+			await this.onGroupToggleCollapse(emptyGroup);
 			return;
 		}
 

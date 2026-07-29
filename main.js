@@ -1751,6 +1751,7 @@ function renderGroupHeader(container, config) {
   const {
     groupName,
     isCollapsed,
+    isEmpty,
     useManualOrder,
     workspaceManager,
     onToggleCollapse,
@@ -1772,7 +1773,7 @@ function renderGroupHeader(container, config) {
   container.style.color = "var(--text-muted)";
   container.style.backgroundColor = "var(--background-primary-alt)";
   container.style.border = "1px solid var(--background-modifier-border)";
-  if (isCollapsed) {
+  if (isCollapsed || isEmpty) {
     container.style.borderRadius = "6px";
   } else {
     container.style.borderRadius = "6px 6px 0 0";
@@ -3211,7 +3212,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.lastRenderedGroup = emptyGroup;
       el.empty();
       el.addClass("workspace-group-header", "is-empty");
-      this.renderGroupHeaderElement(el, emptyGroup, false);
+      this.renderGroupHeaderElement(el, emptyGroup, false, true);
       const emptyIndicator = el.createSpan("workspace-group-empty-indicator");
       emptyIndicator.textContent = "(empty)";
       emptyIndicator.style.opacity = "0.5";
@@ -3725,13 +3726,14 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   // ─────────────────────────────────────────────────────────────────
   // Render group header (shared between normal and collapsed groups)
   // ─────────────────────────────────────────────────────────────────
-  renderGroupHeaderElement(container, groupName, isCollapsed) {
+  renderGroupHeaderElement(container, groupName, isCollapsed, isEmpty = false) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const isNoGroup = groupName === "\0nogroup";
     const displayName = isNoGroup ? "No Group" : groupName;
     const config = {
       groupName,
       isCollapsed,
+      isEmpty,
       useManualOrder: this.plugin.settings.manualSortOrder,
       workspaceManager,
       onToggleCollapse: (gn) => this.onGroupToggleCollapse(gn),
@@ -3870,6 +3872,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const collapsedGroup = this.isCollapsedGroupPlaceholder(workspace);
     if (collapsedGroup) {
       await this.onGroupToggleCollapse(collapsedGroup);
+      return;
+    }
+    const emptyGroup = this.isEmptyGroupPlaceholder(workspace);
+    if (emptyGroup) {
+      await this.onGroupToggleCollapse(emptyGroup);
       return;
     }
     const workspaceManager = this.plugin.getWorkspaceManager();
@@ -7103,26 +7110,37 @@ ${JSON.stringify(layout, null, 2)}
       this.statusBarItem.createSpan("workspace-navigator-text");
       this.statusBarItem.addEventListener("click", async (evt) => {
         if (evt.shiftKey) {
-          const workspaceName = this.workspaceManager.getActiveWorkspace();
-          if (workspaceName) {
-            await this.saveNavigationLayout(workspaceName);
+          const workspaceName2 = this.workspaceManager.getActiveWorkspace();
+          if (workspaceName2) {
+            await this.saveNavigationLayout(workspaceName2);
             const saveFolderState = this.settings.rememberNavigationLayout;
-            await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+            await this.workspaceManager.saveWorkspace(workspaceName2, saveFolderState);
             await this.saveSettings();
-            new import_obsidian7.Notice(`Saved workspace: ${workspaceName}`);
+            new import_obsidian7.Notice(`Saved workspace: ${workspaceName2}`);
           }
           return;
         }
         new WorkspaceSwitcherModal(this.app, this).open();
       });
     }
+    const workspaceName = this.workspaceManager.getActiveWorkspace();
+    const group = workspaceName ? this.workspaceManager.getWorkspaceGroup(workspaceName) : null;
+    const iconEl = this.statusBarItem.querySelector(".workspace-navigator-icon");
+    if (iconEl) {
+      const workspaceIcon = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
+      const groupIcon = group ? this.workspaceManager.getGroupIcon(group) : null;
+      const resolvedIcon = workspaceIcon || groupIcon || "layout-template";
+      (0, import_obsidian7.setIcon)(iconEl, resolvedIcon);
+      const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
+      const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
+      const resolvedColor = workspaceIcon ? workspaceColor : groupIcon ? groupColor : null;
+      iconEl.style.color = resolvedColor || "";
+    }
     const textEl = this.statusBarItem.querySelector(".workspace-navigator-text");
     if (textEl) {
-      const workspaceName = this.workspaceManager.getActiveWorkspace();
       if (!workspaceName) {
         textEl.setText("No workspace");
       } else if (this.settings.showGroupInStatusBar) {
-        const group = this.workspaceManager.getWorkspaceGroup(workspaceName);
         textEl.setText(group ? `${group} \u203A ${workspaceName}` : workspaceName);
       } else {
         textEl.setText(workspaceName);

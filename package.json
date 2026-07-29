@@ -1,6 +1,6 @@
 {
   "name": "obsidian-workspace-navigator",
-  "version": "2.19.0",
+  "version": "2.20.0",
   "description": "Enhanced workspace management with navigation layout memory and alphabetical sorting",
   "main": "main.js",
   "scripts": {

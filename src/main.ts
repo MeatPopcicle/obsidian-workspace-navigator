@@ -1047,14 +1047,31 @@ export default class WorkspaceNavigator extends Plugin {
 			});
 		}
 
-		// Update text (icons only shown in modal, not status bar)
+		const workspaceName = this.workspaceManager.getActiveWorkspace();
+		const group = workspaceName ? this.workspaceManager.getWorkspaceGroup(workspaceName) : null;
+
+		// Update icon: prefer the active workspace's own icon, then its group's
+		// icon, falling back to the default. Colors follow the same precedence.
+		const iconEl = this.statusBarItem.querySelector('.workspace-navigator-icon') as HTMLElement;
+		if (iconEl) {
+			const workspaceIcon = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
+			const groupIcon = group ? this.workspaceManager.getGroupIcon(group) : null;
+			const resolvedIcon = workspaceIcon || groupIcon || 'layout-template';
+			setIcon(iconEl, resolvedIcon);
+
+			const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
+			const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
+			// Only inherit a color from whichever source supplied the icon.
+			const resolvedColor = workspaceIcon ? workspaceColor : (groupIcon ? groupColor : null);
+			iconEl.style.color = resolvedColor || '';
+		}
+
+		// Update text
 		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text') as HTMLElement;
 		if (textEl) {
-			const workspaceName = this.workspaceManager.getActiveWorkspace();
 			if (!workspaceName) {
 				textEl.setText('No workspace');
 			} else if (this.settings.showGroupInStatusBar) {
-				const group = this.workspaceManager.getWorkspaceGroup(workspaceName);
 				textEl.setText(group ? `${group} › ${workspaceName}` : workspaceName);
 			} else {
 				textEl.setText(workspaceName);

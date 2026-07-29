@@ -1,7 +1,7 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.19.0
-**Last Updated:** 2026-06-25
+**Current Version:** v2.20.0
+**Last Updated:** 2026-07-29
 
 ---
 
@@ -117,6 +117,11 @@ Full multi-pass code review and cleanup, landed in tiers:
 - **Style Settings integration:** plugin-specific `--wn-*` CSS variables exposed via a `/* @settings */` block — active-highlight colors, tree guide-line color/visibility, row hover, badge colors, and sizing (density, font scale, bar width, checkmark size, corner radius). Defaults inherit the theme.
 - **Style Settings shortcut:** an "Open Style Settings" button in the settings tab, plus toggleable palette buttons in the sidebar header and switcher (gated on Style Settings being installed).
 - **Settings panel redesign:** six purpose-based collapsible sections with indented, conditionally-shown dependent options.
+
+### Phase 8 - Switcher fixes (v2.20)
+- **Empty-group heading no longer switches:** clicking an empty group's heading in the switcher now toggles it open/closed instead of attempting to load a nonexistent workspace.
+- **Empty-group corners fixed:** an empty group (no workspaces) renders as a full standalone card with rounded bottom corners, matching collapsed groups.
+- **Status-bar icon:** the status-bar widget now shows the active workspace's icon (falling back to its group's icon, then the default), colored to match.
 
 ---
 

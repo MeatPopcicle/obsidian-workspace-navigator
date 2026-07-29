@@ -13,6 +13,7 @@ import { WorkspaceManager } from './workspace-manager';
 export interface GroupHeaderConfig {
     groupName:       string;
     isCollapsed:     boolean;
+    isEmpty?:        boolean;  // Group has no workspaces - render as a standalone card
     useManualOrder:  boolean;
     workspaceManager: WorkspaceManager;
     onToggleCollapse: (groupName: string) => void;
@@ -36,6 +37,7 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     const {
         groupName,
         isCollapsed,
+        isEmpty,
         useManualOrder,
         workspaceManager,
         onToggleCollapse,
@@ -65,11 +67,13 @@ export function renderGroupHeader(container: HTMLElement, config: GroupHeaderCon
     container.style.backgroundColor = 'var(--background-primary-alt)';
     container.style.border          = '1px solid var(--background-modifier-border)';
 
-    if (isCollapsed) {
-        // Collapsed: full card with rounded corners all around
+    if (isCollapsed || isEmpty) {
+        // Collapsed, or expanded-but-empty: header is the whole card, so round
+        // all corners and keep the bottom border (no workspace row follows it).
         container.style.borderRadius = '6px';
     } else {
-        // Expanded: card top only, workspaces continue below
+        // Expanded with workspaces: card top only, rows continue below and the
+        // last row (.in-group-last) closes the card with the bottom rounding.
         container.style.borderRadius    = '6px 6px 0 0';
         container.style.borderBottom    = 'none';
     }
