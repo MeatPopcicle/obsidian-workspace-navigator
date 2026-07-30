@@ -7164,12 +7164,17 @@ ${JSON.stringify(layout, null, 2)}
     if (iconEl) {
       const workspaceIcon = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
       const groupIcon = group ? this.workspaceManager.getGroupIcon(group) : null;
-      const resolvedIcon = workspaceIcon || groupIcon || "layout-template";
-      (0, import_obsidian7.setIcon)(iconEl, resolvedIcon);
-      const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
-      const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
-      const resolvedColor = workspaceIcon ? workspaceColor : groupIcon ? groupColor : null;
-      iconEl.style.color = resolvedColor || "";
+      const resolvedIcon = workspaceIcon || groupIcon;
+      if (resolvedIcon) {
+        iconEl.style.display = "";
+        (0, import_obsidian7.setIcon)(iconEl, resolvedIcon);
+        const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
+        const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
+        const resolvedColor = workspaceIcon ? workspaceColor : groupColor;
+        iconEl.style.color = resolvedColor || "";
+      } else {
+        iconEl.style.display = "none";
+      }
     }
     const textEl = this.statusBarItem.querySelector(".workspace-navigator-text");
     if (textEl) {

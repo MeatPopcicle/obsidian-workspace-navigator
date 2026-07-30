@@ -1035,20 +1035,27 @@ export default class WorkspaceNavigator extends Plugin {
 		const workspaceName = this.workspaceManager.getActiveWorkspace();
 		const group = workspaceName ? this.workspaceManager.getWorkspaceGroup(workspaceName) : null;
 
-		// Update icon: prefer the active workspace's own icon, then its group's
-		// icon, falling back to the default. Colors follow the same precedence.
+		// Update icon: prefer the active workspace's own icon, then its group's.
+		// With neither, hide the icon entirely — the fallback glyph just reads
+		// as an empty square at text size. Colors follow the same precedence.
 		const iconEl = this.statusBarItem.querySelector('.workspace-navigator-icon') as HTMLElement;
 		if (iconEl) {
 			const workspaceIcon = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
 			const groupIcon = group ? this.workspaceManager.getGroupIcon(group) : null;
-			const resolvedIcon = workspaceIcon || groupIcon || 'layout-template';
-			setIcon(iconEl, resolvedIcon);
+			const resolvedIcon = workspaceIcon || groupIcon;
 
-			const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
-			const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
-			// Only inherit a color from whichever source supplied the icon.
-			const resolvedColor = workspaceIcon ? workspaceColor : (groupIcon ? groupColor : null);
-			iconEl.style.color = resolvedColor || '';
+			if (resolvedIcon) {
+				iconEl.style.display = '';
+				setIcon(iconEl, resolvedIcon);
+
+				const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
+				const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
+				// Only inherit a color from whichever source supplied the icon.
+				const resolvedColor = workspaceIcon ? workspaceColor : groupColor;
+				iconEl.style.color = resolvedColor || '';
+			} else {
+				iconEl.style.display = 'none';
+			}
 		}
 
 		// Update text
