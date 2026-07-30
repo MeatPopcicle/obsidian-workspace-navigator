@@ -369,6 +369,21 @@ export class WorkspaceNavigatorView extends ItemView {
 		if (!isCollapsed) {
 			const workspacesContainer = groupContainer.createDiv('workspace-sidebar-workspaces');
 
+			// The body's indent padding isn't covered by any row, so without its
+			// own dragover preventDefault a drop there is silently discarded by
+			// the browser. Accept it as a drop into this group; drops on rows
+			// are left to the row handlers.
+			workspacesContainer.addEventListener('dragover', (evt) => {
+				if ((evt.target as HTMLElement).closest('.workspace-sidebar-item')) return;
+				if (this.draggedType !== 'workspace') return;
+				evt.preventDefault();
+				evt.dataTransfer!.dropEffect = 'move';
+			});
+			workspacesContainer.addEventListener('drop', (evt) => {
+				if ((evt.target as HTMLElement).closest('.workspace-sidebar-item')) return;
+				this.onGroupDrop(evt, groupName);
+			});
+
 			// Get workspaces with proper ordering (handles both manual and alphabetical)
 			const realGroup = isNoGroup ? null : groupName;
 			const sortedWorkspaces = workspaceManager.getWorkspacesByGroupOrdered(realGroup, useManualOrder);
@@ -651,25 +666,30 @@ export class WorkspaceNavigatorView extends ItemView {
 					workspaceManager.removeFileFromWorkspace(workspaceName, filePath);
 					await this.plugin.saveSettings();
 					this.renderTree();
+					this.plugin.updateTabIndicators();
 					new Notice(`Removed "${fileName}" from ${workspaceName}`);
 				});
 		});
 
-		// Check other workspaces
+		// Informational submenu: which OTHER workspaces have this file open.
+		// Clicking a workspace name switches to it.
 		const otherWorkspaces = workspaceManager.getWorkspacesWithFile(filePath, workspaceName);
 		if (otherWorkspaces.length > 0) {
 			menu.addItem((item) => {
-				item.setTitle(`Remove from other workspaces (${otherWorkspaces.length})`)
-					.setIcon('x-circle')
-					.onClick(async () => {
-						for (const ws of otherWorkspaces) {
-							workspaceManager.removeFileFromWorkspace(ws, filePath);
-						}
-						await this.plugin.saveSettings();
-						this.renderTree();
-						new Notice(`Removed "${fileName}" from ${otherWorkspaces.length} other workspace(s)`);
-					});
+				item.setTitle(`Open in ${otherWorkspaces.length} other workspace${otherWorkspaces.length === 1 ? '' : 's'}`)
+					.setIcon('layers');
 			});
+			const infoItem = (menu as any).items[(menu as any).items.length - 1];
+			const infoSubmenu = (infoItem as any).setSubmenu();
+			for (const ws of otherWorkspaces) {
+				infoSubmenu.addItem((subItem: any) => {
+					subItem.setTitle(ws)
+						.onClick(async () => {
+							await this.plugin.switchToWorkspace(ws);
+							this.renderTree();
+						});
+				});
+			}
 		}
 
 		// Copy to workspace submenu
@@ -692,6 +712,7 @@ export class WorkspaceNavigatorView extends ItemView {
 							workspaceManager.addFileToWorkspace(ws, filePath);
 							await this.plugin.saveSettings();
 							this.renderTree();
+							this.plugin.updateTabIndicators();
 							new Notice(`Copied "${fileName}" to ${ws}`);
 						});
 				});
@@ -837,7 +858,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			submenu.addItem((subItem: any) => {
 				subItem.setTitle('(No group)')
 					.onClick(async () => {
-						workspaceManager.setWorkspaceGroup(workspaceName, null);
+						workspaceManager.moveWorkspaceToGroup(workspaceName, null);
 						await this.plugin.saveSettings();
 						this.renderTree();
 					});
@@ -847,7 +868,7 @@ export class WorkspaceNavigatorView extends ItemView {
 				submenu.addItem((subItem: any) => {
 					subItem.setTitle(group)
 						.onClick(async () => {
-							workspaceManager.setWorkspaceGroup(workspaceName, group);
+							workspaceManager.moveWorkspaceToGroup(workspaceName, group);
 							await this.plugin.saveSettings();
 							this.renderTree();
 						});
@@ -889,12 +910,15 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Apply default group if set
 		if (this.plugin.settings.defaultGroup) {
-			workspaceManager.setWorkspaceGroup(name, this.plugin.settings.defaultGroup);
+			workspaceManager.moveWorkspaceToGroup(name, this.plugin.settings.defaultGroup);
 		}
 
 		await this.plugin.saveSettings();
 		this.plugin.refreshWorkspaceCommands();
 		this.renderTree();
+		// saveWorkspace() made the new workspace active — keep the status bar in
+		// sync (it otherwise updates only on layout-change / workspace load).
+		this.plugin.updateStatusBar();
 
 		new Notice(`Created workspace: ${name}`);
 
@@ -955,7 +979,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			currentStyle,
 			async (style) => {
 				// Apply style
-				workspaceManager.setWorkspaceGroup(workspaceName, style.group || null);
+				workspaceManager.moveWorkspaceToGroup(workspaceName, style.group || null);
 				workspaceManager.setWorkspaceIcon(workspaceName, style.icon || null, style.iconColor || null);
 				workspaceManager.setWorkspaceNameStyle(workspaceName, {
 					color:  style.nameColor || null,
@@ -1304,10 +1328,11 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		const workspaceManager = this.plugin.getWorkspaceManager();
 
-		// Workspace dropped onto group
+		// Workspace dropped onto group — maintain the manual-order arrays too,
+		// or the moved workspace sorts to Infinity (bottom of the group).
 		if (this.draggedType === 'workspace' && this.draggedItem) {
 			const realGroup = targetGroup === NO_GROUP_KEY ? null : targetGroup;
-			workspaceManager.setWorkspaceGroup(this.draggedItem, realGroup);
+			workspaceManager.moveWorkspaceToGroup(this.draggedItem, realGroup);
 			this.plugin.saveSettings();
 			this.renderTree();
 			return;
@@ -1377,7 +1402,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			item.removeClass('drop-file-target');
 		});
 
-		item.addEventListener('drop', (evt) => {
+		item.addEventListener('drop', async (evt) => {
 			evt.preventDefault();
 			item.removeClass('drop-file-target');
 
@@ -1405,8 +1430,10 @@ export class WorkspaceNavigatorView extends ItemView {
 			}
 
 			workspaceManager.addFileToWorkspace(workspaceName, filePath);
-			this.plugin.saveSettings();
+			await this.plugin.saveSettings();
 			this.renderTree();
+			// Keep live tab badges in sync with the layout change
+			this.plugin.updateTabIndicators();
 		});
 	}
 

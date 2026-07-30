@@ -698,57 +698,23 @@ export default class WorkspaceNavigator extends Plugin {
 						});
 				});
 
-				// Check if file is open in other workspaces (stored layouts)
-				// Also consider current workspace if the file is currently open (live state)
-				let workspacesWithFile = this.workspaceManager.getWorkspacesWithFile(file.path);
-
-				// If current workspace isn't in the list but we're looking at a tab with this file,
-				// add current workspace to the count (live state not yet saved)
-				if (activeWorkspace && !workspacesWithFile.includes(activeWorkspace)) {
-					workspacesWithFile = [activeWorkspace, ...workspacesWithFile];
-				}
-
-				const otherWorkspacesWithFile = workspacesWithFile.filter(w => w !== activeWorkspace);
+				// Informational submenu: which OTHER workspaces have this file open
+				// (saved layouts). Clicking a workspace name switches to it.
+				const otherWorkspacesWithFile = this.workspaceManager.getWorkspacesWithFile(file.path, activeWorkspace ?? undefined);
 
 				if (otherWorkspacesWithFile.length > 0) {
-					// Add "Close in other workspaces" option (keeps current tab open)
 					menu.addItem((item) => {
-						item.setTitle(`Close in other workspaces (${otherWorkspacesWithFile.length})`)
-							.setIcon('x')
-							.onClick(async () => {
-								let removedCount = 0;
-								for (const ws of otherWorkspacesWithFile) {
-									if (this.workspaceManager.removeFileFromWorkspace(ws, file.path)) {
-										removedCount++;
-									}
-								}
-
-								await this.saveSettings();
-								this.updateTabIndicators();
-
-								new Notice(`Closed "${file.name}" in ${removedCount} other workspace(s)`);
+						item.setTitle(`Open in ${otherWorkspacesWithFile.length} other workspace${otherWorkspacesWithFile.length === 1 ? '' : 's'}`)
+							.setIcon('layers');
+						const submenu = (item as any).setSubmenu();
+						for (const ws of otherWorkspacesWithFile) {
+							submenu.addItem((subItem: any) => {
+								subItem.setTitle(ws)
+									.onClick(async () => {
+										await this.switchToWorkspace(ws);
+									});
 							});
-					});
-				}
-
-				if (workspacesWithFile.length > 1) {
-					// Add "Close in all workspaces" option (including current)
-					menu.addItem((item) => {
-						item.setTitle(`Close in all workspaces (${workspacesWithFile.length})`)
-							.setIcon('x-circle')
-							.onClick(async () => {
-								const removedFrom = this.workspaceManager.removeFileFromAllWorkspaces(file.path);
-
-								// Also close the current tab
-								if (leaf) {
-									leaf.detach();
-								}
-
-								await this.saveSettings();
-								this.updateTabIndicators();
-
-								new Notice(`Closed "${file.name}" in ${removedFrom.length} workspace(s)`);
-							});
+						}
 					});
 				}
 			})
@@ -1001,6 +967,25 @@ export default class WorkspaceNavigator extends Plugin {
 			throw err;
 		}
 		await this.saveSettings(); // Save after loading
+	}
+
+	/**
+	 * User-facing switch: saves the outgoing workspace first (when auto-save
+	 * on switch is enabled), then loads the target and announces it. Matches
+	 * the sidebar's click-to-switch semantics.
+	 */
+	async switchToWorkspace(name: string) {
+		if (this.settings.autoSaveOnSwitch) {
+			const current = this.workspaceManager.getActiveWorkspace();
+			if (current && current !== name) {
+				await this.saveNavigationLayout(current);
+				const saveFolderState = this.settings.rememberNavigationLayout;
+				await this.workspaceManager.saveWorkspace(current, saveFolderState);
+			}
+		}
+
+		await this.loadWorkspace(name);
+		new Notice(`Switched to: ${name}`);
 	}
 
 	// ─────────────────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.20.0
+**Current Version:** v2.21.0
 **Last Updated:** 2026-07-29
 
 ---
@@ -122,6 +122,13 @@ Full multi-pass code review and cleanup, landed in tiers:
 - **Empty-group heading no longer switches:** clicking an empty group's heading in the switcher now toggles it open/closed instead of attempting to load a nonexistent workspace.
 - **Empty-group corners fixed:** an empty group (no workspaces) renders as a full standalone card with rounded bottom corners, matching collapsed groups.
 - **Status-bar icon:** the status-bar widget now shows the active workspace's icon (falling back to its group's icon, then the default), colored to match.
+
+### Phase 9 - File-op simplification & drag fixes (v2.21)
+- **Context-menu simplification:** removed "Close in other workspaces" / "Close in all workspaces" (tab menu) and "Remove from other workspaces" (sidebar); removed the orphaned `removeFileFromAllWorkspaces`.
+- **"Open in N other workspaces" submenu:** both context menus now list which other workspaces have the file open; clicking a name switches to it (new `switchToWorkspace()` honors auto-save-on-switch).
+- **Drag-into-group fix:** new `moveWorkspaceToGroup()` maintains both groups' manual-order arrays, so a dropped workspace lands where expected instead of sorting to the bottom; all user-driven group moves converted. The expanded group body's indent padding now accepts drops.
+- **Status-bar sync on create:** creating a workspace (sidebar or modal) updates the status bar immediately; the modal path also refreshes the sidebar.
+- **Small fixes:** awaited `saveSettings()` in file drag-drop; sidebar file ops now refresh live tab badges.
 
 ---
 

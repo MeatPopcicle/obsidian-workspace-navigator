@@ -803,6 +803,42 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Move a workspace into a group (appended at the end), maintaining the
+	 * manual-order arrays of both the source and target groups. Use this
+	 * instead of bare setWorkspaceGroup() for user-driven moves: a workspace
+	 * absent from the target's saved order would otherwise sort to Infinity,
+	 * landing at the bottom regardless of where it was dropped.
+	 */
+	moveWorkspaceToGroup(workspaceName: string, group: string | null): void {
+		const sourceGroup = this.getWorkspaceGroup(workspaceName);
+		if (sourceGroup === group) return;
+
+		this.setWorkspaceGroup(workspaceName, group);
+
+		// Remove from the source group's order
+		const oldOrder = this.getWorkspaceOrder(sourceGroup);
+		const oldIndex = oldOrder.indexOf(workspaceName);
+		if (oldIndex !== -1) {
+			oldOrder.splice(oldIndex, 1);
+			this.setWorkspaceOrder(sourceGroup, oldOrder);
+		}
+
+		// Append to the target group's order (seed from current membership if
+		// the group has no saved order yet — the workspace is already a member
+		// at this point, so the seed includes it).
+		let order = this.getWorkspaceOrder(group);
+		if (order.length === 0) {
+			order = [...this.getWorkspacesByGroup(group)];
+		}
+		if (!order.includes(workspaceName)) {
+			order.push(workspaceName);
+		}
+		this.setWorkspaceOrder(group, order);
+
+		this.logger.log(`Moved "${workspaceName}" into group "${group || '(ungrouped)'}"`);
+	}
+
+	/**
 	 * Clean up workspace order data (remove deleted workspaces, add missing ones)
 	 */
 	cleanupWorkspaceOrder(): void {
@@ -1447,22 +1483,6 @@ export class WorkspaceManager {
 		}
 
 		return removed;
-	}
-
-	/**
-	 * Remove a file from all workspaces
-	 * @returns Array of workspace names where the file was removed
-	 */
-	removeFileFromAllWorkspaces(filePath: string): string[] {
-		const removedFrom: string[] = [];
-
-		for (const name of this.getWorkspaceNames()) {
-			if (this.removeFileFromWorkspace(name, filePath)) {
-				removedFrom.push(name);
-			}
-		}
-
-		return removedFrom;
 	}
 
 	/**

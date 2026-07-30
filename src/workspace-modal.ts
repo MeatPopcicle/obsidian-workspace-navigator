@@ -1227,7 +1227,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				await workspaceManager.saveWorkspace(newName, this.plugin.settings.rememberNavigationLayout);
 
 				// Apply styling
-				if (result.group) workspaceManager.setWorkspaceGroup(newName, result.group);
+				if (result.group) workspaceManager.moveWorkspaceToGroup(newName, result.group);
 				if (result.icon) workspaceManager.setWorkspaceIcon(newName, result.icon, result.iconColor);
 				if (result.nameColor || result.nameBold || result.nameItalic) {
 					workspaceManager.setWorkspaceNameStyle(newName, {
@@ -1372,7 +1372,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					if (useManualOrder) {
 						workspaceManager.moveWorkspaceRelativeTo(this.draggedWorkspace, dropTarget.workspace, position);
 					} else {
-						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+						workspaceManager.moveWorkspaceToGroup(this.draggedWorkspace, targetGroup);
 					}
 					await this.plugin.saveSettings();
 
@@ -1404,7 +1404,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					const currentGroup = workspaceManager.getWorkspaceGroup(this.draggedWorkspace);
 
 					if (currentGroup !== targetGroup) {
-						workspaceManager.setWorkspaceGroup(this.draggedWorkspace, targetGroup);
+						workspaceManager.moveWorkspaceToGroup(this.draggedWorkspace, targetGroup);
 						await this.plugin.saveSettings();
 
 						const groupDisplay = targetGroup || 'No Group';
@@ -2398,7 +2398,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			}
 
 			// Apply styles to finalName
-			workspaceManager.setWorkspaceGroup(finalName, newStyle.group || null);
+			workspaceManager.moveWorkspaceToGroup(finalName, newStyle.group || null);
 			workspaceManager.setWorkspaceIcon(finalName, newStyle.icon || null, newStyle.iconColor || null);
 			workspaceManager.setWorkspaceNameStyle(finalName, {
 				color:  newStyle.nameColor || null,
@@ -2467,10 +2467,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Apply default group if configured and this is a new workspace
 		if (isNew && this.plugin.settings.defaultGroup) {
-			workspaceManager.setWorkspaceGroup(workspaceName, this.plugin.settings.defaultGroup);
+			workspaceManager.moveWorkspaceToGroup(workspaceName, this.plugin.settings.defaultGroup);
 		}
 
 		await this.plugin.saveSettings();
+		// saveWorkspace() made the new workspace active — keep the status bar
+		// and sidebar in sync.
+		this.plugin.updateStatusBar();
+		this.plugin.refreshSidebarView();
 
 		new Notice(`Created workspace: ${workspaceName}`);
 
