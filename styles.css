@@ -158,6 +158,13 @@ settings:
 .workspace-navigator-icon {
 	display: flex;
 	align-items: center;
+	/* Match the status-bar text size so custom workspace/group icons don't tower over it */
+	font-size: var(--font-ui-smaller);
+}
+
+.workspace-navigator-icon svg {
+	width: 1em;
+	height: 1em;
 }
 
 .workspace-navigator-text {
