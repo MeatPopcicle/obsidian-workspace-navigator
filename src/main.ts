@@ -577,13 +577,8 @@ export default class WorkspaceNavigator extends Plugin {
 					activeFile.path,
 					false,  // don't follow
 					async (targetWorkspace) => {
-						const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, activeFile.path);
-						if (success) {
-							await this.saveSettings();
-							new Notice(`Sent "${activeFile.basename}" to workspace "${targetWorkspace}"`);
-						} else {
-							new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-						}
+						// Palette variant deliberately keeps the note open here (copy semantics)
+						await this.sendFileToWorkspace(targetWorkspace, activeFile.path, null, false);
 					}
 				).open();
 			}
@@ -606,16 +601,8 @@ export default class WorkspaceNavigator extends Plugin {
 					activeFile.path,
 					true,  // follow
 					async (targetWorkspace) => {
-						const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, activeFile.path);
-						if (success) {
-							await this.saveSettings();
-							new Notice(`Sent "${activeFile.basename}" to workspace "${targetWorkspace}"`);
-							// Switch to the target workspace
-							await this.loadWorkspace(targetWorkspace);
-							new Notice(`Switched to workspace: ${targetWorkspace}`);
-						} else {
-							new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-						}
+						// Palette variant deliberately keeps the note open here (copy semantics)
+						await this.sendFileToWorkspace(targetWorkspace, activeFile.path, null, true);
 					}
 				).open();
 			}
@@ -642,7 +629,7 @@ export default class WorkspaceNavigator extends Plugin {
 
 				menu.addSeparator();
 
-				// Add submenu for "Send to workspace" (move - closes tab here)
+				// "Send to workspace" (moves when invoked from a tab, copies from the file explorer)
 				menu.addItem((item) => {
 					item.setTitle('Send to workspace')
 						.setIcon('send')
@@ -653,23 +640,13 @@ export default class WorkspaceNavigator extends Plugin {
 								file.path,
 								false,
 								async (targetWorkspace) => {
-									const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, file.path);
-									if (success) {
-										// Close the tab in current workspace
-										if (leaf) {
-											leaf.detach();
-										}
-										await this.saveSettings();
-										new Notice(`Moved "${file.name}" to workspace "${targetWorkspace}"`);
-									} else {
-										new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-									}
+									await this.sendFileToWorkspace(targetWorkspace, file.path, leaf ?? null, false);
 								}
 							).open();
 						});
 				});
 
-				// Add submenu for "Send to workspace and switch"
+				// "Send to workspace and switch"
 				menu.addItem((item) => {
 					item.setTitle('Send to workspace and switch')
 						.setIcon('arrow-right-to-line')
@@ -680,19 +657,7 @@ export default class WorkspaceNavigator extends Plugin {
 								file.path,
 								true,
 								async (targetWorkspace) => {
-									const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, file.path);
-									if (success) {
-										// Close the tab in current workspace
-										if (leaf) {
-											leaf.detach();
-										}
-										await this.saveSettings();
-										new Notice(`Moved "${file.name}" to workspace "${targetWorkspace}"`);
-										// Switch to workspace
-										await this.loadWorkspace(targetWorkspace);
-									} else {
-										new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-									}
+									await this.sendFileToWorkspace(targetWorkspace, file.path, leaf ?? null, true);
 								}
 							).open();
 						});
@@ -967,6 +932,50 @@ export default class WorkspaceNavigator extends Plugin {
 			throw err;
 		}
 		await this.saveSettings(); // Save after loading
+	}
+
+	/**
+	 * Shared send-a-file-to-another-workspace implementation for the command
+	 * palette and file-menu paths. Verifies the file still exists, writes the
+	 * correct view type for non-markdown files, persists the removal from the
+	 * current workspace's saved layout when a live tab is closed (otherwise
+	 * the "moved" file resurrects on the next switch-back with auto-save off),
+	 * and reports honestly: "Moved" only when a tab was closed here, "Sent"
+	 * when nothing was.
+	 */
+	async sendFileToWorkspace(targetWorkspace: string, filePath: string, leaf: WorkspaceLeaf | null, andSwitch: boolean): Promise<void> {
+		if (!this.app.vault.getAbstractFileByPath(filePath)) {
+			new Notice(`File not found: ${filePath}`);
+			return;
+		}
+		const displayName = filePath.split('/').pop() || filePath;
+
+		const viewType = (leaf?.view as any)?.getViewType?.() || WorkspaceManager.viewTypeForPath(filePath);
+		const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, filePath, viewType);
+		if (!success) {
+			new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+			return;
+		}
+
+		if (leaf) {
+			// Closing the tab here makes this a move; persist it in the current
+			// workspace's saved layout too.
+			leaf.detach();
+			const current = this.workspaceManager.getActiveWorkspace();
+			if (current) {
+				this.workspaceManager.removeFileFromWorkspace(current, filePath);
+			}
+		}
+
+		await this.saveSettings();
+		this.updateTabIndicators();
+		this.refreshSidebarView();
+		new Notice(`${leaf ? 'Moved' : 'Sent'} "${displayName}" to workspace "${targetWorkspace}"`);
+
+		if (andSwitch) {
+			await this.loadWorkspace(targetWorkspace);
+			new Notice(`Switched to workspace: ${targetWorkspace}`);
+		}
 	}
 
 	/**

@@ -3767,14 +3767,21 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   // Handle group delete (ungroup all workspaces in the group)
   // ─────────────────────────────────────────────────────────────────
   async onGroupDelete(groupName) {
-    const workspaceManager = this.plugin.getWorkspaceManager();
-    const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
-    workspaceManager.deleteGroup(groupName);
-    await this.plugin.saveSettings();
-    new import_obsidian4.Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
-    this.lastRenderedGroup = void 0;
-    refreshSuggestions(this);
-    this.createActionButtons();
+    createConfirmationDialog(this.app, {
+      title: "Delete Group?",
+      text: `Delete group "${groupName}"? Workspaces will be moved to "No Group".`,
+      cta: "Delete",
+      onAccept: async () => {
+        const workspaceManager = this.plugin.getWorkspaceManager();
+        const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
+        workspaceManager.deleteGroup(groupName);
+        await this.plugin.saveSettings();
+        new import_obsidian4.Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
+        this.lastRenderedGroup = void 0;
+        refreshSuggestions(this);
+        this.createActionButtons();
+      }
+    });
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle icon click
@@ -4975,26 +4982,23 @@ ${error.stack}
    * Add a file to a workspace's layout (in the main editor area)
    * This modifies the stored layout so the file will be open when the workspace is loaded
    */
-  addFileToWorkspace(workspaceName, filePath) {
+  addFileToWorkspace(workspaceName, filePath, viewType) {
     const workspace = this.getWorkspace(workspaceName);
     if (!(workspace == null ? void 0 : workspace.layout))
       return false;
+    const resolvedType = viewType || _WorkspaceManager.viewTypeForPath(filePath);
+    const newLeaf = {
+      id: this.generateLeafId(),
+      type: "leaf",
+      state: {
+        type: resolvedType,
+        state: resolvedType === "markdown" ? { file: filePath, mode: "source", source: false } : { file: filePath }
+      }
+    };
     const addToMain = (node) => {
       if (!node)
         return false;
       if (node.type === "tabs" && node.children && Array.isArray(node.children)) {
-        const newLeaf = {
-          id: this.generateLeafId(),
-          type: "leaf",
-          state: {
-            type: "markdown",
-            state: {
-              file: filePath,
-              mode: "source",
-              source: false
-            }
-          }
-        };
         node.children.push(newLeaf);
         node.currentTab = node.children.length - 1;
         return true;
@@ -5011,8 +5015,57 @@ ${error.stack}
       this.logger.log(`Added file "${filePath}" to workspace "${workspaceName}"`);
       return true;
     }
-    this.logger.log(`Failed to add file "${filePath}" to workspace "${workspaceName}"`);
-    return false;
+    const tabs = { id: this.generateLeafId(), type: "tabs", children: [newLeaf], currentTab: 0 };
+    const main2 = workspace.layout.main;
+    if (!main2) {
+      workspace.layout.main = { id: this.generateLeafId(), type: "split", direction: "vertical", children: [tabs] };
+    } else if (main2.children && Array.isArray(main2.children)) {
+      main2.children.push(tabs);
+    } else {
+      tabs.children.unshift(main2);
+      tabs.currentTab = tabs.children.length - 1;
+      workspace.layout.main = { id: this.generateLeafId(), type: "split", direction: "vertical", children: [tabs] };
+    }
+    this.logger.log(`Added file "${filePath}" to workspace "${workspaceName}" (created tabs container)`);
+    return true;
+  }
+  /**
+   * Infer the Obsidian view type for a file path from its extension.
+   * Used when no live leaf is available to ask (the send/copy paths write
+   * saved-layout leaves directly). Falls back to 'markdown'.
+   */
+  static viewTypeForPath(filePath) {
+    const ext = (filePath.split(".").pop() || "").toLowerCase();
+    switch (ext) {
+      case "canvas":
+        return "canvas";
+      case "pdf":
+        return "pdf";
+      case "png":
+      case "jpg":
+      case "jpeg":
+      case "gif":
+      case "webp":
+      case "svg":
+      case "avif":
+      case "bmp":
+        return "image";
+      case "mp3":
+      case "wav":
+      case "ogg":
+      case "m4a":
+      case "flac":
+      case "3gp":
+        return "audio";
+      case "mp4":
+      case "webm":
+      case "mov":
+      case "mkv":
+      case "ogv":
+        return "video";
+      default:
+        return "markdown";
+    }
   }
   /**
    * Generate a unique leaf ID (similar to Obsidian's format)
@@ -5029,16 +5082,19 @@ ${error.stack}
     if (!(workspace == null ? void 0 : workspace.layout))
       return false;
     let removed = false;
-    const removeFromNode = (node, parent, childIndex) => {
-      var _a, _b;
+    const leafMatches = (node) => {
+      var _a, _b, _c;
+      return (node == null ? void 0 : node.type) === "leaf" && (((_b = (_a = node.state) == null ? void 0 : _a.state) == null ? void 0 : _b.file) === filePath || ((_c = node.state) == null ? void 0 : _c.file) === filePath);
+    };
+    const removeFromNode = (node) => {
       if (!node)
         return false;
-      if (node.type === "leaf" && ((_b = (_a = node.state) == null ? void 0 : _a.state) == null ? void 0 : _b.file) === filePath) {
+      if (leafMatches(node)) {
         return true;
       }
       if (node.children && Array.isArray(node.children)) {
         for (let i = node.children.length - 1; i >= 0; i--) {
-          if (removeFromNode(node.children[i], node, i)) {
+          if (removeFromNode(node.children[i])) {
             node.children.splice(i, 1);
             removed = true;
             if (node.currentTab !== void 0) {
@@ -5051,14 +5107,31 @@ ${error.stack}
       }
       return false;
     };
-    if (workspace.layout.main) {
-      removeFromNode(workspace.layout.main, null, -1);
-    }
-    if (workspace.layout.left) {
-      removeFromNode(workspace.layout.left, null, -1);
-    }
-    if (workspace.layout.right) {
-      removeFromNode(workspace.layout.right, null, -1);
+    const pruneEmpty = (node) => {
+      if (!(node == null ? void 0 : node.children) || !Array.isArray(node.children))
+        return;
+      for (let i = node.children.length - 1; i >= 0; i--) {
+        const child = node.children[i];
+        pruneEmpty(child);
+        if ((child == null ? void 0 : child.children) && Array.isArray(child.children) && child.children.length === 0) {
+          node.children.splice(i, 1);
+          if (node.currentTab !== void 0 && node.currentTab >= node.children.length) {
+            node.currentTab = Math.max(0, node.children.length - 1);
+          }
+        }
+      }
+    };
+    for (const region of ["main", "left", "right"]) {
+      const root = workspace.layout[region];
+      if (!root)
+        continue;
+      if (leafMatches(root)) {
+        workspace.layout[region] = { id: this.generateLeafId(), type: "tabs", children: [], currentTab: 0 };
+        removed = true;
+        continue;
+      }
+      removeFromNode(root);
+      pruneEmpty(root);
     }
     if (removed) {
       this.logger.log(`Removed file "${filePath}" from workspace "${workspaceName}"`);
@@ -5722,6 +5795,14 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     menu.addItem((item) => {
       item.setTitle("Remove from this workspace").setIcon("x").onClick(async () => {
         workspaceManager.removeFileFromWorkspace(workspaceName, filePath);
+        if (workspaceName === workspaceManager.getActiveWorkspace()) {
+          this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+            var _a, _b;
+            if (((_b = (_a = leaf.view) == null ? void 0 : _a.file) == null ? void 0 : _b.path) === filePath) {
+              leaf.detach();
+            }
+          });
+        }
         await this.plugin.saveSettings();
         this.renderTree();
         this.plugin.updateTabIndicators();
@@ -5756,6 +5837,10 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         const alreadyHas = workspaceManager.getOpenFilesInWorkspace(ws).includes(filePath);
         submenu.addItem((subItem) => {
           subItem.setTitle(ws + (alreadyHas ? " \u2713" : "")).setDisabled(alreadyHas).onClick(async () => {
+            if (!this.plugin.app.vault.getAbstractFileByPath(filePath)) {
+              new import_obsidian6.Notice(`File not found: ${filePath}`);
+              return;
+            }
             workspaceManager.addFileToWorkspace(ws, filePath);
             await this.plugin.saveSettings();
             this.renderTree();
@@ -6808,13 +6893,7 @@ ${JSON.stringify(layout, null, 2)}
           false,
           // don't follow
           async (targetWorkspace) => {
-            const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, activeFile.path);
-            if (success) {
-              await this.saveSettings();
-              new import_obsidian7.Notice(`Sent "${activeFile.basename}" to workspace "${targetWorkspace}"`);
-            } else {
-              new import_obsidian7.Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-            }
+            await this.sendFileToWorkspace(targetWorkspace, activeFile.path, null, false);
           }
         ).open();
       }
@@ -6835,15 +6914,7 @@ ${JSON.stringify(layout, null, 2)}
           true,
           // follow
           async (targetWorkspace) => {
-            const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, activeFile.path);
-            if (success) {
-              await this.saveSettings();
-              new import_obsidian7.Notice(`Sent "${activeFile.basename}" to workspace "${targetWorkspace}"`);
-              await this.loadWorkspace(targetWorkspace);
-              new import_obsidian7.Notice(`Switched to workspace: ${targetWorkspace}`);
-            } else {
-              new import_obsidian7.Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-            }
+            await this.sendFileToWorkspace(targetWorkspace, activeFile.path, null, true);
           }
         ).open();
       }
@@ -6869,16 +6940,7 @@ ${JSON.stringify(layout, null, 2)}
               file.path,
               false,
               async (targetWorkspace) => {
-                const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, file.path);
-                if (success) {
-                  if (leaf) {
-                    leaf.detach();
-                  }
-                  await this.saveSettings();
-                  new import_obsidian7.Notice(`Moved "${file.name}" to workspace "${targetWorkspace}"`);
-                } else {
-                  new import_obsidian7.Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-                }
+                await this.sendFileToWorkspace(targetWorkspace, file.path, leaf != null ? leaf : null, false);
               }
             ).open();
           });
@@ -6891,17 +6953,7 @@ ${JSON.stringify(layout, null, 2)}
               file.path,
               true,
               async (targetWorkspace) => {
-                const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, file.path);
-                if (success) {
-                  if (leaf) {
-                    leaf.detach();
-                  }
-                  await this.saveSettings();
-                  new import_obsidian7.Notice(`Moved "${file.name}" to workspace "${targetWorkspace}"`);
-                  await this.loadWorkspace(targetWorkspace);
-                } else {
-                  new import_obsidian7.Notice(`Failed to add file to workspace "${targetWorkspace}"`);
-                }
+                await this.sendFileToWorkspace(targetWorkspace, file.path, leaf != null ? leaf : null, true);
               }
             ).open();
           });
@@ -7108,6 +7160,44 @@ ${JSON.stringify(layout, null, 2)}
       throw err;
     }
     await this.saveSettings();
+  }
+  /**
+   * Shared send-a-file-to-another-workspace implementation for the command
+   * palette and file-menu paths. Verifies the file still exists, writes the
+   * correct view type for non-markdown files, persists the removal from the
+   * current workspace's saved layout when a live tab is closed (otherwise
+   * the "moved" file resurrects on the next switch-back with auto-save off),
+   * and reports honestly: "Moved" only when a tab was closed here, "Sent"
+   * when nothing was.
+   */
+  async sendFileToWorkspace(targetWorkspace, filePath, leaf, andSwitch) {
+    var _a, _b;
+    if (!this.app.vault.getAbstractFileByPath(filePath)) {
+      new import_obsidian7.Notice(`File not found: ${filePath}`);
+      return;
+    }
+    const displayName = filePath.split("/").pop() || filePath;
+    const viewType = ((_b = (_a = leaf == null ? void 0 : leaf.view) == null ? void 0 : _a.getViewType) == null ? void 0 : _b.call(_a)) || WorkspaceManager.viewTypeForPath(filePath);
+    const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, filePath, viewType);
+    if (!success) {
+      new import_obsidian7.Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+      return;
+    }
+    if (leaf) {
+      leaf.detach();
+      const current = this.workspaceManager.getActiveWorkspace();
+      if (current) {
+        this.workspaceManager.removeFileFromWorkspace(current, filePath);
+      }
+    }
+    await this.saveSettings();
+    this.updateTabIndicators();
+    this.refreshSidebarView();
+    new import_obsidian7.Notice(`${leaf ? "Moved" : "Sent"} "${displayName}" to workspace "${targetWorkspace}"`);
+    if (andSwitch) {
+      await this.loadWorkspace(targetWorkspace);
+      new import_obsidian7.Notice(`Switched to workspace: ${targetWorkspace}`);
+    }
   }
   /**
    * User-facing switch: saves the outgoing workspace first (when auto-save

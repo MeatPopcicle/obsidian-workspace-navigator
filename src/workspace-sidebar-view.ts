@@ -664,6 +664,18 @@ export class WorkspaceNavigatorView extends ItemView {
 				.setIcon('x')
 				.onClick(async () => {
 					workspaceManager.removeFileFromWorkspace(workspaceName, filePath);
+
+					// Removing from the ACTIVE workspace must also close the live
+					// tab, or the next auto-save re-captures the open file and
+					// silently undoes the removal.
+					if (workspaceName === workspaceManager.getActiveWorkspace()) {
+						this.plugin.app.workspace.iterateAllLeaves((leaf) => {
+							if ((leaf.view as any)?.file?.path === filePath) {
+								leaf.detach();
+							}
+						});
+					}
+
 					await this.plugin.saveSettings();
 					this.renderTree();
 					this.plugin.updateTabIndicators();
@@ -709,6 +721,12 @@ export class WorkspaceNavigatorView extends ItemView {
 					subItem.setTitle(ws + (alreadyHas ? ' ✓' : ''))
 						.setDisabled(alreadyHas)
 						.onClick(async () => {
+							// Guard against copying a stale entry for a file that no
+							// longer exists in the vault.
+							if (!this.plugin.app.vault.getAbstractFileByPath(filePath)) {
+								new Notice(`File not found: ${filePath}`);
+								return;
+							}
 							workspaceManager.addFileToWorkspace(ws, filePath);
 							await this.plugin.saveSettings();
 							this.renderTree();

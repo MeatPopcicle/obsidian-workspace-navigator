@@ -2339,22 +2339,31 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	async onGroupDelete(groupName: string): Promise<void> {
-		const workspaceManager = this.plugin.getWorkspaceManager();
-		const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
+		// Always confirm, matching the sidebar's group delete. This path
+		// previously deleted immediately with no prompt.
+		createConfirmationDialog(this.app, {
+			title:   'Delete Group?',
+			text:    `Delete group "${groupName}"? Workspaces will be moved to "No Group".`,
+			cta:     'Delete',
+			onAccept: async () => {
+				const workspaceManager = this.plugin.getWorkspaceManager();
+				const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
 
-		// Centralized deletion: ungroups workspaces, removes the group from the
-		// manual order (previously missing here — the group reappeared), and
-		// clears all styling consistently.
-		workspaceManager.deleteGroup(groupName);
+				// Centralized deletion: ungroups workspaces, removes the group from the
+				// manual order (previously missing here — the group reappeared), and
+				// clears all styling consistently.
+				workspaceManager.deleteGroup(groupName);
 
-		await this.plugin.saveSettings();
+				await this.plugin.saveSettings();
 
-		new Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
+				new Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
 
-		// Refresh the suggestions
-		this.lastRenderedGroup = undefined;
-		refreshSuggestions(this);
-		this.createActionButtons();
+				// Refresh the suggestions
+				this.lastRenderedGroup = undefined;
+				refreshSuggestions(this);
+				this.createActionButtons();
+			}
+		});
 	}
 
 	// ─────────────────────────────────────────────────────────────────

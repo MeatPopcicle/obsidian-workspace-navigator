@@ -1369,29 +1369,28 @@ export class WorkspaceManager {
 	 * Add a file to a workspace's layout (in the main editor area)
 	 * This modifies the stored layout so the file will be open when the workspace is loaded
 	 */
-	addFileToWorkspace(workspaceName: string, filePath: string): boolean {
+	addFileToWorkspace(workspaceName: string, filePath: string, viewType?: string): boolean {
 		const workspace = this.getWorkspace(workspaceName);
 		if (!workspace?.layout) return false;
 
-		// Find the main editor area and add a new leaf
+		const resolvedType = viewType || WorkspaceManager.viewTypeForPath(filePath);
+		const newLeaf = {
+			id: this.generateLeafId(),
+			type: 'leaf',
+			state: {
+				type: resolvedType,
+				state: resolvedType === 'markdown'
+					? { file: filePath, mode: 'source', source: false }
+					: { file: filePath }
+			}
+		};
+
+		// Find the main editor area and add the new leaf to the first tabs container
 		const addToMain = (node: any): boolean => {
 			if (!node) return false;
 
 			// If this is a tabs container in the main area, add the file as a new tab
 			if (node.type === 'tabs' && node.children && Array.isArray(node.children)) {
-				// Create a new leaf for the file
-				const newLeaf = {
-					id: this.generateLeafId(),
-					type: 'leaf',
-					state: {
-						type: 'markdown',
-						state: {
-							file: filePath,
-							mode: 'source',
-							source: false
-						}
-					}
-				};
 				node.children.push(newLeaf);
 				// Set as active tab
 				node.currentTab = node.children.length - 1;
@@ -1414,8 +1413,40 @@ export class WorkspaceManager {
 			return true;
 		}
 
-		this.logger.log(`Failed to add file "${filePath}" to workspace "${workspaceName}"`);
-		return false;
+		// No tabs container anywhere under main (empty or unusual layout) —
+		// create one instead of failing the send with no recourse.
+		const tabs: any = { id: this.generateLeafId(), type: 'tabs', children: [newLeaf], currentTab: 0 };
+		const main = workspace.layout.main;
+		if (!main) {
+			workspace.layout.main = { id: this.generateLeafId(), type: 'split', direction: 'vertical', children: [tabs] };
+		} else if (main.children && Array.isArray(main.children)) {
+			main.children.push(tabs);
+		} else {
+			// Root is a bare leaf: fold it into the new tabs group alongside the file
+			tabs.children.unshift(main);
+			tabs.currentTab = tabs.children.length - 1;
+			workspace.layout.main = { id: this.generateLeafId(), type: 'split', direction: 'vertical', children: [tabs] };
+		}
+
+		this.logger.log(`Added file "${filePath}" to workspace "${workspaceName}" (created tabs container)`);
+		return true;
+	}
+
+	/**
+	 * Infer the Obsidian view type for a file path from its extension.
+	 * Used when no live leaf is available to ask (the send/copy paths write
+	 * saved-layout leaves directly). Falls back to 'markdown'.
+	 */
+	static viewTypeForPath(filePath: string): string {
+		const ext = (filePath.split('.').pop() || '').toLowerCase();
+		switch (ext) {
+			case 'canvas': return 'canvas';
+			case 'pdf': return 'pdf';
+			case 'png': case 'jpg': case 'jpeg': case 'gif': case 'webp': case 'svg': case 'avif': case 'bmp': return 'image';
+			case 'mp3': case 'wav': case 'ogg': case 'm4a': case 'flac': case '3gp': return 'audio';
+			case 'mp4': case 'webm': case 'mov': case 'mkv': case 'ogv': return 'video';
+			default: return 'markdown';
+		}
 	}
 
 	/**
@@ -1435,18 +1466,25 @@ export class WorkspaceManager {
 
 		let removed = false;
 
-		const removeFromNode = (node: any, parent: any, childIndex: number): boolean => {
+		// Match both persisted leaf shapes — getOpenFilesInLayout accepts
+		// state.state.file AND state.file, so removal must too, or a workspace
+		// can be listed as containing the file yet "removed from 0".
+		const leafMatches = (node: any): boolean =>
+			node?.type === 'leaf' &&
+			(node.state?.state?.file === filePath || node.state?.file === filePath);
+
+		const removeFromNode = (node: any): boolean => {
 			if (!node) return false;
 
 			// If this is a leaf with the target file, mark for removal
-			if (node.type === 'leaf' && node.state?.state?.file === filePath) {
+			if (leafMatches(node)) {
 				return true; // Signal to parent to remove this child
 			}
 
 			// If this is a tabs/split container, process children
 			if (node.children && Array.isArray(node.children)) {
 				for (let i = node.children.length - 1; i >= 0; i--) {
-					if (removeFromNode(node.children[i], node, i)) {
+					if (removeFromNode(node.children[i])) {
 						node.children.splice(i, 1);
 						removed = true;
 
@@ -1463,19 +1501,37 @@ export class WorkspaceManager {
 			return false;
 		};
 
-		// Process main area
-		if (workspace.layout.main) {
-			removeFromNode(workspace.layout.main, null, -1);
-		}
+		// Prune containers left childless by the removal — an empty tabs/split
+		// otherwise restores as a blank pane on the next workspace load. The
+		// root of each region is kept even when emptied.
+		const pruneEmpty = (node: any): void => {
+			if (!node?.children || !Array.isArray(node.children)) return;
+			for (let i = node.children.length - 1; i >= 0; i--) {
+				const child = node.children[i];
+				pruneEmpty(child);
+				if (child?.children && Array.isArray(child.children) && child.children.length === 0) {
+					node.children.splice(i, 1);
+					if (node.currentTab !== undefined && node.currentTab >= node.children.length) {
+						node.currentTab = Math.max(0, node.children.length - 1);
+					}
+				}
+			}
+		};
 
-		// Process left sidebar
-		if (workspace.layout.left) {
-			removeFromNode(workspace.layout.left, null, -1);
-		}
+		for (const region of ['main', 'left', 'right'] as const) {
+			const root = workspace.layout[region];
+			if (!root) continue;
 
-		// Process right sidebar
-		if (workspace.layout.right) {
-			removeFromNode(workspace.layout.right, null, -1);
+			// A root-level leaf match has no parent to splice it out; replace
+			// it with an empty tabs container instead of silently failing.
+			if (leafMatches(root)) {
+				workspace.layout[region] = { id: this.generateLeafId(), type: 'tabs', children: [], currentTab: 0 };
+				removed = true;
+				continue;
+			}
+
+			removeFromNode(root);
+			pruneEmpty(root);
 		}
 
 		if (removed) {
