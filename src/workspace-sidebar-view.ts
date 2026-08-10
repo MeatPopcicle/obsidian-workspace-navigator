@@ -1209,16 +1209,13 @@ export class WorkspaceNavigatorView extends ItemView {
 			new Notice(`Deleted: ${workspaceName}`);
 		};
 
-		if (this.plugin.settings.showDeleteConfirmation) {
-			createConfirmationDialog(this.app, {
-				title:    'Delete Workspace?',
-				text:     `Are you sure you want to delete "${workspaceName}"? This cannot be undone.`,
-				cta:      'Delete',
-				onAccept: doDelete
-			});
-		} else {
-			doDelete();
-		}
+		// Deletion always confirms; there is deliberately no toggle to skip it.
+		createConfirmationDialog(this.app, {
+			title:    'Delete Workspace?',
+			text:     `Are you sure you want to delete "${workspaceName}"? This cannot be undone.`,
+			cta:      'Delete',
+			onAccept: doDelete
+		});
 	}
 
 	deleteGroup(groupName: string) {

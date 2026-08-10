@@ -26,7 +26,6 @@ export interface WorkspaceNavigatorSettings {
 	transparentModal:                boolean;
 
 	// Workspace management
-	showDeleteConfirmation:          boolean;
 	defaultGroup:                    string;
 
 	// Auto-save options
@@ -55,7 +54,6 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	showInstructions:                false,
 	showSearchBox:                   false,
 	transparentModal:                true,
-	showDeleteConfirmation:          true,
 	defaultGroup:                    '',
 	autoSaveOnSwitch:                true,
 	autoSaveOnLayoutChange:          true,
@@ -184,16 +182,6 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				});
 			});
-
-		new Setting(workspaces)
-			.setName('Confirm before deleting')
-			.setDesc('Show a confirmation dialog before deleting a workspace.')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.showDeleteConfirmation)
-				.onChange(async (value) => {
-					this.plugin.settings.showDeleteConfirmation = value;
-					await this.plugin.saveSettings();
-				}));
 
 		// ── Appearance ───────────────────────────────────────────────────
 		const appearance = section('Appearance');

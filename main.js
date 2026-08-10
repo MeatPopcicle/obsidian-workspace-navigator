@@ -48,7 +48,7 @@ var ConfirmationModal = class extends import_obsidian.Modal {
       buttonsEl.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
       const btnSubmit = buttonsEl.createEl("button", {
         text: cta,
-        cls: "mod-cta",
+        cls: "mod-warning",
         attr: { type: "submit" }
       });
       let accepting = false;
@@ -85,7 +85,6 @@ var DEFAULT_SETTINGS = {
   showInstructions: false,
   showSearchBox: false,
   transparentModal: true,
-  showDeleteConfirmation: true,
   defaultGroup: "",
   autoSaveOnSwitch: true,
   autoSaveOnLayoutChange: true,
@@ -158,10 +157,6 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         await this.plugin.saveSettings();
       });
     });
-    new import_obsidian2.Setting(workspaces).setName("Confirm before deleting").setDesc("Show a confirmation dialog before deleting a workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showDeleteConfirmation).onChange(async (value) => {
-      this.plugin.settings.showDeleteConfirmation = value;
-      await this.plugin.saveSettings();
-    }));
     const appearance = section("Appearance");
     new import_obsidian2.Setting(appearance).setName("Highlight active workspace").setDesc("Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.").addToggle((toggle) => toggle.setValue(this.plugin.settings.highlightActiveWorkspace).onChange(async (value) => {
       this.plugin.settings.highlightActiveWorkspace = value;
@@ -3487,16 +3482,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.createActionButtons();
       new import_obsidian4.Notice(`Deleted workspace: ${workspaceName}`);
     };
-    if (this.plugin.settings.showDeleteConfirmation) {
-      createConfirmationDialog(this.app, {
-        title: "Delete Workspace",
-        text: `Are you sure you want to delete the workspace "${workspaceName}"?`,
-        cta: "Delete",
-        onAccept: doDelete
-      });
-    } else {
-      doDelete();
-    }
+    createConfirmationDialog(this.app, {
+      title: "Delete Workspace",
+      text: `Are you sure you want to delete the workspace "${workspaceName}"?`,
+      cta: "Delete",
+      onAccept: doDelete
+    });
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle workspace duplication
@@ -6191,16 +6182,12 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       this.renderTree();
       new import_obsidian6.Notice(`Deleted: ${workspaceName}`);
     };
-    if (this.plugin.settings.showDeleteConfirmation) {
-      createConfirmationDialog(this.app, {
-        title: "Delete Workspace?",
-        text: `Are you sure you want to delete "${workspaceName}"? This cannot be undone.`,
-        cta: "Delete",
-        onAccept: doDelete
-      });
-    } else {
-      doDelete();
-    }
+    createConfirmationDialog(this.app, {
+      title: "Delete Workspace?",
+      text: `Are you sure you want to delete "${workspaceName}"? This cannot be undone.`,
+      cta: "Delete",
+      onAccept: doDelete
+    });
   }
   deleteGroup(groupName) {
     createConfirmationDialog(this.app, {

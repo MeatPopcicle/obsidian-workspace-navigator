@@ -1979,17 +1979,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			new Notice(`Deleted workspace: ${workspaceName}`);
 		};
 
-		// Show confirmation dialog if enabled
-		if (this.plugin.settings.showDeleteConfirmation) {
-			createConfirmationDialog(this.app, {
-				title:    'Delete Workspace',
-				text:     `Are you sure you want to delete the workspace "${workspaceName}"?`,
-				cta:      'Delete',
-				onAccept: doDelete
-			});
-		} else {
-			doDelete();
-		}
+		// Deletion always confirms; there is deliberately no toggle to skip it.
+		createConfirmationDialog(this.app, {
+			title:    'Delete Workspace',
+			text:     `Are you sure you want to delete the workspace "${workspaceName}"?`,
+			cta:      'Delete',
+			onAccept: doDelete
+		});
 	}
 
 	// ─────────────────────────────────────────────────────────────────

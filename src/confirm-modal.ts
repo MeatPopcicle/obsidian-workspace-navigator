@@ -43,10 +43,11 @@ export class ConfirmationModal extends Modal {
 				.createEl('button', { text: 'Cancel' })
 				.addEventListener('click', () => this.close());
 
-			// Confirm button
+			// Confirm button — red danger CTA (every use of this modal is a
+			// destructive action, per the UI rulebook's confirmation contract)
 			const btnSubmit = buttonsEl.createEl('button', {
 				text: cta,
-				cls:  'mod-cta',
+				cls:  'mod-warning',
 				attr: { type: 'submit' }
 			});
 
