@@ -23,7 +23,7 @@ export class ConfirmationModal extends Modal {
 	constructor(app: App, config: ConfirmationDialogParams) {
 		super(app);
 
-		this.modalEl.addClass('workspace-delete-confirm-modal');
+		this.modalEl.addClass('wn-delete-confirm-modal', 'wn-root');
 
 		const { cta, onAccept, text, title } = config;
 
@@ -33,7 +33,7 @@ export class ConfirmationModal extends Modal {
 		// Confirmation text
 		this.contentEl.createEl('p', {
 			text: text,
-			attr: { id: 'workspace-delete-confirm-dialog' }
+			attr: { id: 'wn-delete-confirm-dialog' }
 		});
 
 		// Buttons

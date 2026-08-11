@@ -154,6 +154,10 @@ workspace-navigator/
 └── package.json         # Dependencies
 ```
 
+## Notes
+
+- Settings and workspace data persist to the plugin's `data.json` via Obsidian's `saveData`. If this repo is symlinked into multiple vaults, those vaults share one `data.json` (settings, workspaces, groups, and styles are common to all of them).
+
 ## License
 
 MIT

@@ -120,6 +120,66 @@ const PRESET_COLORS = [
 ];
 
 // ───────────────────────────────────────────────────────────────────────────────
+// Shared style-modal builders (used by both WorkspaceStyleModal and
+// GroupStylePickerModal; previously duplicated near-verbatim in each)
+// ───────────────────────────────────────────────────────────────────────────────
+
+function renderIconGrid(card: HTMLElement, getSelected: () => string, onSelect: (icon: string) => void): void {
+	const grid = card.createDiv('wn-icon-grid');
+
+	// No icon button
+	const noIconBtn = grid.createEl('button', { cls: 'wn-icon-btn-grid' });
+	setIcon(noIconBtn, 'x');
+	noIconBtn.setAttribute('aria-label', 'No icon');
+	if (!getSelected()) noIconBtn.addClass('is-selected');
+	noIconBtn.addEventListener('click', () => {
+		grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+		noIconBtn.addClass('is-selected');
+		onSelect('');
+	});
+
+	for (const iconName of LUCIDE_ICONS) {
+		const btn = grid.createEl('button', { cls: 'wn-icon-btn-grid' });
+		setIcon(btn, iconName);
+		btn.setAttribute('aria-label', iconName);
+		if (iconName === getSelected()) btn.addClass('is-selected');
+		btn.addEventListener('click', () => {
+			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+			btn.addClass('is-selected');
+			onSelect(iconName);
+		});
+	}
+}
+
+function renderSwatchRow(card: HTMLElement, label: string, getSelected: () => string, onSelect: (color: string) => void): void {
+	new Setting(card)
+		.setName(label)
+		.then(setting => {
+			const swatches = setting.controlEl.createDiv('wn-color-swatches');
+			for (const { color, name } of PRESET_COLORS) {
+				const swatch = swatches.createEl('button', { cls: 'wn-color-swatch' });
+				swatch.style.backgroundColor = color;  // data-driven swatch: genuinely dynamic
+				swatch.setAttribute('aria-label', name);
+				if (color === getSelected()) swatch.addClass('is-selected');
+				swatch.addEventListener('click', () => {
+					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+					swatch.addClass('is-selected');
+					onSelect(color);
+				});
+			}
+			const noColor = swatches.createEl('button', { cls: 'wn-color-swatch wn-color-none' });
+			setIcon(noColor, 'x');
+			noColor.setAttribute('aria-label', 'No color');
+			if (!getSelected()) noColor.addClass('is-selected');
+			noColor.addEventListener('click', () => {
+				swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
+				noColor.addClass('is-selected');
+				onSelect('');
+			});
+		});
+}
+
+// ───────────────────────────────────────────────────────────────────────────────
 // Style Result Interface
 // ───────────────────────────────────────────────────────────────────────────────
 
@@ -154,7 +214,7 @@ export class WorkspaceStyleModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.addClass('workspace-style-picker');
+		contentEl.addClass('wn-style-picker', 'wn-root');
 
 		contentEl.createEl('h3', { text: 'Edit Workspace' });
 
@@ -189,9 +249,9 @@ export class WorkspaceStyleModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// Preview (at top)
 		// ─────────────────────────────────────────────────────────────
-		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
-		iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
-		namePreview = previewContainer.createSpan('workspace-style-preview-name');
+		const previewContainer = contentEl.createDiv('wn-style-preview-container');
+		iconPreview = previewContainer.createSpan('wn-style-preview-icon');
+		namePreview = previewContainer.createSpan('wn-style-preview-name');
 
 		// Initialize preview
 		if (iconValue) {
@@ -206,8 +266,8 @@ export class WorkspaceStyleModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// General Card (Name & Group)
 		// ─────────────────────────────────────────────────────────────
-		const generalCard = contentEl.createDiv('workspace-style-card');
-		generalCard.createDiv({ cls: 'workspace-style-card-label', text: 'General' });
+		const generalCard = contentEl.createDiv('wn-style-card');
+		generalCard.createDiv({ cls: 'wn-style-card-label', text: 'General' });
 
 		new Setting(generalCard)
 			.setName('Name')
@@ -243,98 +303,21 @@ export class WorkspaceStyleModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// Icon Card
 		// ─────────────────────────────────────────────────────────────
-		const iconCard = contentEl.createDiv('workspace-style-card');
-		iconCard.createDiv({ cls: 'workspace-style-card-label', text: 'Icon' });
+		const iconCard = contentEl.createDiv('wn-style-card');
+		iconCard.createDiv({ cls: 'wn-style-card-label', text: 'Icon' });
 
-		const grid = iconCard.createDiv('workspace-icon-grid');
-
-		// No icon button
-		const noIconBtn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
-		noIconBtn.textContent = '✕';
-		noIconBtn.setAttribute('aria-label', 'No icon');
-		if (!iconValue) noIconBtn.addClass('is-selected');
-		noIconBtn.addEventListener('click', () => {
-			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-			noIconBtn.addClass('is-selected');
-			iconValue = '';
-			updatePreview();
-		});
-
-		for (const iconName of LUCIDE_ICONS) {
-			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
-			setIcon(btn, iconName);
-			btn.setAttribute('aria-label', iconName);
-			if (iconName === iconValue) btn.addClass('is-selected');
-			btn.addEventListener('click', () => {
-				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-				btn.addClass('is-selected');
-				iconValue = iconName;
-				updatePreview();
-			});
-		}
+		renderIconGrid(iconCard, () => iconValue, (v) => { iconValue = v; updatePreview(); });
 
 		// Icon Color
-		new Setting(iconCard)
-			.setName('Color')
-			.then(setting => {
-				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
-				for (const { color, name } of PRESET_COLORS) {
-					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
-					swatch.style.backgroundColor = color;
-					swatch.setAttribute('aria-label', name);
-					if (color === iconColorValue) swatch.addClass('is-selected');
-					swatch.addEventListener('click', () => {
-						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-						swatch.addClass('is-selected');
-						iconColorValue = color;
-						updatePreview();
-					});
-				}
-				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
-				noColor.textContent = '✕';
-				noColor.setAttribute('aria-label', 'No color');
-				if (!iconColorValue) noColor.addClass('is-selected');
-				noColor.addEventListener('click', () => {
-					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-					noColor.addClass('is-selected');
-					iconColorValue = '';
-					updatePreview();
-				});
-			});
+		renderSwatchRow(iconCard, 'Color', () => iconColorValue, (v) => { iconColorValue = v; updatePreview(); });
 
 		// ─────────────────────────────────────────────────────────────
 		// Name Style Card
 		// ─────────────────────────────────────────────────────────────
-		const nameCard = contentEl.createDiv('workspace-style-card');
-		nameCard.createDiv({ cls: 'workspace-style-card-label', text: 'Name Style' });
+		const nameCard = contentEl.createDiv('wn-style-card');
+		nameCard.createDiv({ cls: 'wn-style-card-label', text: 'Name Style' });
 
-		new Setting(nameCard)
-			.setName('Color')
-			.then(setting => {
-				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
-				for (const { color, name } of PRESET_COLORS) {
-					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
-					swatch.style.backgroundColor = color;
-					swatch.setAttribute('aria-label', name);
-					if (color === nameColorValue) swatch.addClass('is-selected');
-					swatch.addEventListener('click', () => {
-						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-						swatch.addClass('is-selected');
-						nameColorValue = color;
-						updatePreview();
-					});
-				}
-				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
-				noColor.textContent = '✕';
-				noColor.setAttribute('aria-label', 'No color');
-				if (!nameColorValue) noColor.addClass('is-selected');
-				noColor.addEventListener('click', () => {
-					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-					noColor.addClass('is-selected');
-					nameColorValue = '';
-					updatePreview();
-				});
-			});
+		renderSwatchRow(nameCard, 'Color', () => nameColorValue, (v) => { nameColorValue = v; updatePreview(); });
 
 		new Setting(nameCard)
 			.setName('Format')
@@ -446,7 +429,7 @@ export class GroupStylePickerModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 		contentEl.empty();
-		contentEl.addClass('workspace-style-picker');
+		contentEl.addClass('wn-style-picker', 'wn-root');
 
 		const isNoGroup   = this.groupName === '\x00nogroup';
 		const displayName = isNoGroup ? 'No Group' : this.groupName;
@@ -481,9 +464,9 @@ export class GroupStylePickerModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// Preview (at top)
 		// ─────────────────────────────────────────────────────────────
-		const previewContainer = contentEl.createDiv('workspace-style-preview-container');
-		iconPreview = previewContainer.createSpan('workspace-style-preview-icon');
-		namePreview = previewContainer.createSpan('workspace-style-preview-name');
+		const previewContainer = contentEl.createDiv('wn-style-preview-container');
+		iconPreview = previewContainer.createSpan('wn-style-preview-icon');
+		namePreview = previewContainer.createSpan('wn-style-preview-name');
 
 		// Initialize preview
 		if (iconValue) {
@@ -498,8 +481,8 @@ export class GroupStylePickerModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// General Card (Name)
 		// ─────────────────────────────────────────────────────────────
-		const generalCard = contentEl.createDiv('workspace-style-card');
-		generalCard.createDiv({ cls: 'workspace-style-card-label', text: 'General' });
+		const generalCard = contentEl.createDiv('wn-style-card');
+		generalCard.createDiv({ cls: 'wn-style-card-label', text: 'General' });
 
 		new Setting(generalCard)
 			.setName('Name')
@@ -515,98 +498,21 @@ export class GroupStylePickerModal extends Modal {
 		// ─────────────────────────────────────────────────────────────
 		// Icon Card
 		// ─────────────────────────────────────────────────────────────
-		const iconCard = contentEl.createDiv('workspace-style-card');
-		iconCard.createDiv({ cls: 'workspace-style-card-label', text: 'Icon' });
+		const iconCard = contentEl.createDiv('wn-style-card');
+		iconCard.createDiv({ cls: 'wn-style-card-label', text: 'Icon' });
 
-		const grid = iconCard.createDiv('workspace-icon-grid');
-
-		// No icon button
-		const noIconBtn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
-		noIconBtn.textContent = '✕';
-		noIconBtn.setAttribute('aria-label', 'No icon');
-		if (!iconValue) noIconBtn.addClass('is-selected');
-		noIconBtn.addEventListener('click', () => {
-			grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-			noIconBtn.addClass('is-selected');
-			iconValue = '';
-			updatePreview();
-		});
-
-		for (const iconName of LUCIDE_ICONS) {
-			const btn = grid.createEl('button', { cls: 'workspace-icon-btn-grid' });
-			setIcon(btn, iconName);
-			btn.setAttribute('aria-label', iconName);
-			if (iconName === iconValue) btn.addClass('is-selected');
-			btn.addEventListener('click', () => {
-				grid.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-				btn.addClass('is-selected');
-				iconValue = iconName;
-				updatePreview();
-			});
-		}
+		renderIconGrid(iconCard, () => iconValue, (v) => { iconValue = v; updatePreview(); });
 
 		// Icon Color
-		new Setting(iconCard)
-			.setName('Color')
-			.then(setting => {
-				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
-				for (const { color, name } of PRESET_COLORS) {
-					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
-					swatch.style.backgroundColor = color;
-					swatch.setAttribute('aria-label', name);
-					if (color === iconColorValue) swatch.addClass('is-selected');
-					swatch.addEventListener('click', () => {
-						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-						swatch.addClass('is-selected');
-						iconColorValue = color;
-						updatePreview();
-					});
-				}
-				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
-				noColor.textContent = '✕';
-				noColor.setAttribute('aria-label', 'No color');
-				if (!iconColorValue) noColor.addClass('is-selected');
-				noColor.addEventListener('click', () => {
-					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-					noColor.addClass('is-selected');
-					iconColorValue = '';
-					updatePreview();
-				});
-			});
+		renderSwatchRow(iconCard, 'Color', () => iconColorValue, (v) => { iconColorValue = v; updatePreview(); });
 
 		// ─────────────────────────────────────────────────────────────
 		// Name Style Card
 		// ─────────────────────────────────────────────────────────────
-		const nameCard = contentEl.createDiv('workspace-style-card');
-		nameCard.createDiv({ cls: 'workspace-style-card-label', text: 'Name Style' });
+		const nameCard = contentEl.createDiv('wn-style-card');
+		nameCard.createDiv({ cls: 'wn-style-card-label', text: 'Name Style' });
 
-		new Setting(nameCard)
-			.setName('Color')
-			.then(setting => {
-				const swatches = setting.controlEl.createDiv('workspace-color-swatches');
-				for (const { color, name } of PRESET_COLORS) {
-					const swatch = swatches.createEl('button', { cls: 'workspace-color-swatch' });
-					swatch.style.backgroundColor = color;
-					swatch.setAttribute('aria-label', name);
-					if (color === textColorValue) swatch.addClass('is-selected');
-					swatch.addEventListener('click', () => {
-						swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-						swatch.addClass('is-selected');
-						textColorValue = color;
-						updatePreview();
-					});
-				}
-				const noColor = swatches.createEl('button', { cls: 'workspace-color-swatch workspace-color-none' });
-				noColor.textContent = '✕';
-				noColor.setAttribute('aria-label', 'No color');
-				if (!textColorValue) noColor.addClass('is-selected');
-				noColor.addEventListener('click', () => {
-					swatches.querySelectorAll('.is-selected').forEach(el => el.removeClass('is-selected'));
-					noColor.addClass('is-selected');
-					textColorValue = '';
-					updatePreview();
-				});
-			});
+		renderSwatchRow(nameCard, 'Color', () => textColorValue, (v) => { textColorValue = v; updatePreview(); });
 
 		new Setting(nameCard)
 			.setName('Format')
@@ -744,27 +650,27 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const workspaceName = item.item;
 
-		el.addClass('workspace-picker-item');
+		el.addClass('wn-picker-item');
 
 		// Check if this workspace already has the file open
 		const openFiles = workspaceManager.getOpenFilesInWorkspace(workspaceName);
 		const alreadyHasFile = openFiles.includes(this.filePath);
 
 		if (alreadyHasFile) {
-			el.addClass('workspace-picker-disabled');
+			el.addClass('wn-picker-disabled');
 		}
 
 		// Add icon if workspace has custom icon
 		const icon = workspaceManager.getWorkspaceIcon(workspaceName);
 		if (icon) {
-			const iconSpan = el.createSpan('workspace-picker-icon');
+			const iconSpan = el.createSpan('wn-picker-icon');
 			setIcon(iconSpan, icon);
 			const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 			if (iconColor) iconSpan.style.color = iconColor;
 		}
 
 		// Workspace name
-		const nameSpan = el.createSpan('workspace-picker-name');
+		const nameSpan = el.createSpan('wn-picker-name');
 		nameSpan.textContent = workspaceName;
 
 		// Apply name styling
@@ -775,7 +681,7 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 
 		// Show indicator if file is already in this workspace (use layers icon like tab indicators)
 		if (alreadyHasFile) {
-			const indicator = el.createSpan('workspace-picker-has-file');
+			const indicator = el.createSpan('wn-picker-has-file');
 			setIcon(indicator, 'layers');
 			indicator.setAttribute('aria-label', 'File already open in this workspace');
 		}
@@ -783,7 +689,7 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 		// Show group if applicable
 		const group = workspaceManager.getWorkspaceGroup(workspaceName);
 		if (group) {
-			const groupSpan = el.createSpan('workspace-picker-group');
+			const groupSpan = el.createSpan('wn-picker-group');
 			groupSpan.textContent = group;
 		}
 	}
@@ -820,9 +726,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.plugin = plugin;
 
 		// Add class for transparent modal if enabled in settings
-		this.modalEl.addClass('workspace-switcher-modal');
+		this.modalEl.addClass('wn-switcher-modal', 'wn-root');
 		if (plugin.settings.transparentModal) {
-			this.modalEl.addClass('workspace-switcher-modal-transparent');
+			this.modalEl.addClass('wn-switcher-modal-transparent');
 		}
 
 		this.setPlaceholder('Type workspace name...');
@@ -908,7 +814,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// If we're editing a contentEditable element, handle rename
 		if (targetEl && targetEl.contentEditable === 'true') {
 			// Check if this is a group header rename (just blur to trigger save)
-			if (targetEl.closest('.workspace-group-header')) {
+			if (targetEl.closest('.wn-group-header')) {
 				evt.preventDefault();
 				targetEl.blur();
 				return false;
@@ -946,14 +852,14 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 
 		// Check if any item is in rename mode
-		const renamingItem = this.modalEl.querySelector('.workspace-suggestion-item.is-renaming');
+		const renamingItem = this.modalEl.querySelector('.wn-suggestion-item.is-renaming');
 		if (renamingItem) {
 			// Don't select - we're in rename mode
 			return;
 		}
 
 		// Check if a group header is in rename mode
-		const renamingGroup = this.modalEl.querySelector('.workspace-group-header.is-renaming');
+		const renamingGroup = this.modalEl.querySelector('.wn-group-header.is-renaming');
 		if (renamingGroup) {
 			return;
 		}
@@ -977,7 +883,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		}
 
 		// Position modal above status bar using Popper
-		const statusBar = document.body.querySelector('.workspace-navigator-status');
+		const statusBar = document.body.querySelector('.wn-navigator-status');
 		if (statusBar) {
 			this.popper = createPopper(statusBar as HTMLElement, this.modalEl, {
 				placement: 'top-start',
@@ -1012,10 +918,10 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Top-right: Expand/Collapse All
 		// ─────────────────────────────────────────────────────────────
 		const topActions = document.createElement('div');
-		topActions.className = 'workspace-actions-top';
+		topActions.className = 'wn-actions-top';
 
 		const expandCollapseBtn = document.createElement('button');
-		expandCollapseBtn.className = 'workspace-action-btn btn-expand-collapse';
+		expandCollapseBtn.className = 'wn-action-btn btn-expand-collapse';
 		this.updateExpandCollapseButton(expandCollapseBtn);
 		expandCollapseBtn.addEventListener('click', (evt) => {
 			evt.preventDefault();
@@ -1031,11 +937,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Bottom-right: + Group, + Workspace, Sidebar, Settings
 		// ─────────────────────────────────────────────────────────────
 		const bottomActions = document.createElement('div');
-		bottomActions.className = 'workspace-actions-bottom';
+		bottomActions.className = 'wn-actions-bottom';
 
 		// + Group button
 		const addGroupBtn = document.createElement('button');
-		addGroupBtn.className = 'workspace-action-btn btn-add-group';
+		addGroupBtn.className = 'wn-action-btn btn-add-group';
 		const groupIcon = document.createElement('span');
 		setIcon(groupIcon, 'folder-plus');
 		addGroupBtn.appendChild(groupIcon);
@@ -1050,7 +956,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// + Workspace button
 		const addWorkspaceBtn = document.createElement('button');
-		addWorkspaceBtn.className = 'workspace-action-btn btn-add-workspace';
+		addWorkspaceBtn.className = 'wn-action-btn btn-add-workspace';
 		const workspaceIcon = document.createElement('span');
 		setIcon(workspaceIcon, 'file-plus');
 		addWorkspaceBtn.appendChild(workspaceIcon);
@@ -1065,7 +971,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Sidebar button (panel-left icon)
 		const sidebarBtn = document.createElement('button');
-		sidebarBtn.className = 'workspace-action-btn btn-sidebar';
+		sidebarBtn.className = 'wn-action-btn btn-sidebar';
 		setIcon(sidebarBtn, 'panel-left');
 		sidebarBtn.setAttribute('aria-label', 'Open sidebar navigator');
 		sidebarBtn.addEventListener('click', (evt) => {
@@ -1079,7 +985,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Style Settings button (palette icon) — only when enabled in settings AND installed
 		if (this.plugin.settings.showStyleSettingsInModal && this.plugin.isStyleSettingsEnabled()) {
 			const styleBtn = document.createElement('button');
-			styleBtn.className = 'workspace-action-btn btn-style-settings';
+			styleBtn.className = 'wn-action-btn btn-style-settings';
 			setIcon(styleBtn, 'palette');
 			styleBtn.setAttribute('aria-label', 'Open Style Settings');
 			styleBtn.addEventListener('click', (evt) => {
@@ -1093,7 +999,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Settings button (gear icon)
 		const settingsBtn = document.createElement('button');
-		settingsBtn.className = 'workspace-action-btn btn-settings';
+		settingsBtn.className = 'wn-action-btn btn-settings';
 		setIcon(settingsBtn, 'settings');
 		settingsBtn.setAttribute('aria-label', 'Open plugin settings');
 		settingsBtn.addEventListener('click', (evt) => {
@@ -1267,7 +1173,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			const target = document.elementFromPoint(evt.clientX, evt.clientY) as HTMLElement;
 
 			// Remove previous drop-target styling (inline styles for theme-proofing)
-			this.modalEl.querySelectorAll('.workspace-group-header, .workspace-suggestion-item').forEach(e => {
+			this.modalEl.querySelectorAll('.wn-group-header, .wn-suggestion-item').forEach(e => {
 				(e as HTMLElement).style.boxShadow = '';
 			});
 			this.modalEl.querySelectorAll('.drag-over').forEach(e => {
@@ -1276,7 +1182,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			// If dragging a group, only show indicators on other group headers
 			if (this.draggedGroup) {
-				const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
+				const groupHeader = target?.closest('.wn-group-header') as HTMLElement;
 				if (groupHeader && groupHeader !== this.draggedElement) {
 					const rect = groupHeader.getBoundingClientRect();
 					const midY = rect.top + rect.height / 2;
@@ -1300,8 +1206,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			}
 
 			// Dragging a workspace
-			const workspaceItem = target?.closest('.workspace-suggestion-item') as HTMLElement;
-			const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
+			const workspaceItem = target?.closest('.wn-suggestion-item') as HTMLElement;
+			const groupHeader = target?.closest('.wn-group-header') as HTMLElement;
 
 			if (workspaceItem && workspaceItem !== this.draggedElement) {
 				// Show drop indicator as inline style (theme-proof)
@@ -1397,7 +1303,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					this.dragGhost.style.pointerEvents = '';
 				}
 
-				const groupHeader = target?.closest('.workspace-group-header') as HTMLElement;
+				const groupHeader = target?.closest('.wn-group-header') as HTMLElement;
 				if (groupHeader && groupHeader.dataset.groupName) {
 					const groupName = groupHeader.dataset.groupName;
 					const isNoGroup = groupName === '\x00nogroup';
@@ -1436,9 +1342,9 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	private createDragGhost(workspaceName: string): void {
 		this.dragGhost = document.createElement('div');
-		// All ghost styling lives in the .workspace-drag-ghost CSS class (styles.css);
+		// All ghost styling lives in the .wn-drag-ghost CSS class (styles.css);
 		// this previously re-declared those 13 properties inline, an exact duplicate.
-		this.dragGhost.addClass('workspace-drag-ghost');
+		this.dragGhost.addClass('wn-drag-ghost');
 
 		// Add workspace name only (no handle needed in the switcher modal)
 		const nameSpan = document.createElement('span');
@@ -1461,12 +1367,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.draggedGroup = null;
 		this.draggedElement = null;
 		(this as any)._dropTarget = null;
-		document.body.removeClass('workspace-dragging');
+		document.body.removeClass('wn-dragging');
 		// Clear both CSS classes and inline styles
 		this.modalEl.querySelectorAll('.drag-over').forEach(e => {
 			e.removeClass('drag-over');
 		});
-		this.modalEl.querySelectorAll('.workspace-group-header, .workspace-suggestion-item').forEach(e => {
+		this.modalEl.querySelectorAll('.wn-group-header, .wn-suggestion-item').forEach(e => {
 			(e as HTMLElement).style.boxShadow = '';
 		});
 	}
@@ -1475,7 +1381,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.draggedWorkspace = workspaceName;
 		this.draggedElement   = el;
 		el.addClass('is-dragging');
-		document.body.addClass('workspace-dragging');
+		document.body.addClass('wn-dragging');
 		this.createDragGhost(workspaceName);
 		this.dragGhost!.style.left = `${evt.clientX + 10}px`;
 		this.dragGhost!.style.top  = `${evt.clientY - 10}px`;
@@ -1596,7 +1502,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Render collapsed group header only (no workspace item)
 			this.lastRenderedGroup = collapsedGroup === '\x00nogroup' ? null : collapsedGroup;
 			el.empty();
-			el.addClass('workspace-group-header', 'is-collapsed');
+			el.addClass('wn-group-header', 'is-collapsed');
 			this.renderGroupHeaderElement(el, collapsedGroup, true);
 			return;
 		}
@@ -1607,11 +1513,11 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Render empty group header with "(empty)" indicator
 			this.lastRenderedGroup = emptyGroup;
 			el.empty();
-			el.addClass('workspace-group-header', 'is-empty');
+			el.addClass('wn-group-header', 'is-empty');
 			this.renderGroupHeaderElement(el, emptyGroup, false, true);
 
 			// Add "(empty)" text
-			const emptyIndicator = el.createSpan('workspace-group-empty-indicator');
+			const emptyIndicator = el.createSpan('wn-group-empty-indicator');
 			emptyIndicator.textContent = '(empty)';
 			emptyIndicator.style.opacity = '0.5';
 			emptyIndicator.style.fontStyle = 'italic';
@@ -1636,7 +1542,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			if (shouldShowHeader) {
 				const header = document.createElement('div');
-				header.addClass('workspace-group-header');
+				header.addClass('wn-group-header');
 
 				// Use '\x00nogroup' as internal key for "No Group"
 				const groupKey = currentGroup || '\x00nogroup';
@@ -1648,7 +1554,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Add data attribute for rename functionality
 		el.dataset.workspaceName = workspaceName;
-		el.addClass('workspace-suggestion-item');
+		el.addClass('wn-suggestion-item');
 
 		// Right-click triggers quick inline rename
 		// Intercept mousedown for right-click to prevent FuzzySuggestModal from handling it
@@ -1719,7 +1625,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				// Only start drag on left click, not on buttons
 				if (evt.button !== 0) return;
 				const target = evt.target as HTMLElement;
-				if (target.closest('button') || target.closest('.workspace-action-btn')) return;
+				if (target.closest('button') || target.closest('.wn-action-btn')) return;
 
 				evt.preventDefault();
 				this.startWorkspaceDrag(evt, workspaceName, el);
@@ -1730,7 +1636,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const icon      = workspaceManager.getWorkspaceIcon(workspaceName);
 		const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
 
-		const iconSpan = el.createSpan('workspace-icon-column');
+		const iconSpan = el.createSpan('wn-icon-column');
 		// Inline structural styles (theme-proof, fixed px)
 		iconSpan.style.display        = 'inline-flex';
 		iconSpan.style.alignItems     = 'center';
@@ -1757,7 +1663,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			(svg as SVGElement).style.height = '16px';
 		}
 
-		const textSpan = el.createSpan('workspace-name-text');
+		const textSpan = el.createSpan('wn-name-text');
 		textSpan.textContent = textContent;
 		// Inline structural style (theme-proof)
 		textSpan.style.display = 'inline-block';
@@ -1784,7 +1690,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				el.style.backgroundImage = 'linear-gradient(var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)), var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)))';
 			}
 
-			const activeCheck = el.createSpan('workspace-active-check');
+			const activeCheck = el.createSpan('wn-active-check');
 			setIcon(activeCheck, 'check');
 			activeCheck.setAttribute('aria-label', 'Current workspace');
 			// Inline structural styles (theme-proof), matching the row buttons
@@ -1797,43 +1703,23 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			activeCheck.style.color     = 'var(--wn-checkmark, var(--text-accent))';
 		}
 
-		// Create delete button
-		const deleteBtn = el.createDiv('workspace-delete-btn');
+		// Create delete button (styling in styles.css: .wn-row-action-btn)
+		const deleteBtn = el.createDiv('wn-delete-btn wn-row-action-btn wn-row-delete');
 		deleteBtn.setAttribute('aria-label', 'Delete workspace');
-		// Inline structural styles (theme-proof, fixed px)
-		deleteBtn.style.position  = 'absolute';
-		deleteBtn.style.top       = '50%';
-		deleteBtn.style.transform = 'translateY(-50%)';
-		deleteBtn.style.right     = '11px';
-		deleteBtn.style.padding   = '2px';
-		deleteBtn.style.cursor    = 'pointer';
-		deleteBtn.style.fill      = 'var(--text-muted)';
-		deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+		setIcon(deleteBtn, 'trash-2');
 		deleteBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.deleteWorkspace(workspaceName);
 		});
-		deleteBtn.addEventListener('mouseenter', () => { deleteBtn.style.fill = 'var(--text-error)'; });
-		deleteBtn.addEventListener('mouseleave', () => { deleteBtn.style.fill = 'var(--text-muted)'; });
 
 		// Create edit button (pencil - opens editor modal)
-		const editBtn = el.createDiv('workspace-rename-btn');
+		const editBtn = el.createDiv('wn-rename-btn wn-row-action-btn wn-row-edit');
 		editBtn.setAttribute('aria-label', 'Edit workspace');
-		// Inline structural styles (theme-proof, fixed px)
-		editBtn.style.position  = 'absolute';
-		editBtn.style.top       = '50%';
-		editBtn.style.transform = 'translateY(-50%)';
-		editBtn.style.right     = '32px';
-		editBtn.style.padding   = '2px';
-		editBtn.style.cursor    = 'pointer';
-		editBtn.style.fill      = 'var(--text-muted)';
-		editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+		setIcon(editBtn, 'pencil');
 		editBtn.addEventListener('click', (evt) => {
 			evt.stopPropagation();
 			this.onIconClick(workspaceName);
 		});
-		editBtn.addEventListener('mouseenter', () => { editBtn.style.fill = 'var(--text-accent-hover)'; });
-		editBtn.addEventListener('mouseleave', () => { editBtn.style.fill = 'var(--text-muted)'; });
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -1852,7 +1738,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		if (!el) return;
 		evt.stopPropagation();
 
-		const textSpan = el.querySelector('.workspace-name-text') as HTMLElement;
+		const textSpan = el.querySelector('.wn-name-text') as HTMLElement;
 		if (!textSpan) return;
 
 		// If already in rename mode, save the rename (don't cancel)
@@ -1893,7 +1779,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 	// ─────────────────────────────────────────────────────────────────
 
 	async handleRename(textSpan: HTMLElement): Promise<void> {
-		const el = textSpan.closest('.workspace-suggestion-item') as HTMLElement;
+		const el = textSpan.closest('.wn-suggestion-item') as HTMLElement;
 		if (!el) return;
 
 		const oldName = el.dataset.workspaceName;
@@ -2306,7 +2192,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				this.draggedGroup   = gn;
 				this.draggedElement = c;
 				setGroupDragging(c, true);
-				document.body.addClass('workspace-dragging');
+				document.body.addClass('wn-dragging');
 				this.createDragGhost(displayName);
 				this.dragGhost!.style.left = `${evt.clientX + 10}px`;
 				this.dragGhost!.style.top  = `${evt.clientY - 10}px`;

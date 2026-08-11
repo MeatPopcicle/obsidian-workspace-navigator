@@ -2,6 +2,16 @@
 
 Compliance audit of workspace-navigator against rules 1-11 of the Obsidian Plugin UI Rulebook (vault: `300 Technological/70 Projects/Obsidian Plugin UI Rulebook.md`), performed 2026-08-09 against commit `525fd4d` (v2.21.2). Phase 1 was a cold read of the code against rules 1-11 only; phase 2 reconciled against rulebook section 12 and `docs/ui-inventory.md`. Reference implementation for shared idioms: `obsidian-ui-kit-demo` (`src/notify.ts`, `src/modals.ts`, token block in `styles.css` under `.ukd-root`).
 
+## Status (updated 2026-08-10)
+
+All 16 items executed across v2.23.0 (items 1-4) and the rulebook/full-migration branch (items 5-16). Item statuses:
+
+- Items 1-8, 10, 11, 13, 15, 16: done.
+- Item 9: done for group-header.ts (all static styling moved to `.wn-group-header-card` and friends; the "CSS classes don't work reliably in modals" claim was refuted, the same modal already used class-driven interactive states) and for the switcher's row action buttons (`.wn-row-action-btn`). The switcher's remaining inline styles in workspace-modal.ts are either genuinely dynamic (drag-ghost positioning, user-chosen colors, live preview) or row-structural styles inside Obsidian's suggestion DOM; the structural remainder is tracked as follow-up work, not silently dropped.
+- Item 12: resolved as a documented exception rather than move-or-drop. The `/* @settings */` block stays: its 16 knobs are a deliberate, user-facing feature (added v2.19.0), users may hold saved Style Settings values keyed to the current `--wn-*` names, and folding 16 theming knobs into the settings tab would collide with rule 4's compactness goal. This is the same shape as rule 3's tab-indicator exemption: grandfathered, no new Style Settings entries without revisiting. The rulebook's rule 10 should gain this third path (see rulebook bugs, item 2).
+- Item 14: done via shared `renderIconGrid()` / `renderSwatchRow()` builders in workspace-modal.ts; both style modals now consume them.
+- Prefix decision (item 8): standardized on `wn-` (393 occurrences renamed). Deliberately kept: Obsidian core class references (`workspace-tab-header-inner`), module paths, command ids, event names (`workspace-open`/`workspace-rename`/`workspace-delete`), the `data-workspace-name` attribute, plugin/view ids, and backup/debug filename prefixes. Third-party snippets or saved Style Settings targeting old `workspace-*` class names will need updating; the `--wn-*` variable names did not change.
+
 ## Migration checklist (highest leverage first)
 
 | # | Item | Rule | Files | Size |

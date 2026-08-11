@@ -44,12 +44,12 @@ var import_obsidian2 = require("obsidian");
 var ConfirmationModal = class extends import_obsidian2.Modal {
   constructor(app, config) {
     super(app);
-    this.modalEl.addClass("workspace-delete-confirm-modal");
+    this.modalEl.addClass("wn-delete-confirm-modal", "wn-root");
     const { cta, onAccept, text, title } = config;
     this.contentEl.createEl("h3", { text: title });
     this.contentEl.createEl("p", {
       text,
-      attr: { id: "workspace-delete-confirm-dialog" }
+      attr: { id: "wn-delete-confirm-dialog" }
     });
     this.contentEl.createDiv("modal-button-container", (buttonsEl) => {
       buttonsEl.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
@@ -108,6 +108,7 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingT
   display() {
     const { containerEl } = this;
     containerEl.empty();
+    containerEl.addClass("wn-root");
     const section = (title, collapsed = false) => {
       const details = containerEl.createEl("details", { cls: "wn-settings-section" });
       if (!collapsed)
@@ -262,7 +263,16 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingT
       this.plugin.settings.autoBackupEnabled
     );
     const maintenance = section("Maintenance", true);
-    new import_obsidian3.Setting(maintenance).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
+    new import_obsidian3.Setting(maintenance).setName("Debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
+      this.plugin.settings.debugMode = value;
+      await this.plugin.saveSettings();
+      if (value) {
+        notify("Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.");
+      }
+    }));
+    const danger = maintenance.createDiv("wn-danger-zone");
+    danger.createEl("div", { cls: "wn-danger-zone-heading", text: "Danger zone" });
+    new import_obsidian3.Setting(danger).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
       createConfirmationDialog(this.app, {
         title: "Reset All Styles?",
         text: "This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.",
@@ -275,12 +285,20 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingT
         }
       });
     }));
-    new import_obsidian3.Setting(maintenance).setName("Debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
-      this.plugin.settings.debugMode = value;
-      await this.plugin.saveSettings();
-      if (value) {
-        notify("Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.");
-      }
+    new import_obsidian3.Setting(danger).setName("Reset settings to defaults").setDesc("Restore every plugin setting to its shipped default. Workspaces, groups, and styles are not touched.").addButton((button) => button.setButtonText("Reset Settings").setWarning().onClick(async () => {
+      createConfirmationDialog(this.app, {
+        title: "Reset Settings?",
+        text: "This will restore all plugin settings to their defaults. Your workspaces, groups, and styles are kept. This cannot be undone.",
+        cta: "Reset",
+        onAccept: async () => {
+          Object.assign(this.plugin.settings, DEFAULT_SETTINGS);
+          await this.plugin.saveSettings();
+          this.plugin.updateStatusBar();
+          this.plugin.refreshSidebarView();
+          this.display();
+          notify("Settings reset to defaults", "success");
+        }
+      });
     }));
   }
 };
@@ -1765,60 +1783,29 @@ function renderGroupHeader(container, config) {
   const isNoGroup = groupName === NO_GROUP_KEY;
   const displayName = isNoGroup ? "No Group" : groupName;
   const hasGroups = workspaceManager.getGroups().length > 0;
-  container.style.position = "relative";
-  container.style.display = "flex";
-  container.style.alignItems = "center";
-  container.style.gap = "6px";
-  container.style.padding = "8px 75px 8px 16px";
-  container.style.marginTop = "8px";
-  container.style.fontWeight = "normal";
-  container.style.color = "var(--text-muted)";
-  container.style.backgroundColor = "var(--background-primary-alt)";
-  container.style.border = "1px solid var(--background-modifier-border)";
+  container.addClass("wn-group-header-card");
   if (isCollapsed || isEmpty) {
-    container.style.borderRadius = "6px";
-  } else {
-    container.style.borderRadius = "6px 6px 0 0";
-    container.style.borderBottom = "none";
+    container.addClass("is-standalone");
   }
   container.dataset.groupName = groupName;
   container.addEventListener("contextmenu", (evt) => {
     evt.preventDefault();
     evt.stopPropagation();
-    const textSpan2 = container.querySelector(".workspace-group-text");
+    const textSpan2 = container.querySelector(".wn-group-text");
     if (textSpan2) {
       onRenameClick(container, textSpan2, groupName);
     }
   });
   if (useManualOrder && hasGroups) {
     const dragHandle = document.createElement("span");
-    dragHandle.className = "workspace-group-drag-handle";
-    dragHandle.style.position = "absolute";
-    dragHandle.style.left = "5px";
-    dragHandle.style.top = "50%";
-    dragHandle.style.transform = "translateY(-50%)";
-    dragHandle.style.display = "flex";
-    dragHandle.style.alignItems = "center";
-    dragHandle.style.justifyContent = "center";
-    dragHandle.style.width = "20px";
-    dragHandle.style.height = "20px";
+    dragHandle.className = "wn-group-drag-handle";
     (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
-    if (isNoGroup) {
-      dragHandle.style.opacity = "0.15";
-      dragHandle.style.cursor = "default";
-    } else if (onDragStart) {
-      dragHandle.style.opacity = "0.3";
+    if (!isNoGroup && onDragStart) {
       dragHandle.setAttribute("aria-label", "Drag to reorder group");
       dragHandle.addEventListener("mousedown", (evt) => {
         evt.preventDefault();
         evt.stopPropagation();
         onDragStart(evt, groupName, container);
-      });
-      dragHandle.addEventListener("mouseenter", () => {
-        dragHandle.style.opacity = "0.8";
-      });
-      dragHandle.addEventListener("mouseleave", () => {
-        dragHandle.style.opacity = "0.3";
       });
     }
     container.appendChild(dragHandle);
@@ -1827,7 +1814,7 @@ function renderGroupHeader(container, config) {
         if (evt.button !== 0)
           return;
         const target = evt.target;
-        if (target.closest(".workspace-group-chevron") || target.closest(".workspace-group-edit-btn"))
+        if (target.closest(".wn-group-chevron") || target.closest(".wn-group-edit-btn"))
           return;
         evt.preventDefault();
         onDragStart(evt, groupName, container);
@@ -1835,12 +1822,8 @@ function renderGroupHeader(container, config) {
     }
   }
   const chevron = document.createElement("span");
-  chevron.className = "workspace-group-chevron";
-  chevron.style.display = "inline-flex";
-  chevron.style.alignItems = "center";
-  chevron.style.fill = "var(--text-muted)";
-  chevron.style.cursor = "pointer";
-  chevron.innerHTML = isCollapsed ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M13.172 12l-4.95-4.95 1.414-1.414L16 12l-6.364 6.364-1.414-1.414z"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12 13.172l4.95-4.95 1.414 1.414L12 16 5.636 9.636 7.05 8.222z"/></svg>`;
+  chevron.className = "wn-group-chevron";
+  (0, import_obsidian4.setIcon)(chevron, isCollapsed ? "chevron-right" : "chevron-down");
   chevron.setAttribute("aria-label", isCollapsed ? "Expand group" : "Collapse group");
   chevron.addEventListener("click", (evt) => {
     evt.stopPropagation();
@@ -1849,11 +1832,7 @@ function renderGroupHeader(container, config) {
   container.appendChild(chevron);
   const groupIcon = isNoGroup ? workspaceManager.getGroupIcon(NO_GROUP_KEY) : workspaceManager.getGroupIcon(groupName);
   const iconSpan = document.createElement("span");
-  iconSpan.className = "workspace-group-icon";
-  iconSpan.style.display = "inline-flex";
-  iconSpan.style.alignItems = "center";
-  iconSpan.style.justifyContent = "center";
-  iconSpan.style.width = "24px";
+  iconSpan.className = "wn-group-icon";
   if (groupIcon) {
     (0, import_obsidian4.setIcon)(iconSpan, groupIcon);
     const iconColor = isNoGroup ? workspaceManager.getGroupIconColor(NO_GROUP_KEY) : workspaceManager.getGroupIconColor(groupName);
@@ -1862,17 +1841,11 @@ function renderGroupHeader(container, config) {
     }
   } else {
     (0, import_obsidian4.setIcon)(iconSpan, "folder");
-    iconSpan.style.opacity = "0.4";
-  }
-  const svg = iconSpan.querySelector("svg");
-  if (svg) {
-    svg.style.width = "16px";
-    svg.style.height = "16px";
+    iconSpan.addClass("is-default");
   }
   container.appendChild(iconSpan);
   const textSpan = document.createElement("span");
-  textSpan.className = "workspace-group-text";
-  textSpan.style.flex = "1";
+  textSpan.className = "wn-group-text";
   textSpan.textContent = displayName;
   textSpan.dataset.groupName = groupName;
   const styleKey = isNoGroup ? NO_GROUP_KEY : groupName;
@@ -1892,64 +1865,35 @@ function renderGroupHeader(container, config) {
   if (isCollapsed) {
     const count = isNoGroup ? workspaceManager.getWorkspacesByGroup(null).length : workspaceManager.getWorkspacesByGroup(groupName).length;
     const countSpan = document.createElement("span");
-    countSpan.className = "workspace-group-count";
-    countSpan.style.color = "var(--text-faint)";
-    countSpan.style.marginLeft = "5px";
+    countSpan.className = "wn-group-count";
     countSpan.textContent = `(${count})`;
     container.appendChild(countSpan);
   }
-  const buttonBaseStyle = {
-    position: "absolute",
-    top: "50%",
-    transform: "translateY(-50%)",
-    display: "inline-flex",
-    alignItems: "center",
-    fill: "var(--text-muted)",
-    cursor: "pointer",
-    padding: "2px"
-  };
   const editBtn = document.createElement("span");
-  editBtn.className = "workspace-group-edit-btn workspace-group-rename-btn";
-  Object.assign(editBtn.style, buttonBaseStyle);
-  editBtn.style.right = "32px";
-  editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+  editBtn.className = "wn-group-edit-btn wn-group-rename-btn";
+  (0, import_obsidian4.setIcon)(editBtn, "pencil");
   editBtn.setAttribute("aria-label", isNoGroup ? "Edit ungrouped settings" : "Edit group");
   editBtn.addEventListener("click", (evt) => {
     evt.stopPropagation();
     onEditClick(groupName);
   });
-  editBtn.addEventListener("mouseenter", () => {
-    editBtn.style.fill = "var(--text-accent-hover)";
-  });
-  editBtn.addEventListener("mouseleave", () => {
-    editBtn.style.fill = "var(--text-muted)";
-  });
   container.appendChild(editBtn);
   const deleteBtn = document.createElement("span");
-  deleteBtn.className = "workspace-group-edit-btn workspace-group-delete-btn";
-  Object.assign(deleteBtn.style, buttonBaseStyle);
-  deleteBtn.style.right = "11px";
-  deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+  deleteBtn.className = "wn-group-edit-btn wn-group-delete-btn";
+  (0, import_obsidian4.setIcon)(deleteBtn, "trash-2");
   if (isNoGroup) {
-    deleteBtn.style.opacity = "0.25";
-    deleteBtn.style.cursor = "default";
+    deleteBtn.addClass("wn-group-edit-btn-disabled");
   } else {
     deleteBtn.setAttribute("aria-label", "Delete group (ungroup workspaces)");
     deleteBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       onDeleteClick(groupName);
     });
-    deleteBtn.addEventListener("mouseenter", () => {
-      deleteBtn.style.fill = "var(--text-error)";
-    });
-    deleteBtn.addEventListener("mouseleave", () => {
-      deleteBtn.style.fill = "var(--text-muted)";
-    });
   }
   container.appendChild(deleteBtn);
 }
 function setGroupDragging(container, isDragging) {
-  container.style.opacity = isDragging ? "0.3" : "";
+  container.toggleClass("is-dragging", isDragging);
 }
 
 // src/workspace-modal.ts
@@ -2131,6 +2075,58 @@ var PRESET_COLORS = [
   { color: "#6b7280", name: "gray" },
   { color: "#ffffff", name: "white" }
 ];
+function renderIconGrid(card, getSelected, onSelect) {
+  const grid = card.createDiv("wn-icon-grid");
+  const noIconBtn = grid.createEl("button", { cls: "wn-icon-btn-grid" });
+  (0, import_obsidian5.setIcon)(noIconBtn, "x");
+  noIconBtn.setAttribute("aria-label", "No icon");
+  if (!getSelected())
+    noIconBtn.addClass("is-selected");
+  noIconBtn.addEventListener("click", () => {
+    grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+    noIconBtn.addClass("is-selected");
+    onSelect("");
+  });
+  for (const iconName of LUCIDE_ICONS) {
+    const btn = grid.createEl("button", { cls: "wn-icon-btn-grid" });
+    (0, import_obsidian5.setIcon)(btn, iconName);
+    btn.setAttribute("aria-label", iconName);
+    if (iconName === getSelected())
+      btn.addClass("is-selected");
+    btn.addEventListener("click", () => {
+      grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+      btn.addClass("is-selected");
+      onSelect(iconName);
+    });
+  }
+}
+function renderSwatchRow(card, label, getSelected, onSelect) {
+  new import_obsidian5.Setting(card).setName(label).then((setting) => {
+    const swatches = setting.controlEl.createDiv("wn-color-swatches");
+    for (const { color, name } of PRESET_COLORS) {
+      const swatch = swatches.createEl("button", { cls: "wn-color-swatch" });
+      swatch.style.backgroundColor = color;
+      swatch.setAttribute("aria-label", name);
+      if (color === getSelected())
+        swatch.addClass("is-selected");
+      swatch.addEventListener("click", () => {
+        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+        swatch.addClass("is-selected");
+        onSelect(color);
+      });
+    }
+    const noColor = swatches.createEl("button", { cls: "wn-color-swatch wn-color-none" });
+    (0, import_obsidian5.setIcon)(noColor, "x");
+    noColor.setAttribute("aria-label", "No color");
+    if (!getSelected())
+      noColor.addClass("is-selected");
+    noColor.addEventListener("click", () => {
+      swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
+      noColor.addClass("is-selected");
+      onSelect("");
+    });
+  });
+}
 var WorkspaceStyleModal = class extends import_obsidian5.Modal {
   constructor(app, plugin, workspaceName, currentStyle, onSubmit) {
     super(app);
@@ -2142,7 +2138,7 @@ var WorkspaceStyleModal = class extends import_obsidian5.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("workspace-style-picker");
+    contentEl.addClass("wn-style-picker", "wn-root");
     contentEl.createEl("h3", { text: "Edit Workspace" });
     let renameValue = this.workspaceName;
     let groupValue = this.currentStyle.group;
@@ -2168,9 +2164,9 @@ var WorkspaceStyleModal = class extends import_obsidian5.Modal {
       namePreview.style.fontWeight = nameBoldValue ? "bold" : "";
       namePreview.style.fontStyle = nameItalicValue ? "italic" : "";
     };
-    const previewContainer = contentEl.createDiv("workspace-style-preview-container");
-    iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
-    namePreview = previewContainer.createSpan("workspace-style-preview-name");
+    const previewContainer = contentEl.createDiv("wn-style-preview-container");
+    iconPreview = previewContainer.createSpan("wn-style-preview-icon");
+    namePreview = previewContainer.createSpan("wn-style-preview-name");
     if (iconValue) {
       (0, import_obsidian5.setIcon)(iconPreview, iconValue);
       if (iconColorValue)
@@ -2183,8 +2179,8 @@ var WorkspaceStyleModal = class extends import_obsidian5.Modal {
       namePreview.style.fontWeight = "bold";
     if (nameItalicValue)
       namePreview.style.fontStyle = "italic";
-    const generalCard = contentEl.createDiv("workspace-style-card");
-    generalCard.createDiv({ cls: "workspace-style-card-label", text: "General" });
+    const generalCard = contentEl.createDiv("wn-style-card");
+    generalCard.createDiv({ cls: "wn-style-card-label", text: "General" });
     new import_obsidian5.Setting(generalCard).setName("Name").addText((text) => {
       text.setValue(this.workspaceName);
       text.onChange((value) => {
@@ -2209,88 +2205,21 @@ var WorkspaceStyleModal = class extends import_obsidian5.Modal {
         }
       });
     });
-    const iconCard = contentEl.createDiv("workspace-style-card");
-    iconCard.createDiv({ cls: "workspace-style-card-label", text: "Icon" });
-    const grid = iconCard.createDiv("workspace-icon-grid");
-    const noIconBtn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
-    noIconBtn.textContent = "\u2715";
-    noIconBtn.setAttribute("aria-label", "No icon");
-    if (!iconValue)
-      noIconBtn.addClass("is-selected");
-    noIconBtn.addEventListener("click", () => {
-      grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-      noIconBtn.addClass("is-selected");
-      iconValue = "";
+    const iconCard = contentEl.createDiv("wn-style-card");
+    iconCard.createDiv({ cls: "wn-style-card-label", text: "Icon" });
+    renderIconGrid(iconCard, () => iconValue, (v) => {
+      iconValue = v;
       updatePreview();
     });
-    for (const iconName of LUCIDE_ICONS) {
-      const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
-      (0, import_obsidian5.setIcon)(btn, iconName);
-      btn.setAttribute("aria-label", iconName);
-      if (iconName === iconValue)
-        btn.addClass("is-selected");
-      btn.addEventListener("click", () => {
-        grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        btn.addClass("is-selected");
-        iconValue = iconName;
-        updatePreview();
-      });
-    }
-    new import_obsidian5.Setting(iconCard).setName("Color").then((setting) => {
-      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
-      for (const { color, name } of PRESET_COLORS) {
-        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
-        swatch.style.backgroundColor = color;
-        swatch.setAttribute("aria-label", name);
-        if (color === iconColorValue)
-          swatch.addClass("is-selected");
-        swatch.addEventListener("click", () => {
-          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-          swatch.addClass("is-selected");
-          iconColorValue = color;
-          updatePreview();
-        });
-      }
-      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
-      noColor.textContent = "\u2715";
-      noColor.setAttribute("aria-label", "No color");
-      if (!iconColorValue)
-        noColor.addClass("is-selected");
-      noColor.addEventListener("click", () => {
-        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        noColor.addClass("is-selected");
-        iconColorValue = "";
-        updatePreview();
-      });
+    renderSwatchRow(iconCard, "Color", () => iconColorValue, (v) => {
+      iconColorValue = v;
+      updatePreview();
     });
-    const nameCard = contentEl.createDiv("workspace-style-card");
-    nameCard.createDiv({ cls: "workspace-style-card-label", text: "Name Style" });
-    new import_obsidian5.Setting(nameCard).setName("Color").then((setting) => {
-      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
-      for (const { color, name } of PRESET_COLORS) {
-        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
-        swatch.style.backgroundColor = color;
-        swatch.setAttribute("aria-label", name);
-        if (color === nameColorValue)
-          swatch.addClass("is-selected");
-        swatch.addEventListener("click", () => {
-          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-          swatch.addClass("is-selected");
-          nameColorValue = color;
-          updatePreview();
-        });
-      }
-      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
-      noColor.textContent = "\u2715";
-      noColor.setAttribute("aria-label", "No color");
-      if (!nameColorValue)
-        noColor.addClass("is-selected");
-      noColor.addEventListener("click", () => {
-        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        noColor.addClass("is-selected");
-        nameColorValue = "";
-        updatePreview();
-      });
+    const nameCard = contentEl.createDiv("wn-style-card");
+    nameCard.createDiv({ cls: "wn-style-card-label", text: "Name Style" });
+    renderSwatchRow(nameCard, "Color", () => nameColorValue, (v) => {
+      nameColorValue = v;
+      updatePreview();
     });
     new import_obsidian5.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(nameBoldValue).setTooltip("Bold").onChange((value) => {
       nameBoldValue = value;
@@ -2358,7 +2287,7 @@ var GroupStylePickerModal = class extends import_obsidian5.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.addClass("workspace-style-picker");
+    contentEl.addClass("wn-style-picker", "wn-root");
     const isNoGroup = this.groupName === "\0nogroup";
     const displayName = isNoGroup ? "No Group" : this.groupName;
     contentEl.createEl("h3", { text: isNoGroup ? "Edit Ungrouped Style" : "Edit Group" });
@@ -2384,9 +2313,9 @@ var GroupStylePickerModal = class extends import_obsidian5.Modal {
       namePreview.style.fontWeight = textBoldValue ? "bold" : "";
       namePreview.style.fontStyle = textItalicValue ? "italic" : "";
     };
-    const previewContainer = contentEl.createDiv("workspace-style-preview-container");
-    iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
-    namePreview = previewContainer.createSpan("workspace-style-preview-name");
+    const previewContainer = contentEl.createDiv("wn-style-preview-container");
+    iconPreview = previewContainer.createSpan("wn-style-preview-icon");
+    namePreview = previewContainer.createSpan("wn-style-preview-name");
     if (iconValue) {
       (0, import_obsidian5.setIcon)(iconPreview, iconValue);
       if (iconColorValue)
@@ -2399,8 +2328,8 @@ var GroupStylePickerModal = class extends import_obsidian5.Modal {
       namePreview.style.fontWeight = "bold";
     if (textItalicValue)
       namePreview.style.fontStyle = "italic";
-    const generalCard = contentEl.createDiv("workspace-style-card");
-    generalCard.createDiv({ cls: "workspace-style-card-label", text: "General" });
+    const generalCard = contentEl.createDiv("wn-style-card");
+    generalCard.createDiv({ cls: "wn-style-card-label", text: "General" });
     new import_obsidian5.Setting(generalCard).setName("Name").addText((text) => {
       text.setValue(isNoGroup ? "" : this.groupName);
       text.setPlaceholder(isNoGroup ? "Enter group name..." : "");
@@ -2409,88 +2338,21 @@ var GroupStylePickerModal = class extends import_obsidian5.Modal {
         updatePreview();
       });
     });
-    const iconCard = contentEl.createDiv("workspace-style-card");
-    iconCard.createDiv({ cls: "workspace-style-card-label", text: "Icon" });
-    const grid = iconCard.createDiv("workspace-icon-grid");
-    const noIconBtn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
-    noIconBtn.textContent = "\u2715";
-    noIconBtn.setAttribute("aria-label", "No icon");
-    if (!iconValue)
-      noIconBtn.addClass("is-selected");
-    noIconBtn.addEventListener("click", () => {
-      grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-      noIconBtn.addClass("is-selected");
-      iconValue = "";
+    const iconCard = contentEl.createDiv("wn-style-card");
+    iconCard.createDiv({ cls: "wn-style-card-label", text: "Icon" });
+    renderIconGrid(iconCard, () => iconValue, (v) => {
+      iconValue = v;
       updatePreview();
     });
-    for (const iconName of LUCIDE_ICONS) {
-      const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
-      (0, import_obsidian5.setIcon)(btn, iconName);
-      btn.setAttribute("aria-label", iconName);
-      if (iconName === iconValue)
-        btn.addClass("is-selected");
-      btn.addEventListener("click", () => {
-        grid.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        btn.addClass("is-selected");
-        iconValue = iconName;
-        updatePreview();
-      });
-    }
-    new import_obsidian5.Setting(iconCard).setName("Color").then((setting) => {
-      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
-      for (const { color, name } of PRESET_COLORS) {
-        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
-        swatch.style.backgroundColor = color;
-        swatch.setAttribute("aria-label", name);
-        if (color === iconColorValue)
-          swatch.addClass("is-selected");
-        swatch.addEventListener("click", () => {
-          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-          swatch.addClass("is-selected");
-          iconColorValue = color;
-          updatePreview();
-        });
-      }
-      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
-      noColor.textContent = "\u2715";
-      noColor.setAttribute("aria-label", "No color");
-      if (!iconColorValue)
-        noColor.addClass("is-selected");
-      noColor.addEventListener("click", () => {
-        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        noColor.addClass("is-selected");
-        iconColorValue = "";
-        updatePreview();
-      });
+    renderSwatchRow(iconCard, "Color", () => iconColorValue, (v) => {
+      iconColorValue = v;
+      updatePreview();
     });
-    const nameCard = contentEl.createDiv("workspace-style-card");
-    nameCard.createDiv({ cls: "workspace-style-card-label", text: "Name Style" });
-    new import_obsidian5.Setting(nameCard).setName("Color").then((setting) => {
-      const swatches = setting.controlEl.createDiv("workspace-color-swatches");
-      for (const { color, name } of PRESET_COLORS) {
-        const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
-        swatch.style.backgroundColor = color;
-        swatch.setAttribute("aria-label", name);
-        if (color === textColorValue)
-          swatch.addClass("is-selected");
-        swatch.addEventListener("click", () => {
-          swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-          swatch.addClass("is-selected");
-          textColorValue = color;
-          updatePreview();
-        });
-      }
-      const noColor = swatches.createEl("button", { cls: "workspace-color-swatch workspace-color-none" });
-      noColor.textContent = "\u2715";
-      noColor.setAttribute("aria-label", "No color");
-      if (!textColorValue)
-        noColor.addClass("is-selected");
-      noColor.addEventListener("click", () => {
-        swatches.querySelectorAll(".is-selected").forEach((el) => el.removeClass("is-selected"));
-        noColor.addClass("is-selected");
-        textColorValue = "";
-        updatePreview();
-      });
+    const nameCard = contentEl.createDiv("wn-style-card");
+    nameCard.createDiv({ cls: "wn-style-card-label", text: "Name Style" });
+    renderSwatchRow(nameCard, "Color", () => textColorValue, (v) => {
+      textColorValue = v;
+      updatePreview();
     });
     new import_obsidian5.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(textBoldValue).setTooltip("Bold").onChange((value) => {
       textBoldValue = value;
@@ -2571,21 +2433,21 @@ var WorkspacePickerModal = class extends import_obsidian5.FuzzySuggestModal {
   renderSuggestion(item, el) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const workspaceName = item.item;
-    el.addClass("workspace-picker-item");
+    el.addClass("wn-picker-item");
     const openFiles = workspaceManager.getOpenFilesInWorkspace(workspaceName);
     const alreadyHasFile = openFiles.includes(this.filePath);
     if (alreadyHasFile) {
-      el.addClass("workspace-picker-disabled");
+      el.addClass("wn-picker-disabled");
     }
     const icon = workspaceManager.getWorkspaceIcon(workspaceName);
     if (icon) {
-      const iconSpan = el.createSpan("workspace-picker-icon");
+      const iconSpan = el.createSpan("wn-picker-icon");
       (0, import_obsidian5.setIcon)(iconSpan, icon);
       const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
       if (iconColor)
         iconSpan.style.color = iconColor;
     }
-    const nameSpan = el.createSpan("workspace-picker-name");
+    const nameSpan = el.createSpan("wn-picker-name");
     nameSpan.textContent = workspaceName;
     const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
     if (nameStyle.color)
@@ -2595,13 +2457,13 @@ var WorkspacePickerModal = class extends import_obsidian5.FuzzySuggestModal {
     if (nameStyle.italic)
       nameSpan.style.fontStyle = "italic";
     if (alreadyHasFile) {
-      const indicator = el.createSpan("workspace-picker-has-file");
+      const indicator = el.createSpan("wn-picker-has-file");
       (0, import_obsidian5.setIcon)(indicator, "layers");
       indicator.setAttribute("aria-label", "File already open in this workspace");
     }
     const group = workspaceManager.getWorkspaceGroup(workspaceName);
     if (group) {
-      const groupSpan = el.createSpan("workspace-picker-group");
+      const groupSpan = el.createSpan("wn-picker-group");
       groupSpan.textContent = group;
     }
   }
@@ -2630,9 +2492,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     this.topActionsEl = null;
     this.bottomActionsEl = null;
     this.plugin = plugin;
-    this.modalEl.addClass("workspace-switcher-modal");
+    this.modalEl.addClass("wn-switcher-modal", "wn-root");
     if (plugin.settings.transparentModal) {
-      this.modalEl.addClass("workspace-switcher-modal-transparent");
+      this.modalEl.addClass("wn-switcher-modal-transparent");
     }
     this.setPlaceholder("Type workspace name...");
     if (plugin.settings.showInstructions) {
@@ -2690,7 +2552,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
   useSelectedItem(evt) {
     const targetEl = evt.composedPath ? evt.composedPath()[0] : evt.target;
     if (targetEl && targetEl.contentEditable === "true") {
-      if (targetEl.closest(".workspace-group-header")) {
+      if (targetEl.closest(".wn-group-header")) {
         evt.preventDefault();
         targetEl.blur();
         return false;
@@ -2716,11 +2578,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     if (evt instanceof MouseEvent && evt.button === 2) {
       return;
     }
-    const renamingItem = this.modalEl.querySelector(".workspace-suggestion-item.is-renaming");
+    const renamingItem = this.modalEl.querySelector(".wn-suggestion-item.is-renaming");
     if (renamingItem) {
       return;
     }
-    const renamingGroup = this.modalEl.querySelector(".workspace-group-header.is-renaming");
+    const renamingGroup = this.modalEl.querySelector(".wn-group-header.is-renaming");
     if (renamingGroup) {
       return;
     }
@@ -2735,7 +2597,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
         inputEl.parentElement.style.display = "none";
       }
     }
-    const statusBar = document.body.querySelector(".workspace-navigator-status");
+    const statusBar = document.body.querySelector(".wn-navigator-status");
     if (statusBar) {
       this.popper = createPopper(statusBar, this.modalEl, {
         placement: "top-start",
@@ -2754,9 +2616,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     if (!resultsContainer)
       return;
     const topActions = document.createElement("div");
-    topActions.className = "workspace-actions-top";
+    topActions.className = "wn-actions-top";
     const expandCollapseBtn = document.createElement("button");
-    expandCollapseBtn.className = "workspace-action-btn btn-expand-collapse";
+    expandCollapseBtn.className = "wn-action-btn btn-expand-collapse";
     this.updateExpandCollapseButton(expandCollapseBtn);
     expandCollapseBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
@@ -2767,9 +2629,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     resultsContainer.insertBefore(topActions, resultsContainer.firstChild);
     this.topActionsEl = topActions;
     const bottomActions = document.createElement("div");
-    bottomActions.className = "workspace-actions-bottom";
+    bottomActions.className = "wn-actions-bottom";
     const addGroupBtn = document.createElement("button");
-    addGroupBtn.className = "workspace-action-btn btn-add-group";
+    addGroupBtn.className = "wn-action-btn btn-add-group";
     const groupIcon = document.createElement("span");
     (0, import_obsidian5.setIcon)(groupIcon, "folder-plus");
     addGroupBtn.appendChild(groupIcon);
@@ -2782,7 +2644,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     });
     bottomActions.appendChild(addGroupBtn);
     const addWorkspaceBtn = document.createElement("button");
-    addWorkspaceBtn.className = "workspace-action-btn btn-add-workspace";
+    addWorkspaceBtn.className = "wn-action-btn btn-add-workspace";
     const workspaceIcon = document.createElement("span");
     (0, import_obsidian5.setIcon)(workspaceIcon, "file-plus");
     addWorkspaceBtn.appendChild(workspaceIcon);
@@ -2795,7 +2657,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     });
     bottomActions.appendChild(addWorkspaceBtn);
     const sidebarBtn = document.createElement("button");
-    sidebarBtn.className = "workspace-action-btn btn-sidebar";
+    sidebarBtn.className = "wn-action-btn btn-sidebar";
     (0, import_obsidian5.setIcon)(sidebarBtn, "panel-left");
     sidebarBtn.setAttribute("aria-label", "Open sidebar navigator");
     sidebarBtn.addEventListener("click", (evt) => {
@@ -2807,7 +2669,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     bottomActions.appendChild(sidebarBtn);
     if (this.plugin.settings.showStyleSettingsInModal && this.plugin.isStyleSettingsEnabled()) {
       const styleBtn = document.createElement("button");
-      styleBtn.className = "workspace-action-btn btn-style-settings";
+      styleBtn.className = "wn-action-btn btn-style-settings";
       (0, import_obsidian5.setIcon)(styleBtn, "palette");
       styleBtn.setAttribute("aria-label", "Open Style Settings");
       styleBtn.addEventListener("click", (evt) => {
@@ -2819,7 +2681,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
       bottomActions.appendChild(styleBtn);
     }
     const settingsBtn = document.createElement("button");
-    settingsBtn.className = "workspace-action-btn btn-settings";
+    settingsBtn.className = "wn-action-btn btn-settings";
     (0, import_obsidian5.setIcon)(settingsBtn, "settings");
     settingsBtn.setAttribute("aria-label", "Open plugin settings");
     settingsBtn.addEventListener("click", (evt) => {
@@ -2952,14 +2814,14 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
       this.dragGhost.style.left = `${evt.clientX + 10}px`;
       this.dragGhost.style.top = `${evt.clientY - 10}px`;
       const target = document.elementFromPoint(evt.clientX, evt.clientY);
-      this.modalEl.querySelectorAll(".workspace-group-header, .workspace-suggestion-item").forEach((e) => {
+      this.modalEl.querySelectorAll(".wn-group-header, .wn-suggestion-item").forEach((e) => {
         e.style.boxShadow = "";
       });
       this.modalEl.querySelectorAll(".drag-over").forEach((e) => {
         e.removeClass("drag-over");
       });
       if (this.draggedGroup) {
-        const groupHeader2 = target == null ? void 0 : target.closest(".workspace-group-header");
+        const groupHeader2 = target == null ? void 0 : target.closest(".wn-group-header");
         if (groupHeader2 && groupHeader2 !== this.draggedElement) {
           const rect = groupHeader2.getBoundingClientRect();
           const midY = rect.top + rect.height / 2;
@@ -2978,8 +2840,8 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
         }
         return;
       }
-      const workspaceItem = target == null ? void 0 : target.closest(".workspace-suggestion-item");
-      const groupHeader = target == null ? void 0 : target.closest(".workspace-group-header");
+      const workspaceItem = target == null ? void 0 : target.closest(".wn-suggestion-item");
+      const groupHeader = target == null ? void 0 : target.closest(".wn-group-header");
       if (workspaceItem && workspaceItem !== this.draggedElement) {
         const rect = workspaceItem.getBoundingClientRect();
         const midY = rect.top + rect.height / 2;
@@ -3053,7 +2915,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
         if (this.dragGhost) {
           this.dragGhost.style.pointerEvents = "";
         }
-        const groupHeader = target == null ? void 0 : target.closest(".workspace-group-header");
+        const groupHeader = target == null ? void 0 : target.closest(".wn-group-header");
         if (groupHeader && groupHeader.dataset.groupName) {
           const groupName = groupHeader.dataset.groupName;
           const isNoGroup = groupName === "\0nogroup";
@@ -3082,7 +2944,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
   }
   createDragGhost(workspaceName) {
     this.dragGhost = document.createElement("div");
-    this.dragGhost.addClass("workspace-drag-ghost");
+    this.dragGhost.addClass("wn-drag-ghost");
     const nameSpan = document.createElement("span");
     nameSpan.textContent = workspaceName;
     this.dragGhost.appendChild(nameSpan);
@@ -3101,11 +2963,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     this.draggedGroup = null;
     this.draggedElement = null;
     this._dropTarget = null;
-    document.body.removeClass("workspace-dragging");
+    document.body.removeClass("wn-dragging");
     this.modalEl.querySelectorAll(".drag-over").forEach((e) => {
       e.removeClass("drag-over");
     });
-    this.modalEl.querySelectorAll(".workspace-group-header, .workspace-suggestion-item").forEach((e) => {
+    this.modalEl.querySelectorAll(".wn-group-header, .wn-suggestion-item").forEach((e) => {
       e.style.boxShadow = "";
     });
   }
@@ -3113,7 +2975,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     this.draggedWorkspace = workspaceName;
     this.draggedElement = el;
     el.addClass("is-dragging");
-    document.body.addClass("workspace-dragging");
+    document.body.addClass("wn-dragging");
     this.createDragGhost(workspaceName);
     this.dragGhost.style.left = `${evt.clientX + 10}px`;
     this.dragGhost.style.top = `${evt.clientY - 10}px`;
@@ -3205,7 +3067,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     if (collapsedGroup) {
       this.lastRenderedGroup = collapsedGroup === "\0nogroup" ? null : collapsedGroup;
       el.empty();
-      el.addClass("workspace-group-header", "is-collapsed");
+      el.addClass("wn-group-header", "is-collapsed");
       this.renderGroupHeaderElement(el, collapsedGroup, true);
       return;
     }
@@ -3213,9 +3075,9 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     if (emptyGroup) {
       this.lastRenderedGroup = emptyGroup;
       el.empty();
-      el.addClass("workspace-group-header", "is-empty");
+      el.addClass("wn-group-header", "is-empty");
       this.renderGroupHeaderElement(el, emptyGroup, false, true);
-      const emptyIndicator = el.createSpan("workspace-group-empty-indicator");
+      const emptyIndicator = el.createSpan("wn-group-empty-indicator");
       emptyIndicator.textContent = "(empty)";
       emptyIndicator.style.opacity = "0.5";
       emptyIndicator.style.fontStyle = "italic";
@@ -3231,14 +3093,14 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
       const shouldShowHeader = currentGroup !== null || hasNamedGroups;
       if (shouldShowHeader) {
         const header = document.createElement("div");
-        header.addClass("workspace-group-header");
+        header.addClass("wn-group-header");
         const groupKey = currentGroup || "\0nogroup";
         this.renderGroupHeaderElement(header, groupKey, false);
         (_a = el.parentElement) == null ? void 0 : _a.insertBefore(header, el);
       }
     }
     el.dataset.workspaceName = workspaceName;
-    el.addClass("workspace-suggestion-item");
+    el.addClass("wn-suggestion-item");
     el.addEventListener("mousedown", (evt) => {
       if (evt.button === 2) {
         evt.preventDefault();
@@ -3291,7 +3153,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
         if (evt.button !== 0)
           return;
         const target = evt.target;
-        if (target.closest("button") || target.closest(".workspace-action-btn"))
+        if (target.closest("button") || target.closest(".wn-action-btn"))
           return;
         evt.preventDefault();
         this.startWorkspaceDrag(evt, workspaceName, el);
@@ -3299,7 +3161,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     }
     const icon = workspaceManager.getWorkspaceIcon(workspaceName);
     const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
-    const iconSpan = el.createSpan("workspace-icon-column");
+    const iconSpan = el.createSpan("wn-icon-column");
     iconSpan.style.display = "inline-flex";
     iconSpan.style.alignItems = "center";
     iconSpan.style.justifyContent = "center";
@@ -3320,7 +3182,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
       svg.style.width = "16px";
       svg.style.height = "16px";
     }
-    const textSpan = el.createSpan("workspace-name-text");
+    const textSpan = el.createSpan("wn-name-text");
     textSpan.textContent = textContent;
     textSpan.style.display = "inline-block";
     const nameStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
@@ -3337,7 +3199,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
         el.style.backgroundColor = "var(--background-secondary)";
         el.style.backgroundImage = "linear-gradient(var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)), var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)))";
       }
-      const activeCheck = el.createSpan("workspace-active-check");
+      const activeCheck = el.createSpan("wn-active-check");
       (0, import_obsidian5.setIcon)(activeCheck, "check");
       activeCheck.setAttribute("aria-label", "Current workspace");
       activeCheck.style.position = "absolute";
@@ -3348,45 +3210,19 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
       activeCheck.style.alignItems = "center";
       activeCheck.style.color = "var(--wn-checkmark, var(--text-accent))";
     }
-    const deleteBtn = el.createDiv("workspace-delete-btn");
+    const deleteBtn = el.createDiv("wn-delete-btn wn-row-action-btn wn-row-delete");
     deleteBtn.setAttribute("aria-label", "Delete workspace");
-    deleteBtn.style.position = "absolute";
-    deleteBtn.style.top = "50%";
-    deleteBtn.style.transform = "translateY(-50%)";
-    deleteBtn.style.right = "11px";
-    deleteBtn.style.padding = "2px";
-    deleteBtn.style.cursor = "pointer";
-    deleteBtn.style.fill = "var(--text-muted)";
-    deleteBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M7 4V2h10v2h5v2h-2v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6H2V4h5zM6 6v14h12V6H6zm3 3h2v8H9V9zm4 0h2v8h-2V9z"/></svg>`;
+    (0, import_obsidian5.setIcon)(deleteBtn, "trash-2");
     deleteBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       this.deleteWorkspace(workspaceName);
     });
-    deleteBtn.addEventListener("mouseenter", () => {
-      deleteBtn.style.fill = "var(--text-error)";
-    });
-    deleteBtn.addEventListener("mouseleave", () => {
-      deleteBtn.style.fill = "var(--text-muted)";
-    });
-    const editBtn = el.createDiv("workspace-rename-btn");
+    const editBtn = el.createDiv("wn-rename-btn wn-row-action-btn wn-row-edit");
     editBtn.setAttribute("aria-label", "Edit workspace");
-    editBtn.style.position = "absolute";
-    editBtn.style.top = "50%";
-    editBtn.style.transform = "translateY(-50%)";
-    editBtn.style.right = "32px";
-    editBtn.style.padding = "2px";
-    editBtn.style.cursor = "pointer";
-    editBtn.style.fill = "var(--text-muted)";
-    editBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16"><path fill="none" d="M0 0h24v24H0z"/><path d="M12.9 6.858l4.242 4.243L7.242 21H3v-4.243l9.9-9.9zm1.414-1.414l2.121-2.122a1 1 0 0 1 1.414 0l2.829 2.829a1 1 0 0 1 0 1.414l-2.122 2.121-4.242-4.242z"/></svg>`;
+    (0, import_obsidian5.setIcon)(editBtn, "pencil");
     editBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       this.onIconClick(workspaceName);
-    });
-    editBtn.addEventListener("mouseenter", () => {
-      editBtn.style.fill = "var(--text-accent-hover)";
-    });
-    editBtn.addEventListener("mouseleave", () => {
-      editBtn.style.fill = "var(--text-muted)";
     });
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3403,7 +3239,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     if (!el)
       return;
     evt.stopPropagation();
-    const textSpan = el.querySelector(".workspace-name-text");
+    const textSpan = el.querySelector(".wn-name-text");
     if (!textSpan)
       return;
     if (textSpan.contentEditable === "true") {
@@ -3434,7 +3270,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
   // ─────────────────────────────────────────────────────────────────
   async handleRename(textSpan) {
     var _a;
-    const el = textSpan.closest(".workspace-suggestion-item");
+    const el = textSpan.closest(".wn-suggestion-item");
     if (!el)
       return;
     const oldName = el.dataset.workspaceName;
@@ -3742,7 +3578,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
         this.draggedGroup = gn;
         this.draggedElement = c;
         setGroupDragging(c, true);
-        document.body.addClass("workspace-dragging");
+        document.body.addClass("wn-dragging");
         this.createDragGhost(displayName);
         this.dragGhost.style.left = `${evt.clientX + 10}px`;
         this.dragGhost.style.top = `${evt.clientY - 10}px`;
@@ -5350,10 +5186,10 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   async onOpen() {
     const container = this.containerEl.children[1];
     container.empty();
-    container.addClass("workspace-navigator-sidebar");
-    const header = container.createDiv("workspace-sidebar-header");
+    container.addClass("wn-navigator-sidebar", "wn-root");
+    const header = container.createDiv("wn-sidebar-header");
     this.createHeaderActions(header);
-    this.treeContainer = container.createDiv("workspace-sidebar-tree");
+    this.treeContainer = container.createDiv("wn-sidebar-tree");
     const workspaces = this.plugin.getWorkspaceManager().getWorkspaceNames();
     for (const ws of workspaces) {
       this.collapsedWorkspaces.add(ws);
@@ -5366,34 +5202,34 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   // Header Actions
   // ─────────────────────────────────────────────────────────────────
   createHeaderActions(header) {
-    const actionsContainer = header.createDiv("workspace-sidebar-actions");
-    const addGroupBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+    const actionsContainer = header.createDiv("wn-sidebar-actions");
+    const addGroupBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-action-btn" });
     (0, import_obsidian6.setIcon)(addGroupBtn, "folder-plus");
     addGroupBtn.setAttribute("aria-label", "Create new group");
     addGroupBtn.addEventListener("click", () => this.createNewGroup());
-    const addWorkspaceBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+    const addWorkspaceBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-action-btn" });
     (0, import_obsidian6.setIcon)(addWorkspaceBtn, "plus");
     addWorkspaceBtn.setAttribute("aria-label", "Create new workspace");
     addWorkspaceBtn.addEventListener("click", () => this.createNewWorkspace());
-    const expandGroupsBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+    const expandGroupsBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-action-btn" });
     this.updateExpandGroupsButton(expandGroupsBtn);
     expandGroupsBtn.addEventListener("click", () => {
       this.toggleAllGroups();
       this.updateExpandGroupsButton(expandGroupsBtn);
     });
-    const expandWorkspacesBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+    const expandWorkspacesBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-action-btn" });
     this.updateExpandWorkspacesButton(expandWorkspacesBtn);
     expandWorkspacesBtn.addEventListener("click", () => {
       this.toggleAllWorkspaceFiles();
       this.updateExpandWorkspacesButton(expandWorkspacesBtn);
     });
     if (this.plugin.settings.showStyleSettingsInSidebar && this.plugin.isStyleSettingsEnabled()) {
-      const styleBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+      const styleBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-action-btn" });
       (0, import_obsidian6.setIcon)(styleBtn, "palette");
       styleBtn.setAttribute("aria-label", "Open Style Settings");
       styleBtn.addEventListener("click", () => this.plugin.openStyleSettings());
     }
-    const settingsBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-action-btn" });
+    const settingsBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-action-btn" });
     (0, import_obsidian6.setIcon)(settingsBtn, "settings");
     settingsBtn.setAttribute("aria-label", "Open plugin settings");
     settingsBtn.addEventListener("click", () => {
@@ -5472,6 +5308,14 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
           this.treeContainer.appendChild(el);
       }
     }
+    if (workspaceManager.getWorkspaceNames().length === 0 && workspaceManager.getGroups().length === 0) {
+      const empty = this.treeContainer.createDiv("wn-sidebar-empty");
+      const iconEl = empty.createDiv("wn-sidebar-empty-icon");
+      (0, import_obsidian6.setIcon)(iconEl, "layout-template");
+      empty.createDiv({ cls: "wn-sidebar-empty-hint", text: "No workspaces yet. Save your current layout to get started." });
+      const cta = empty.createEl("button", { cls: "mod-cta", text: "Create workspace" });
+      cta.addEventListener("click", () => this.createNewWorkspace());
+    }
   }
   /**
    * Re-render a single group's subtree in place instead of rebuilding the
@@ -5483,7 +5327,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
    */
   rerenderGroup(groupName) {
     const existing = this.treeContainer.querySelector(
-      `.workspace-sidebar-group[data-group-name="${CSS.escape(groupName)}"]`
+      `.wn-sidebar-group[data-group-name="${CSS.escape(groupName)}"]`
     );
     if (!existing) {
       this.renderTree();
@@ -5510,9 +5354,9 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     const workspaces = isNoGroup ? workspaceManager.getWorkspacesByGroup(null) : workspaceManager.getWorkspacesByGroup(groupName);
     if (workspaces.length === 0 && isNoGroup)
       return null;
-    const groupContainer = createDiv("workspace-sidebar-group");
+    const groupContainer = createDiv("wn-sidebar-group");
     groupContainer.dataset.groupName = groupName;
-    const groupHeader = groupContainer.createDiv("workspace-sidebar-group-header");
+    const groupHeader = groupContainer.createDiv("wn-sidebar-group-header");
     groupHeader.dataset.groupName = groupName;
     if (useManualOrder && !isNoGroup) {
       groupHeader.draggable = true;
@@ -5522,13 +5366,13 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     groupHeader.addEventListener("dragover", (evt) => this.onGroupDragOver(evt, groupName));
     groupHeader.addEventListener("drop", (evt) => this.onGroupDrop(evt, groupName));
     groupHeader.addEventListener("dragleave", (evt) => this.onDragLeave(evt));
-    const chevron = groupHeader.createSpan("workspace-sidebar-chevron");
+    const chevron = groupHeader.createSpan("wn-sidebar-chevron");
     (0, import_obsidian6.setIcon)(chevron, isCollapsed ? "chevron-right" : "chevron-down");
     chevron.addEventListener("click", (evt) => {
       evt.stopPropagation();
       this.toggleGroup(groupName);
     });
-    const iconSpan = groupHeader.createSpan("workspace-sidebar-group-icon");
+    const iconSpan = groupHeader.createSpan("wn-sidebar-group-icon");
     const groupIcon = workspaceManager.getGroupIcon(groupName);
     if (groupIcon) {
       (0, import_obsidian6.setIcon)(iconSpan, groupIcon);
@@ -5539,7 +5383,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       (0, import_obsidian6.setIcon)(iconSpan, "folder");
       iconSpan.style.opacity = "0.4";
     }
-    const nameSpan = groupHeader.createSpan("workspace-sidebar-group-name");
+    const nameSpan = groupHeader.createSpan("wn-sidebar-group-name");
     nameSpan.textContent = displayName;
     const groupColor = workspaceManager.getGroupColor(groupName);
     const groupBold = workspaceManager.getGroupBold(groupName);
@@ -5551,11 +5395,11 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     if (groupItalic)
       nameSpan.style.fontStyle = "italic";
     if (isCollapsed) {
-      const countBadge = groupHeader.createSpan("workspace-sidebar-count");
+      const countBadge = groupHeader.createSpan("wn-sidebar-count");
       countBadge.textContent = `(${workspaces.length})`;
     }
-    const actionsContainer = groupHeader.createDiv("workspace-sidebar-group-actions");
-    const editBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-item-btn" });
+    const actionsContainer = groupHeader.createDiv("wn-sidebar-group-actions");
+    const editBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-item-btn" });
     (0, import_obsidian6.setIcon)(editBtn, "pencil");
     editBtn.setAttribute("aria-label", isNoGroup ? "Edit ungrouped style" : "Edit group");
     editBtn.addEventListener("click", (evt) => {
@@ -5563,7 +5407,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       this.editGroup(groupName);
     });
     if (!isNoGroup) {
-      const deleteBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-item-btn workspace-sidebar-delete-btn" });
+      const deleteBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-item-btn wn-sidebar-delete-btn" });
       (0, import_obsidian6.setIcon)(deleteBtn, "trash-2");
       deleteBtn.setAttribute("aria-label", "Delete group");
       deleteBtn.addEventListener("click", (evt) => {
@@ -5577,9 +5421,9 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     });
     groupHeader.addEventListener("click", () => this.toggleGroup(groupName));
     if (!isCollapsed) {
-      const workspacesContainer = groupContainer.createDiv("workspace-sidebar-workspaces");
+      const workspacesContainer = groupContainer.createDiv("wn-sidebar-workspaces");
       workspacesContainer.addEventListener("dragover", (evt) => {
-        if (evt.target.closest(".workspace-sidebar-item"))
+        if (evt.target.closest(".wn-sidebar-item"))
           return;
         if (this.draggedType !== "workspace")
           return;
@@ -5587,7 +5431,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         evt.dataTransfer.dropEffect = "move";
       });
       workspacesContainer.addEventListener("drop", (evt) => {
-        if (evt.target.closest(".workspace-sidebar-item"))
+        if (evt.target.closest(".wn-sidebar-item"))
           return;
         this.onGroupDrop(evt, groupName);
       });
@@ -5602,9 +5446,9 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   renderWorkspaceItem(container, workspaceName, activeWorkspace, useManualOrder, groupName) {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const isActive = workspaceName === activeWorkspace;
-    const wsContainer = container.createDiv("workspace-sidebar-ws-container");
+    const wsContainer = container.createDiv("wn-sidebar-ws-container");
     wsContainer.dataset.workspaceName = workspaceName;
-    const item = wsContainer.createDiv("workspace-sidebar-item");
+    const item = wsContainer.createDiv("wn-sidebar-item");
     item.dataset.workspaceName = workspaceName;
     if (isActive && this.plugin.settings.highlightActiveWorkspace)
       item.addClass("is-active");
@@ -5619,16 +5463,16 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     const openFiles = workspaceManager.getOpenFilesInWorkspace(workspaceName);
     const isWsCollapsed = this.collapsedWorkspaces.has(workspaceName);
     if (openFiles.length > 0) {
-      const chevron = item.createSpan("workspace-sidebar-ws-chevron");
+      const chevron = item.createSpan("wn-sidebar-ws-chevron");
       (0, import_obsidian6.setIcon)(chevron, isWsCollapsed ? "chevron-right" : "chevron-down");
       chevron.addEventListener("click", (evt) => {
         evt.stopPropagation();
         this.toggleWorkspaceFiles(workspaceName);
       });
     } else {
-      item.createSpan("workspace-sidebar-ws-chevron-spacer");
+      item.createSpan("wn-sidebar-ws-chevron-spacer");
     }
-    const iconSpan = item.createSpan("workspace-sidebar-item-icon");
+    const iconSpan = item.createSpan("wn-sidebar-item-icon");
     const wsIcon = workspaceManager.getWorkspaceIcon(workspaceName);
     if (wsIcon) {
       (0, import_obsidian6.setIcon)(iconSpan, wsIcon);
@@ -5639,7 +5483,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       (0, import_obsidian6.setIcon)(iconSpan, "layout-dashboard");
       iconSpan.style.opacity = "0.4";
     }
-    const nameSpan = item.createSpan("workspace-sidebar-item-name");
+    const nameSpan = item.createSpan("wn-sidebar-item-name");
     nameSpan.textContent = workspaceName;
     const wsStyle = workspaceManager.getWorkspaceNameStyle(workspaceName);
     if (wsStyle.color)
@@ -5649,23 +5493,23 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     if (wsStyle.italic)
       nameSpan.style.fontStyle = "italic";
     if (isActive) {
-      const activeCheck = item.createSpan("workspace-sidebar-active-check");
+      const activeCheck = item.createSpan("wn-sidebar-active-check");
       (0, import_obsidian6.setIcon)(activeCheck, "check");
       activeCheck.setAttribute("aria-label", "Current workspace");
     }
     if (openFiles.length > 0) {
-      const countBadge = item.createSpan("workspace-sidebar-file-count");
+      const countBadge = item.createSpan("wn-sidebar-file-count");
       countBadge.textContent = `(${openFiles.length})`;
     }
-    const actionsContainer = item.createDiv("workspace-sidebar-item-actions");
-    const editBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-item-btn" });
+    const actionsContainer = item.createDiv("wn-sidebar-item-actions");
+    const editBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-item-btn" });
     (0, import_obsidian6.setIcon)(editBtn, "pencil");
     editBtn.setAttribute("aria-label", "Edit workspace");
     editBtn.addEventListener("click", (evt) => {
       evt.stopPropagation();
       this.editWorkspace(workspaceName);
     });
-    const deleteBtn = actionsContainer.createEl("button", { cls: "workspace-sidebar-item-btn workspace-sidebar-delete-btn" });
+    const deleteBtn = actionsContainer.createEl("button", { cls: "wn-sidebar-item-btn wn-sidebar-delete-btn" });
     (0, import_obsidian6.setIcon)(deleteBtn, "trash-2");
     deleteBtn.setAttribute("aria-label", "Delete workspace");
     deleteBtn.addEventListener("click", (evt) => {
@@ -5673,9 +5517,9 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       this.deleteWorkspace(workspaceName);
     });
     item.addEventListener("click", async (evt) => {
-      if (evt.target.closest(".workspace-sidebar-item-actions"))
+      if (evt.target.closest(".wn-sidebar-item-actions"))
         return;
-      if (evt.target.closest(".workspace-sidebar-ws-chevron"))
+      if (evt.target.closest(".wn-sidebar-ws-chevron"))
         return;
       if (this.plugin.settings.autoSaveOnSwitch) {
         const current = workspaceManager.getActiveWorkspace();
@@ -5695,7 +5539,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     });
     this.setupWorkspaceDropTarget(item, workspaceName);
     if (openFiles.length > 0 && !isWsCollapsed) {
-      const filesContainer = wsContainer.createDiv("workspace-sidebar-files");
+      const filesContainer = wsContainer.createDiv("wn-sidebar-files");
       for (let i = 0; i < openFiles.length; i++) {
         this.renderFileItem(filesContainer, openFiles[i], workspaceName, isActive, i);
       }
@@ -5705,7 +5549,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const fileName = filePath.split("/").pop() || filePath;
     const baseName = fileName.replace(/\.md$/, "");
-    const fileItem = container.createDiv("workspace-sidebar-file-item");
+    const fileItem = container.createDiv("wn-sidebar-file-item");
     fileItem.dataset.filePath = filePath;
     fileItem.dataset.workspaceName = workspaceName;
     fileItem.dataset.fileIndex = String(fileIndex);
@@ -5717,14 +5561,14 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     fileItem.addEventListener("dragleave", (evt) => {
       fileItem.removeClass("drop-above", "drop-below");
     });
-    const iconSpan = fileItem.createSpan("workspace-sidebar-file-icon");
+    const iconSpan = fileItem.createSpan("wn-sidebar-file-icon");
     (0, import_obsidian6.setIcon)(iconSpan, "file-text");
-    const nameSpan = fileItem.createSpan("workspace-sidebar-file-name");
+    const nameSpan = fileItem.createSpan("wn-sidebar-file-name");
     nameSpan.textContent = baseName;
     nameSpan.setAttribute("aria-label", filePath);
     const otherWorkspaces = workspaceManager.getWorkspacesWithFile(filePath, workspaceName);
     if (otherWorkspaces.length > 0) {
-      const dupIndicator = fileItem.createSpan("workspace-sidebar-file-dup");
+      const dupIndicator = fileItem.createSpan("wn-sidebar-file-dup");
       if (otherWorkspaces.length === 1) {
         (0, import_obsidian6.setIcon)(dupIndicator, "layers");
       } else {
@@ -5754,7 +5598,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     if (this.draggedFileWorkspace === targetWorkspace && this.draggedFile !== targetFilePath) {
       evt.preventDefault();
       evt.dataTransfer.dropEffect = "move";
-      const fileItem = evt.target.closest(".workspace-sidebar-file-item");
+      const fileItem = evt.target.closest(".wn-sidebar-file-item");
       if (!fileItem)
         return;
       const rect = fileItem.getBoundingClientRect();
@@ -5771,7 +5615,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     evt.preventDefault();
     if (!this.draggedFile || !this.draggedFileWorkspace)
       return;
-    const fileItem = evt.target.closest(".workspace-sidebar-file-item");
+    const fileItem = evt.target.closest(".wn-sidebar-file-item");
     if (fileItem) {
       fileItem.removeClass("drop-above", "drop-below");
     }
@@ -5833,7 +5677,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       for (const ws of allWorkspaces) {
         const alreadyHas = workspaceManager.getOpenFilesInWorkspace(ws).includes(filePath);
         submenu.addItem((subItem) => {
-          subItem.setTitle(ws + (alreadyHas ? " \u2713" : "")).setDisabled(alreadyHas).onClick(async () => {
+          subItem.setTitle(ws).setChecked(alreadyHas).setDisabled(alreadyHas).onClick(async () => {
             if (!this.plugin.app.vault.getAbstractFileByPath(filePath)) {
               notify(`File not found: ${filePath}`, "error");
               return;
@@ -5868,7 +5712,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       this.collapsedGroups.add(groupName);
     }
     this.rerenderGroup(groupName);
-    const btn = this.containerEl.querySelector(".workspace-sidebar-action-btn:nth-child(3)");
+    const btn = this.containerEl.querySelector(".wn-sidebar-action-btn:nth-child(3)");
     if (btn)
       this.updateExpandGroupsButton(btn);
   }
@@ -6056,18 +5900,18 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   }
   renameWorkspaceInline(workspaceName) {
     const item = this.treeContainer.querySelector(
-      `.workspace-sidebar-item[data-workspace-name="${CSS.escape(workspaceName)}"]`
+      `.wn-sidebar-item[data-workspace-name="${CSS.escape(workspaceName)}"]`
     );
     if (!item)
       return;
-    const nameSpan = item.querySelector(".workspace-sidebar-item-name");
+    const nameSpan = item.querySelector(".wn-sidebar-item-name");
     if (!nameSpan)
       return;
     item.addClass("is-renaming");
     const input = document.createElement("input");
     input.type = "text";
     input.value = workspaceName;
-    input.className = "workspace-sidebar-rename-input";
+    input.className = "wn-sidebar-rename-input";
     nameSpan.replaceWith(input);
     input.focus();
     input.select();
@@ -6109,18 +5953,18 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   }
   renameGroupInline(groupName) {
     const header = this.treeContainer.querySelector(
-      `.workspace-sidebar-group-header[data-group-name="${CSS.escape(groupName)}"]`
+      `.wn-sidebar-group-header[data-group-name="${CSS.escape(groupName)}"]`
     );
     if (!header)
       return;
-    const nameSpan = header.querySelector(".workspace-sidebar-group-name");
+    const nameSpan = header.querySelector(".wn-sidebar-group-name");
     if (!nameSpan)
       return;
     header.addClass("is-renaming");
     const input = document.createElement("input");
     input.type = "text";
     input.value = groupName;
-    input.className = "workspace-sidebar-rename-input";
+    input.className = "wn-sidebar-rename-input";
     nameSpan.replaceWith(input);
     input.focus();
     input.select();
@@ -6226,7 +6070,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     evt.preventDefault();
     evt.dataTransfer.dropEffect = "move";
     const target = evt.target;
-    const item = target.closest(".workspace-sidebar-item");
+    const item = target.closest(".wn-sidebar-item");
     if (!item)
       return;
     const rect = item.getBoundingClientRect();
@@ -6244,7 +6088,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       return;
     const workspaceManager = this.plugin.getWorkspaceManager();
     const target = evt.target;
-    const item = target.closest(".workspace-sidebar-item");
+    const item = target.closest(".wn-sidebar-item");
     if (!item)
       return;
     const rect = item.getBoundingClientRect();
@@ -6269,7 +6113,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     if (this.draggedType === "workspace") {
       evt.preventDefault();
       evt.dataTransfer.dropEffect = "move";
-      const header2 = evt.target.closest(".workspace-sidebar-group-header");
+      const header2 = evt.target.closest(".wn-sidebar-group-header");
       if (header2) {
         header2.addClass("drop-target");
       }
@@ -6281,7 +6125,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       return;
     evt.preventDefault();
     evt.dataTransfer.dropEffect = "move";
-    const header = evt.target.closest(".workspace-sidebar-group-header");
+    const header = evt.target.closest(".wn-sidebar-group-header");
     if (!header)
       return;
     const rect = header.getBoundingClientRect();
@@ -6307,7 +6151,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       return;
     if (targetGroup === NO_GROUP_KEY2)
       return;
-    const header = evt.target.closest(".workspace-sidebar-group-header");
+    const header = evt.target.closest(".wn-sidebar-group-header");
     if (!header)
       return;
     const rect = header.getBoundingClientRect();
@@ -6321,7 +6165,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   onDragLeave(evt) {
     const target = evt.target;
     target.removeClass("drop-above", "drop-below", "drop-target");
-    const item = target.closest(".workspace-sidebar-item, .workspace-sidebar-group-header");
+    const item = target.closest(".wn-sidebar-item, .wn-sidebar-group-header");
     if (item) {
       item.removeClass("drop-above", "drop-below", "drop-target");
     }
@@ -6460,7 +6304,7 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
   async onunload() {
     await this.workspaceManager.saveLog();
     this.updateWorkspaceDataAttribute(null);
-    document.querySelectorAll(".workspace-tab-indicator").forEach((el) => el.remove());
+    document.querySelectorAll(".wn-tab-indicator").forEach((el) => el.remove());
     if (this.autoSaveTimeout) {
       clearTimeout(this.autoSaveTimeout);
       this.autoSaveTimeout = null;
@@ -7222,10 +7066,10 @@ ${JSON.stringify(layout, null, 2)}
     }
     if (!this.statusBarItem) {
       this.statusBarItem = this.addStatusBarItem();
-      this.statusBarItem.addClass("workspace-navigator-status");
-      const icon = this.statusBarItem.createSpan("workspace-navigator-icon");
+      this.statusBarItem.addClass("wn-navigator-status");
+      const icon = this.statusBarItem.createSpan("wn-navigator-icon");
       (0, import_obsidian7.setIcon)(icon, "layout-template");
-      this.statusBarItem.createSpan("workspace-navigator-text");
+      this.statusBarItem.createSpan("wn-navigator-text");
       this.statusBarItem.addEventListener("click", async (evt) => {
         if (evt.shiftKey) {
           const workspaceName2 = this.workspaceManager.getActiveWorkspace();
@@ -7243,7 +7087,7 @@ ${JSON.stringify(layout, null, 2)}
     }
     const workspaceName = this.workspaceManager.getActiveWorkspace();
     const group = workspaceName ? this.workspaceManager.getWorkspaceGroup(workspaceName) : null;
-    const iconEl = this.statusBarItem.querySelector(".workspace-navigator-icon");
+    const iconEl = this.statusBarItem.querySelector(".wn-navigator-icon");
     if (iconEl) {
       const workspaceIcon = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
       const groupIcon = group ? this.workspaceManager.getGroupIcon(group) : null;
@@ -7259,7 +7103,7 @@ ${JSON.stringify(layout, null, 2)}
         iconEl.style.display = "none";
       }
     }
-    const textEl = this.statusBarItem.querySelector(".workspace-navigator-text");
+    const textEl = this.statusBarItem.querySelector(".wn-navigator-text");
     if (textEl) {
       if (!workspaceName) {
         textEl.setText("No workspace");
@@ -7289,13 +7133,13 @@ ${JSON.stringify(layout, null, 2)}
         file.path,
         activeWorkspace
       );
-      const existingIndicator = tabHeader.querySelector(".workspace-tab-indicator");
+      const existingIndicator = tabHeader.querySelector(".wn-tab-indicator");
       if (existingIndicator) {
         existingIndicator.remove();
       }
       if (otherWorkspaces.length > 0) {
         const indicator = document.createElement("div");
-        indicator.addClass("workspace-tab-indicator");
+        indicator.addClass("wn-tab-indicator");
         if (otherWorkspaces.length > 1) {
           indicator.textContent = otherWorkspaces.length.toString();
         } else {

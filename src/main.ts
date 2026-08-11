@@ -100,7 +100,7 @@ export default class WorkspaceNavigator extends Plugin {
 
 		// Remove tab indicators we injected into other plugins' tab headers;
 		// otherwise stale badges linger after the plugin is disabled/updated.
-		document.querySelectorAll('.workspace-tab-indicator').forEach(el => el.remove());
+		document.querySelectorAll('.wn-tab-indicator').forEach(el => el.remove());
 
 		// Clean up auto-save timeout
 		if (this.autoSaveTimeout) {
@@ -1013,14 +1013,14 @@ export default class WorkspaceNavigator extends Plugin {
 
 		if (!this.statusBarItem) {
 			this.statusBarItem = this.addStatusBarItem();
-			this.statusBarItem.addClass('workspace-navigator-status');
+			this.statusBarItem.addClass('wn-navigator-status');
 
 			// Add icon
-			const icon = this.statusBarItem.createSpan('workspace-navigator-icon');
+			const icon = this.statusBarItem.createSpan('wn-navigator-icon');
 			setIcon(icon, 'layout-template');
 
 			// Add text element
-			this.statusBarItem.createSpan('workspace-navigator-text');
+			this.statusBarItem.createSpan('wn-navigator-text');
 
 			// Add click handler
 			this.statusBarItem.addEventListener('click', async (evt: MouseEvent) => {
@@ -1048,7 +1048,7 @@ export default class WorkspaceNavigator extends Plugin {
 		// Update icon: prefer the active workspace's own icon, then its group's.
 		// With neither, hide the icon entirely — the fallback glyph just reads
 		// as an empty square at text size. Colors follow the same precedence.
-		const iconEl = this.statusBarItem.querySelector('.workspace-navigator-icon') as HTMLElement;
+		const iconEl = this.statusBarItem.querySelector('.wn-navigator-icon') as HTMLElement;
 		if (iconEl) {
 			const workspaceIcon = workspaceName ? this.workspaceManager.getWorkspaceIcon(workspaceName) : null;
 			const groupIcon = group ? this.workspaceManager.getGroupIcon(group) : null;
@@ -1069,7 +1069,7 @@ export default class WorkspaceNavigator extends Plugin {
 		}
 
 		// Update text
-		const textEl = this.statusBarItem.querySelector('.workspace-navigator-text') as HTMLElement;
+		const textEl = this.statusBarItem.querySelector('.wn-navigator-text') as HTMLElement;
 		if (textEl) {
 			if (!workspaceName) {
 				textEl.setText('No workspace');
@@ -1105,7 +1105,7 @@ export default class WorkspaceNavigator extends Plugin {
 			);
 
 			// Remove existing indicator
-			const existingIndicator = tabHeader.querySelector('.workspace-tab-indicator');
+			const existingIndicator = tabHeader.querySelector('.wn-tab-indicator');
 			if (existingIndicator) {
 				existingIndicator.remove();
 			}
@@ -1113,7 +1113,7 @@ export default class WorkspaceNavigator extends Plugin {
 			// Add indicator if file is in other workspaces
 			if (otherWorkspaces.length > 0) {
 				const indicator = document.createElement('div');
-				indicator.addClass('workspace-tab-indicator');
+				indicator.addClass('wn-tab-indicator');
 
 				// Show count if more than one
 				if (otherWorkspaces.length > 1) {

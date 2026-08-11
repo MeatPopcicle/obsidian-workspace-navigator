@@ -142,7 +142,7 @@ settings:
 /* Status Bar                                                                   */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-navigator-status {
+.wn-navigator-status {
 	display: flex;
 	align-items: center;
 	gap: 4px;
@@ -151,23 +151,23 @@ settings:
 	transition: background-color 0.2s;
 }
 
-.workspace-navigator-status:hover {
+.wn-navigator-status:hover {
 	background-color: var(--wn-hover, var(--background-modifier-hover));
 }
 
-.workspace-navigator-icon {
+.wn-navigator-icon {
 	display: flex;
 	align-items: center;
 	/* Match the status-bar text size so custom workspace/group icons don't tower over it */
 	font-size: var(--font-ui-smaller);
 }
 
-.workspace-navigator-icon svg {
+.wn-navigator-icon svg {
 	width: 1em;
 	height: 1em;
 }
 
-.workspace-navigator-text {
+.wn-navigator-text {
 	font-size: var(--font-ui-smaller);
 }
 
@@ -176,55 +176,139 @@ settings:
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 /* Transparent modal (optional setting) */
-.modal-container:has(.workspace-switcher-modal-transparent) .modal-bg {
+.modal-container:has(.wn-switcher-modal-transparent) .modal-bg {
 	background-color: transparent;
 }
 
-.workspace-switcher-modal-transparent,
-.workspace-switcher-modal-transparent .prompt,
-.workspace-switcher-modal-transparent .prompt-input-container,
-.workspace-switcher-modal-transparent .suggestion-container,
-.workspace-switcher-modal-transparent .prompt-results {
+.wn-switcher-modal-transparent,
+.wn-switcher-modal-transparent .prompt,
+.wn-switcher-modal-transparent .prompt-input-container,
+.wn-switcher-modal-transparent .suggestion-container,
+.wn-switcher-modal-transparent .prompt-results {
 	background-color: transparent !important;
 	box-shadow: none !important;
 	border: none !important;
 }
 
-/* Group headers use inline styles for base styling (see group-header.ts)
-   CSS classes here are for interactive states only */
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Design tokens (kit scale). Declared on the plugin's container class, never  */
+/* on :root. Applied to: sidebar view, settings tab, and all owned modals.     */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-group-header,
-.workspace-editor-group-header {
-	/* Base styles applied via inline JS - these are fallbacks/transitions only */
+.wn-root {
+	--wn-space-1: 4px;
+	--wn-space-2: 8px;
+	--wn-space-3: 16px;
+	--wn-radius-s: var(--radius-s, 4px);
+	--wn-radius-m: var(--radius-m, 8px);
+	--wn-font-label: var(--font-smallest);
+	--wn-font-body: var(--font-ui-small);
+}
+
+/* Group header interactive states */
+
+.wn-group-header,
+.wn-editor-group-header {
 	transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
+/* Group header card base (moved here from inline JS in group-header.ts) */
+.wn-group-header-card {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	padding: 8px 75px 8px 16px;  /* Right padding for 2 buttons (edit + delete) */
+	margin-top: 8px;
+	font-weight: normal;
+	color: var(--text-muted);
+	background-color: var(--background-primary-alt);
+	border: 1px solid var(--background-modifier-border);
+	/* Expanded with workspaces: card top only, rows continue below */
+	border-radius: 6px 6px 0 0;
+	border-bottom: none;
+}
+
+/* Collapsed, or expanded-but-empty: the header is the whole card */
+.wn-group-header-card.is-standalone {
+	border-radius: 6px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.wn-group-header-card .wn-group-icon {
+	justify-content: center;
+	width: 24px;
+}
+
+.wn-group-header-card .wn-group-icon svg,
+.wn-group-header-card .wn-group-chevron svg,
+.wn-group-header-card .wn-group-edit-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
+.wn-group-icon.is-default {
+	opacity: 0.4;
+}
+
+/* Per-row action buttons in the switcher (moved here from inline JS) */
+.wn-row-action-btn {
+	position: absolute;
+	top: 50%;
+	transform: translateY(-50%);
+	padding: 2px;
+	cursor: pointer;
+	color: var(--text-muted);
+	transition: color 0.15s;
+}
+
+.wn-row-action-btn svg {
+	width: 16px;
+	height: 16px;
+}
+
+.wn-row-delete {
+	right: 11px;
+}
+
+.wn-row-delete:hover {
+	color: var(--text-error);
+}
+
+.wn-row-edit {
+	right: 32px;
+}
+
+.wn-row-edit:hover {
+	color: var(--text-accent-hover);
+}
+
 /* Drag-and-drop: group header as drop target */
-.workspace-group-header.drag-over,
-.workspace-editor-group-header.drag-over {
+.wn-group-header.drag-over,
+.wn-editor-group-header.drag-over {
 	background-color: hsla(var(--interactive-accent-hsl), 0.15) !important;
 	border-color: var(--interactive-accent);
 }
 
 /* Drag-and-drop: group header drop indicators */
-.workspace-group-header.drop-target-above,
-.workspace-editor-group-header.drop-target-above {
+.wn-group-header.drop-target-above,
+.wn-editor-group-header.drop-target-above {
 	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
 }
 
-.workspace-group-header.drop-target-below,
-.workspace-editor-group-header.drop-target-below {
+.wn-group-header.drop-target-below,
+.wn-editor-group-header.drop-target-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 /* Drag-and-drop: group header being dragged */
-.workspace-group-header.is-dragging,
-.workspace-editor-group-header.is-dragging {
+.wn-group-header.is-dragging,
+.wn-editor-group-header.is-dragging {
 	opacity: 0.3;
 }
 
 /* Drag handle for reordering groups */
-.workspace-group-drag-handle {
+.wn-group-drag-handle {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -233,86 +317,92 @@ settings:
 	margin-right: 4px;
 }
 
-.workspace-group-drag-handle:hover {
+.wn-group-drag-handle:hover {
 	opacity: 0.8;
 }
 
-.workspace-group-drag-handle svg {
+.wn-group-drag-handle svg {
 	width: 14px;
 	height: 14px;
 }
 
-.workspace-group-icon {
+.wn-group-icon {
 	display: inline-flex;
 	align-items: center;
 }
 
-.workspace-group-icon svg {
+.wn-group-icon svg {
 	width: 1em;
 	height: 1em;
 }
 
-.workspace-group-text {
+.wn-group-text {
 	flex: 1;
 }
 
-.workspace-group-chevron {
+.wn-group-chevron {
 	display: inline-flex;
 	align-items: center;
 	fill: var(--text-muted);
+	color: var(--text-muted);
 	cursor: pointer;
-	transition: fill 0.15s;
+	transition: fill 0.15s, color 0.15s;
 }
 
-.workspace-group-chevron:hover {
+.wn-group-chevron:hover {
 	fill: var(--text-accent-hover);
+	color: var(--text-accent-hover);
 }
 
-.workspace-group-count {
+.wn-group-count {
 	color: var(--text-faint);
 	font-size: 0.9em;
 	margin-left: 0.3em;
 }
 
-.workspace-group-edit-btn {
+.wn-group-edit-btn {
 	position: absolute;
 	top: 50%;
 	transform: translateY(-50%);
 	display: inline-flex;
 	align-items: center;
 	fill: var(--text-muted);
+	color: var(--text-muted);
 	cursor: pointer;
 	padding: 2px;
-	transition: fill 0.15s;
+	transition: fill 0.15s, color 0.15s;
 }
 
 /* Position group buttons: delete=11px, edit=32px (matching workspace buttons) */
-.workspace-group-rename-btn {
+.wn-group-rename-btn {
 	right: 32px;
 }
 
-.workspace-group-delete-btn {
+.wn-group-delete-btn {
 	right: 11px;
 }
 
-.workspace-group-edit-btn:hover {
+.wn-group-edit-btn:hover {
 	fill: var(--text-accent-hover);
+	color: var(--text-accent-hover);
 }
 
-.workspace-group-delete-btn:hover:not(.workspace-group-edit-btn-disabled) {
+.wn-group-delete-btn:hover:not(.wn-group-edit-btn-disabled) {
 	fill: var(--text-error);
+	color: var(--text-error);
 }
 
-.workspace-group-edit-btn-disabled {
+.wn-group-edit-btn-disabled {
 	opacity: 0.25;
 	cursor: default;
 }
 
-.workspace-group-edit-btn-disabled:hover {
+.wn-group-edit-btn-disabled:hover {
 	fill: var(--text-muted);
+	color: var(--text-muted);
 }
 
-.workspace-color-none {
+.wn-color-none {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -321,48 +411,48 @@ settings:
 }
 
 /* Group header rename mode */
-.workspace-group-header.is-renaming .workspace-group-text {
+.wn-group-header.is-renaming .wn-group-text {
 	outline: none;
 }
 
-.workspace-group-header.is-renaming .workspace-group-edit-btn {
+.wn-group-header.is-renaming .wn-group-edit-btn {
 	display: none;
 }
 
 /* Workspace item structural styles are now inline (theme-proof, fixed px) */
 /* Only keeping overrides for Obsidian defaults that need !important */
-.workspace-suggestion-item.in-group {
+.wn-suggestion-item.in-group {
 	border-radius: 0 !important;  /* Override Obsidian's default suggestion item rounding */
 	margin: 0 !important;  /* Remove gaps between rows */
 }
 
 /* Hide visual handles - drag from entire row instead */
-.workspace-suggestion-item .workspace-drag-handle,
-.workspace-group-drag-handle {
+.wn-suggestion-item .wn-drag-handle,
+.wn-group-drag-handle {
 	display: none !important;
 }
 
 /* Entire row is draggable (no visual cursor change per user preference) */
 
 /* Last item in group card - close the card with bottom border and rounded corners */
-.workspace-suggestion-item.in-group-last {
+.wn-suggestion-item.in-group-last {
 	border-bottom: 1px solid var(--background-modifier-border);
 	border-radius: 0 0 6px 6px !important;  /* Rounded bottom corners only */
 	margin-bottom: 4px !important;
 }
 
-.workspace-suggestion-item.is-active {
+.wn-suggestion-item.is-active {
 	background: var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12));
 	box-shadow: inset calc(var(--wn-bar-width, 3) * 1px) 0 0 0 var(--wn-active-bar, var(--interactive-accent));
 }
 
 /* Active workspace handle - more prominent */
-.workspace-suggestion-item.is-active .workspace-drag-handle {
+.wn-suggestion-item.is-active .wn-drag-handle {
 	opacity: 1;
 	color: var(--interactive-accent);
 }
 
-.workspace-suggestion-item.is-active .workspace-drag-handle svg {
+.wn-suggestion-item.is-active .wn-drag-handle svg {
 	stroke-width: 3;
 	filter: drop-shadow(0 0 2px var(--interactive-accent));
 }
@@ -370,7 +460,7 @@ settings:
 /* Drag-and-drop: workspace item being dragged - no visual change, ghost is enough */
 
 /* Drag handle for moving workspace between groups */
-.workspace-drag-handle {
+.wn-drag-handle {
 	position: absolute;
 	left: 0.3em;
 	top: 50%;
@@ -384,17 +474,17 @@ settings:
 	transition: opacity 0.15s;
 }
 
-.workspace-drag-handle:hover {
+.wn-drag-handle:hover {
 	opacity: 0.8;
 }
 
-.workspace-drag-handle svg {
+.wn-drag-handle svg {
 	width: 14px;
 	height: 14px;
 }
 
 /* Drag ghost - follows cursor */
-.workspace-drag-ghost {
+.wn-drag-ghost {
 	position: fixed;
 	z-index: 10000;
 	display: flex;
@@ -404,35 +494,35 @@ settings:
 	background: var(--background-primary);
 	border: 1px solid var(--interactive-accent);
 	border-radius: 4px;
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+	box-shadow: 0 4px 12px var(--background-modifier-box-shadow);
 	font-size: var(--font-ui-small);
 	pointer-events: none;
 	white-space: nowrap;
 }
 
-.workspace-drag-ghost-handle {
+.wn-drag-ghost-handle {
 	display: flex;
 	align-items: center;
 	opacity: 0.5;
 }
 
-.workspace-drag-ghost-handle svg {
+.wn-drag-ghost-handle svg {
 	width: 14px;
 	height: 14px;
 }
 
 /* Drop indicator - border on target row */
-.workspace-suggestion-item.drop-target-above {
+.wn-suggestion-item.drop-target-above {
 	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
 }
 
-.workspace-suggestion-item.drop-target-below {
+.wn-suggestion-item.drop-target-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
-.workspace-delete-btn,
-.workspace-duplicate-btn,
-.workspace-rename-btn {
+.wn-delete-btn,
+.wn-duplicate-btn,
+.wn-rename-btn {
 	position: absolute;
 	top: 50%;
 	transform: translateY(-50%);
@@ -443,24 +533,24 @@ settings:
 	transition: opacity 0.15s, fill 0.15s;
 }
 
-.workspace-delete-btn {
+.wn-delete-btn {
 	right: 0.7em;
 }
 
-.workspace-rename-btn {
+.wn-rename-btn {
 	right: 2em;
 }
 
-.workspace-delete-btn:hover {
+.wn-delete-btn:hover {
 	fill: var(--text-error);
 }
 
-.workspace-rename-btn:hover {
+.wn-rename-btn:hover {
 	fill: var(--text-accent-hover);
 }
 
 /* Fixed-width icon column - always same width for alignment */
-.workspace-icon-column {
+.wn-icon-column {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -469,30 +559,16 @@ settings:
 	vertical-align: middle;
 }
 
-.workspace-icon-column svg {
+.wn-icon-column svg {
 	width: 1em;
 	height: 1em;
 }
 
-/* Legacy inline icon class */
-.workspace-icon {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	margin-right: 0.4em;
-	font-size: 1.1em;
-	font-family: var(--font-monospace);
-	line-height: 1;
-	vertical-align: middle;
-	height: 1em;
-	overflow: visible;
-}
-
-.workspace-name-text {
+.wn-name-text {
 	display: inline-block;
 }
 
-.workspace-rename-input {
+.wn-rename-input {
 	background: var(--background-modifier-form-field);
 	border: 1px solid var(--interactive-accent);
 	border-radius: 4px;
@@ -504,18 +580,18 @@ settings:
 	box-shadow: 0 0 0 3px hsla(var(--accent-hsl), 0.15);
 }
 
-.workspace-rename-input:focus {
+.wn-rename-input:focus {
 	outline: none;
 }
 
 
 /* Hide delete button during rename, but keep rename button visible */
-.workspace-suggestion-item.is-renaming .workspace-delete-btn {
+.wn-suggestion-item.is-renaming .wn-delete-btn {
 	display: none;
 }
 
 /* Keep rename button visible and change it to a confirm checkmark */
-.workspace-suggestion-item.is-renaming .workspace-rename-btn {
+.wn-suggestion-item.is-renaming .wn-rename-btn {
 	opacity: 1;
 	fill: var(--text-success);
 }
@@ -524,31 +600,31 @@ settings:
 /* Icon Picker Modal                                                            */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-icon-picker h3 {
+.wn-icon-picker h3 {
 	margin-top: 0;
 	margin-bottom: 0.5em;
 }
 
-.workspace-icon-note {
+.wn-icon-note {
 	color: var(--text-muted);
 	font-size: 0.85em;
 	font-style: italic;
 	margin-bottom: 1em;
 }
 
-.workspace-icon-input {
+.wn-icon-input {
 	font-size: 1.5em;
 	text-align: center;
 	width: 4em !important;
 }
 
-.workspace-icon-label {
+.wn-icon-label {
 	margin: 1em 0 0.5em;
 	color: var(--text-muted);
 	font-size: 0.9em;
 }
 
-.workspace-icon-grid {
+.wn-icon-grid {
 	display: grid;
 	grid-template-columns: repeat(8, 1fr);
 	gap: 4px;
@@ -560,7 +636,7 @@ settings:
 	margin-bottom: 1em;
 }
 
-.workspace-icon-btn-grid {
+.wn-icon-btn-grid {
 	font-size: 1.4em;
 	padding: 6px;
 	border: none;
@@ -570,16 +646,16 @@ settings:
 	transition: background-color 0.15s;
 }
 
-.workspace-icon-btn-grid:hover {
+.wn-icon-btn-grid:hover {
 	background-color: var(--wn-hover, var(--background-modifier-hover));
 }
 
-.workspace-icon-btn-grid.is-selected {
+.wn-icon-btn-grid.is-selected {
 	background-color: var(--interactive-accent);
 }
 
 /* Style Preview */
-.workspace-style-preview-container {
+.wn-style-preview-container {
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -592,21 +668,21 @@ settings:
 	font-size: 1.4em;
 }
 
-.workspace-style-preview-icon {
+.wn-style-preview-icon {
 	display: flex;
 	align-items: center;
 }
 
-.workspace-style-preview-icon svg {
+.wn-style-preview-icon svg {
 	width: 1.2em;
 	height: 1.2em;
 }
 
-.workspace-style-preview-name {
+.wn-style-preview-name {
 	/* Inherits styles from inline */
 }
 
-.workspace-style-section {
+.wn-style-section {
 	margin-top: 1.5em;
 	margin-bottom: 0.5em;
 	border-bottom: 1px solid var(--background-modifier-border);
@@ -617,22 +693,22 @@ settings:
 /* Style Picker Modal Cards                                                     */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-style-picker {
+.wn-style-picker {
 	/* Modal-level styling */
 }
 
-.workspace-style-picker h3 {
+.wn-style-picker h3 {
 	margin-top: 0;
 	margin-bottom: 1em;
 }
 
 /* Remove hr dividers in favor of cards */
-.workspace-style-picker hr {
+.wn-style-picker hr {
 	display: none;
 }
 
 /* Card section containers */
-.workspace-style-card {
+.wn-style-card {
 	background: var(--background-secondary);
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 8px;
@@ -640,12 +716,12 @@ settings:
 	margin-bottom: 12px;
 }
 
-.workspace-style-card:last-of-type {
+.wn-style-card:last-of-type {
 	margin-bottom: 16px;
 }
 
 /* Card label/title */
-.workspace-style-card-label {
+.wn-style-card-label {
 	font-size: 0.75em;
 	font-weight: 600;
 	text-transform: uppercase;
@@ -655,38 +731,38 @@ settings:
 }
 
 /* Settings inside cards - reduce padding and fix alignment */
-.workspace-style-card .setting-item {
+.wn-style-card .setting-item {
 	border: none;
 	padding: 4px 0;
 }
 
-.workspace-style-card .setting-item:last-child {
+.wn-style-card .setting-item:last-child {
 	padding-bottom: 0;
 }
 
 /* Make text inputs in General card stretch to fill available space */
-.workspace-style-card .setting-item-info {
+.wn-style-card .setting-item-info {
 	flex: 0 0 80px;
 }
 
-.workspace-style-card .setting-item-control {
+.wn-style-card .setting-item-control {
 	flex: 1;
 	justify-content: flex-start;
 	gap: 8px;
 }
 
-.workspace-style-card .setting-item-control input[type="text"] {
+.wn-style-card .setting-item-control input[type="text"] {
 	flex: 1;
 	max-width: none;
 	width: auto !important;
 }
 
-.workspace-style-card .setting-item-control .dropdown {
+.wn-style-card .setting-item-control .dropdown {
 	flex: 0 0 auto;
 }
 
 /* Icon grid inside card */
-.workspace-style-card .workspace-icon-grid {
+.wn-style-card .wn-icon-grid {
 	border: none;
 	padding: 0;
 	margin-bottom: 8px;
@@ -698,21 +774,21 @@ settings:
 /* ─────────────────────────────────────────────────────────────────────────── */
 
 /* Top actions - positioned at top-right of results */
-.workspace-actions-top {
+.wn-actions-top {
 	display: flex;
 	justify-content: flex-end;
 	padding: 4px 8px 2px;
 }
 
 /* Bottom actions - positioned at bottom-right of results */
-.workspace-actions-bottom {
+.wn-actions-bottom {
 	display: flex;
 	justify-content: flex-end;
 	gap: 4px;
 	padding: 4px 8px 6px;
 }
 
-.workspace-action-btn {
+.wn-action-btn {
 	display: inline-flex;
 	align-items: center;
 	gap: 4px;
@@ -726,19 +802,19 @@ settings:
 	transition: color 0.1s, background-color 0.1s;
 }
 
-.workspace-action-btn svg {
+.wn-action-btn svg {
 	width: 12px;
 	height: 12px;
 	flex-shrink: 0;
 }
 
-.workspace-action-btn:hover {
+.wn-action-btn:hover {
 	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
 /* Expand/Collapse button - icon only, circular */
-.workspace-action-btn.btn-expand-collapse {
+.wn-action-btn.btn-expand-collapse {
 	width: 24px;
 	height: 24px;
 	padding: 0;
@@ -748,38 +824,38 @@ settings:
 	justify-content: center;
 }
 
-.workspace-action-btn.btn-expand-collapse svg {
+.wn-action-btn.btn-expand-collapse svg {
 	width: 14px;
 	height: 14px;
 }
 
-.workspace-action-btn.btn-expand-collapse:hover {
+.wn-action-btn.btn-expand-collapse:hover {
 	color: var(--interactive-accent);
 }
 
 /* Add Group button */
-.workspace-action-btn.btn-add-group:hover {
-	color: #4ade80;
+.wn-action-btn.btn-add-group:hover {
+	color: var(--color-green);
 }
 
 /* Add Workspace button */
-.workspace-action-btn.btn-add-workspace:hover {
-	color: #c4b5fd;
+.wn-action-btn.btn-add-workspace:hover {
+	color: var(--color-purple);
 }
 
 /* Settings button */
-.workspace-action-btn.btn-settings:hover {
+.wn-action-btn.btn-settings:hover {
 	color: var(--text-normal);
 }
 
 /* Legacy - keep for compatibility */
-.workspace-icon-preview-container {
+.wn-icon-preview-container {
 	display: flex;
 	justify-content: center;
 	margin-bottom: 1em;
 }
 
-.workspace-icon-preview {
+.wn-icon-preview {
 	font-size: 3em;
 	padding: 0.3em 0.5em;
 	border: 1px solid var(--background-modifier-border);
@@ -788,20 +864,20 @@ settings:
 }
 
 /* Color Picker */
-.workspace-color-row {
+.wn-color-row {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	margin-bottom: 1em;
 }
 
-.workspace-color-swatches {
+.wn-color-swatches {
 	display: flex;
 	gap: 4px;
 	flex-wrap: wrap;
 }
 
-.workspace-color-swatch {
+.wn-color-swatch {
 	width: 24px;
 	height: 24px;
 	border: 2px solid var(--background-modifier-border);
@@ -811,16 +887,16 @@ settings:
 	transition: transform 0.1s, border-color 0.1s;
 }
 
-.workspace-color-swatch:hover {
+.wn-color-swatch:hover {
 	transform: scale(1.1);
 }
 
-.workspace-color-swatch.is-selected {
+.wn-color-swatch.is-selected {
 	border-color: var(--interactive-accent);
 	box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
-.workspace-color-input {
+.wn-color-input {
 	width: 32px;
 	height: 24px;
 	border: none;
@@ -833,43 +909,43 @@ settings:
 /* Workspace Picker Modal (Send note to workspace)                              */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-picker-item {
+.wn-picker-item {
 	display: flex;
 	align-items: center;
 	gap: 0.5em;
 }
 
-.workspace-picker-icon {
+.wn-picker-icon {
 	display: inline-flex;
 	align-items: center;
 }
 
-.workspace-picker-icon svg {
+.wn-picker-icon svg {
 	width: 1em;
 	height: 1em;
 }
 
-.workspace-picker-name {
+.wn-picker-name {
 	flex: 1;
 }
 
-.workspace-picker-has-file {
+.wn-picker-has-file {
 	display: inline-flex;
 	align-items: center;
 	color: var(--text-accent);
 }
 
-.workspace-picker-has-file svg {
+.wn-picker-has-file svg {
 	width: 16px;
 	height: 16px;
 }
 
-.workspace-picker-disabled {
+.wn-picker-disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
 
-.workspace-picker-group {
+.wn-picker-group {
 	color: var(--text-faint);
 	font-size: 0.8em;
 	background: var(--background-secondary);
@@ -881,7 +957,7 @@ settings:
 /* Tab Indicators (file open in other workspaces)                               */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-tab-indicator {
+.wn-tab-indicator {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -897,7 +973,7 @@ settings:
 	cursor: help;
 }
 
-.workspace-tab-indicator svg {
+.wn-tab-indicator svg {
 	width: 10px;
 	height: 10px;
 }
@@ -906,7 +982,7 @@ settings:
 /* Sidebar Navigator View                                                       */
 /* ─────────────────────────────────────────────────────────────────────────── */
 
-.workspace-navigator-sidebar {
+.wn-navigator-sidebar {
 	height: 100%;
 	display: flex;
 	flex-direction: column;
@@ -914,19 +990,19 @@ settings:
 }
 
 /* Header with action buttons */
-.workspace-sidebar-header {
+.wn-sidebar-header {
 	display: flex;
 	justify-content: flex-end;
 	padding: 6px 8px;
 	border-bottom: 1px solid var(--background-modifier-border);
 }
 
-.workspace-sidebar-actions {
+.wn-sidebar-actions {
 	display: flex;
 	gap: 4px;
 }
 
-.workspace-sidebar-action-btn {
+.wn-sidebar-action-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -941,30 +1017,30 @@ settings:
 	transition: background-color 0.1s, color 0.1s;
 }
 
-.workspace-sidebar-action-btn svg {
+.wn-sidebar-action-btn svg {
 	width: 14px;
 	height: 14px;
 }
 
-.workspace-sidebar-action-btn:hover {
+.wn-sidebar-action-btn:hover {
 	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
 /* Tree container */
-.workspace-sidebar-tree {
+.wn-sidebar-tree {
 	flex: 1;
 	overflow-y: auto;
 	padding: 4px 0;
 }
 
 /* Group container */
-.workspace-sidebar-group {
+.wn-sidebar-group {
 	margin-bottom: 2px;
 }
 
 /* Group header */
-.workspace-sidebar-group-header {
+.wn-sidebar-group-header {
 	display: flex;
 	align-items: center;
 	gap: 4px;
@@ -975,28 +1051,28 @@ settings:
 	transition: background-color 0.1s;
 }
 
-.workspace-sidebar-group-header:hover {
+.wn-sidebar-group-header:hover {
 	background: var(--wn-hover, var(--background-modifier-hover));
 }
 
-.workspace-sidebar-group-header.is-dragging {
+.wn-sidebar-group-header.is-dragging {
 	opacity: 0.3;
 }
 
-.workspace-sidebar-group-header.drop-above {
+.wn-sidebar-group-header.drop-above {
 	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
 }
 
-.workspace-sidebar-group-header.drop-below {
+.wn-sidebar-group-header.drop-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
-.workspace-sidebar-group-header.drop-target {
+.wn-sidebar-group-header.drop-target {
 	background: hsla(var(--interactive-accent-hsl), 0.15);
 }
 
 /* Chevron */
-.workspace-sidebar-chevron {
+.wn-sidebar-chevron {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1006,13 +1082,13 @@ settings:
 	flex-shrink: 0;
 }
 
-.workspace-sidebar-chevron svg {
+.wn-sidebar-chevron svg {
 	width: 12px;
 	height: 12px;
 }
 
 /* Group icon */
-.workspace-sidebar-group-icon {
+.wn-sidebar-group-icon {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1021,13 +1097,13 @@ settings:
 	flex-shrink: 0;
 }
 
-.workspace-sidebar-group-icon svg {
+.wn-sidebar-group-icon svg {
 	width: 14px;
 	height: 14px;
 }
 
 /* Group name */
-.workspace-sidebar-group-name {
+.wn-sidebar-group-name {
 	flex: 1;
 	font-size: calc(var(--font-ui-small) * var(--wn-font-scale, 1));
 	color: var(--text-muted);
@@ -1037,21 +1113,21 @@ settings:
 }
 
 /* Count badge */
-.workspace-sidebar-count {
+.wn-sidebar-count {
 	font-size: var(--font-ui-smaller);
 	color: var(--wn-count-color, var(--text-faint));
 	margin-left: 4px;
 }
 
 /* Workspaces container - tree structure under groups */
-.workspace-sidebar-workspaces {
+.wn-sidebar-workspaces {
 	position: relative;
 	padding-left: 44px;
 	margin-left: 8px;
 }
 
 /* Vertical guide line for workspaces under groups - centered under group icon */
-.workspace-sidebar-workspaces::before {
+.wn-sidebar-workspaces::before {
 	content: '';
 	position: absolute;
 	left: 28px;
@@ -1062,7 +1138,7 @@ settings:
 }
 
 /* Workspace item */
-.workspace-sidebar-item {
+.wn-sidebar-item {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -1075,7 +1151,7 @@ settings:
 }
 
 /* Horizontal guide line connecting workspace to vertical line */
-.workspace-sidebar-item::before {
+.wn-sidebar-item::before {
 	content: '';
 	position: absolute;
 	left: -16px;
@@ -1085,7 +1161,7 @@ settings:
 	background: var(--wn-guide-color, var(--background-modifier-border));
 }
 
-.workspace-sidebar-item:hover {
+.wn-sidebar-item:hover {
 	background: var(--wn-hover, var(--background-modifier-hover));
 }
 
@@ -1093,13 +1169,13 @@ settings:
    does NOT touch the name's color or weight, so a workspace's custom text
    styling always shows through. Applied only when the "highlight active
    workspace" setting is on (the .is-active class is added conditionally). */
-.workspace-sidebar-item.is-active {
+.wn-sidebar-item.is-active {
 	background: var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12));
 	box-shadow: inset calc(var(--wn-bar-width, 3) * 1px) 0 0 0 var(--wn-active-bar, var(--interactive-accent));
 }
 
 /* Active-workspace "you are here" checkmark (sidebar + switcher modal) */
-.workspace-sidebar-active-check {
+.wn-sidebar-active-check {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1108,30 +1184,30 @@ settings:
 	margin-left: 4px;
 }
 
-.workspace-sidebar-active-check svg {
+.wn-sidebar-active-check svg {
 	width: calc(var(--wn-check-size, 14) * 1px);
 	height: calc(var(--wn-check-size, 14) * 1px);
 }
 
-.workspace-active-check svg {
+.wn-active-check svg {
 	width: calc(var(--wn-check-size, 14) * 1px);
 	height: calc(var(--wn-check-size, 14) * 1px);
 }
 
-.workspace-sidebar-item.is-dragging {
+.wn-sidebar-item.is-dragging {
 	opacity: 0.3;
 }
 
-.workspace-sidebar-item.drop-above {
+.wn-sidebar-item.drop-above {
 	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
 }
 
-.workspace-sidebar-item.drop-below {
+.wn-sidebar-item.drop-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 /* Workspace icon */
-.workspace-sidebar-item-icon {
+.wn-sidebar-item-icon {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1140,13 +1216,13 @@ settings:
 	flex-shrink: 0;
 }
 
-.workspace-sidebar-item-icon svg {
+.wn-sidebar-item-icon svg {
 	width: 14px;
 	height: 14px;
 }
 
 /* Workspace name */
-.workspace-sidebar-item-name {
+.wn-sidebar-item-name {
 	flex: 1;
 	font-size: calc(var(--font-ui-small) * var(--wn-font-scale, 1));
 	white-space: nowrap;
@@ -1155,7 +1231,7 @@ settings:
 }
 
 /* Inline rename input */
-.workspace-sidebar-rename-input {
+.wn-sidebar-rename-input {
 	flex: 1;
 	background: var(--background-modifier-form-field);
 	border: 1px solid var(--interactive-accent);
@@ -1167,13 +1243,13 @@ settings:
 	box-shadow: 0 0 0 2px hsla(var(--accent-hsl), 0.15);
 }
 
-.workspace-sidebar-rename-input:focus {
+.wn-sidebar-rename-input:focus {
 	outline: none;
 }
 
 /* Action buttons on items (edit, delete) */
-.workspace-sidebar-group-actions,
-.workspace-sidebar-item-actions {
+.wn-sidebar-group-actions,
+.wn-sidebar-item-actions {
 	display: flex;
 	gap: 2px;
 	margin-left: auto;
@@ -1181,14 +1257,17 @@ settings:
 	transition: opacity 0.1s;
 }
 
-.workspace-sidebar-group-header:hover .workspace-sidebar-group-actions,
-.workspace-sidebar-item:hover .workspace-sidebar-item-actions,
-.workspace-sidebar-group-header.is-renaming .workspace-sidebar-group-actions,
-.workspace-sidebar-item.is-renaming .workspace-sidebar-item-actions {
+.wn-sidebar-group-header:hover .wn-sidebar-group-actions,
+.wn-sidebar-item:hover .wn-sidebar-item-actions,
+.wn-sidebar-group-header.is-renaming .wn-sidebar-group-actions,
+.wn-sidebar-item.is-renaming .wn-sidebar-item-actions,
+/* Keyboard parity: reveal hover-only action buttons when focus is inside the row */
+.wn-sidebar-group-header:focus-within .wn-sidebar-group-actions,
+.wn-sidebar-item:focus-within .wn-sidebar-item-actions {
 	opacity: 1;
 }
 
-.workspace-sidebar-item-btn {
+.wn-sidebar-item-btn {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1203,22 +1282,22 @@ settings:
 	transition: background-color 0.1s, color 0.1s;
 }
 
-.workspace-sidebar-item-btn svg {
+.wn-sidebar-item-btn svg {
 	width: 12px;
 	height: 12px;
 }
 
-.workspace-sidebar-item-btn:hover {
+.wn-sidebar-item-btn:hover {
 	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
-.workspace-sidebar-delete-btn:hover {
+.wn-sidebar-delete-btn:hover {
 	color: var(--text-error);
 }
 
 /* Workspace chevron for expanding files */
-.workspace-sidebar-ws-chevron {
+.wn-sidebar-ws-chevron {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1229,32 +1308,32 @@ settings:
 	cursor: pointer;
 }
 
-.workspace-sidebar-ws-chevron svg {
+.wn-sidebar-ws-chevron svg {
 	width: 10px;
 	height: 10px;
 }
 
-.workspace-sidebar-ws-chevron-spacer {
+.wn-sidebar-ws-chevron-spacer {
 	width: 16px;
 	flex-shrink: 0;
 }
 
 /* File count badge */
-.workspace-sidebar-file-count {
+.wn-sidebar-file-count {
 	font-size: var(--font-ui-smaller);
 	color: var(--wn-count-color, var(--text-faint));
 	margin-left: 4px;
 }
 
 /* Files container */
-.workspace-sidebar-files {
+.wn-sidebar-files {
 	position: relative;
 	padding-left: 52px;
 	margin-left: 8px;
 }
 
 /* Tree guide line (vertical) - centered under workspace icon */
-.workspace-sidebar-files::before {
+.wn-sidebar-files::before {
 	content: '';
 	position: absolute;
 	left: 32px;
@@ -1265,7 +1344,7 @@ settings:
 }
 
 /* Individual file item */
-.workspace-sidebar-file-item {
+.wn-sidebar-file-item {
 	position: relative;
 	display: flex;
 	align-items: center;
@@ -1278,7 +1357,7 @@ settings:
 }
 
 /* Horizontal guide line to each file */
-.workspace-sidebar-file-item::before {
+.wn-sidebar-file-item::before {
 	content: '';
 	position: absolute;
 	left: -20px;
@@ -1288,16 +1367,16 @@ settings:
 	background: var(--wn-guide-color, var(--background-modifier-border));
 }
 
-.workspace-sidebar-file-item.is-clickable {
+.wn-sidebar-file-item.is-clickable {
 	cursor: pointer;
 }
 
-.workspace-sidebar-file-item.is-clickable:hover {
+.wn-sidebar-file-item.is-clickable:hover {
 	background: var(--wn-hover, var(--background-modifier-hover));
 	color: var(--text-normal);
 }
 
-.workspace-sidebar-file-icon {
+.wn-sidebar-file-icon {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1307,12 +1386,12 @@ settings:
 	opacity: 0.6;
 }
 
-.workspace-sidebar-file-icon svg {
+.wn-sidebar-file-icon svg {
 	width: 12px;
 	height: 12px;
 }
 
-.workspace-sidebar-file-name {
+.wn-sidebar-file-name {
 	flex: 1;
 	white-space: nowrap;
 	overflow: hidden;
@@ -1320,7 +1399,7 @@ settings:
 }
 
 /* Duplicate indicator on files */
-.workspace-sidebar-file-dup {
+.wn-sidebar-file-dup {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1336,37 +1415,37 @@ settings:
 	flex-shrink: 0;
 }
 
-.workspace-sidebar-file-dup svg {
+.wn-sidebar-file-dup svg {
 	width: 10px;
 	height: 10px;
 }
 
 /* File dragging */
-.workspace-sidebar-file-item.is-dragging {
+.wn-sidebar-file-item.is-dragging {
 	opacity: 0.3;
 }
 
 /* Workspace as drop target for files */
-.workspace-sidebar-item.drop-file-target {
+.wn-sidebar-item.drop-file-target {
 	background: hsla(var(--interactive-accent-hsl), 0.2);
 	outline: 2px dashed var(--interactive-accent);
 	outline-offset: -2px;
 }
 
 /* File reordering drop indicators */
-.workspace-sidebar-file-item.drop-above {
+.wn-sidebar-file-item.drop-above {
 	box-shadow: inset 0 2px 0 0 var(--interactive-accent);
 }
 
-.workspace-sidebar-file-item.drop-below {
+.wn-sidebar-file-item.drop-below {
 	box-shadow: inset 0 -2px 0 0 var(--interactive-accent);
 }
 
 /* Style Settings: "Hide tree guide lines" toggle adds .wn-hide-guides to body */
-body.wn-hide-guides .workspace-sidebar-workspaces::before,
-body.wn-hide-guides .workspace-sidebar-item::before,
-body.wn-hide-guides .workspace-sidebar-files::before,
-body.wn-hide-guides .workspace-sidebar-file-item::before {
+body.wn-hide-guides .wn-sidebar-workspaces::before,
+body.wn-hide-guides .wn-sidebar-item::before,
+body.wn-hide-guides .wn-sidebar-files::before,
+body.wn-hide-guides .wn-sidebar-file-item::before {
 	display: none;
 }
 
@@ -1409,4 +1488,69 @@ body.wn-hide-guides .workspace-sidebar-file-item::before {
 	margin-left: 1.25em;
 	border-left: 2px solid var(--background-modifier-border);
 	padding-left: 0.75em;
+}
+
+/* Danger zone: destructive settings actions, bordered in the error color */
+.wn-danger-zone {
+	margin-top: 12px;
+	padding: 4px 12px 8px;
+	border: 1px solid var(--text-error);
+	border-radius: 6px;
+}
+
+.wn-danger-zone-heading {
+	color: var(--text-error);
+	font-weight: var(--font-weight-semibold);
+	font-size: var(--font-ui-small);
+	margin: 6px 0 2px;
+}
+
+/* Sidebar first-run empty state */
+.wn-sidebar-empty {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 8px;
+	padding: 24px 16px;
+	text-align: center;
+}
+
+.wn-sidebar-empty-icon {
+	color: var(--text-faint);
+}
+
+.wn-sidebar-empty-icon svg {
+	width: 32px;
+	height: 32px;
+}
+
+.wn-sidebar-empty-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/* Accessibility: focus-visible (kit default; rulebook rule 9)                 */
+/* Every interactive element the plugin renders gets an explicit focus ring.   */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+.wn-sidebar-action-btn:focus-visible,
+.wn-sidebar-item-btn:focus-visible,
+.wn-sidebar-item:focus-visible,
+.wn-sidebar-file-item:focus-visible,
+.wn-sidebar-group-header:focus-visible,
+.wn-sidebar-chevron:focus-visible,
+.wn-sidebar-ws-chevron:focus-visible,
+.wn-group-edit-btn:focus-visible,
+.wn-group-chevron:focus-visible,
+.wn-row-action-btn:focus-visible,
+.wn-icon-btn-grid:focus-visible,
+.wn-color-swatch:focus-visible,
+.wn-action-btn:focus-visible,
+.wn-settings-summary:focus-visible,
+.wn-navigator-status:focus-visible,
+.wn-suggestion-item:focus-visible,
+.wn-sidebar-empty button:focus-visible {
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: 1px;
 }

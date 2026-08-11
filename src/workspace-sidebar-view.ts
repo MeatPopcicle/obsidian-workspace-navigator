@@ -59,14 +59,14 @@ export class WorkspaceNavigatorView extends ItemView {
 	async onOpen() {
 		const container = this.containerEl.children[1] as HTMLElement;
 		container.empty();
-		container.addClass('workspace-navigator-sidebar');
+		container.addClass('wn-navigator-sidebar', 'wn-root');
 
 		// Header with actions
-		const header = container.createDiv('workspace-sidebar-header');
+		const header = container.createDiv('wn-sidebar-header');
 		this.createHeaderActions(header);
 
 		// Tree container
-		this.treeContainer = container.createDiv('workspace-sidebar-tree');
+		this.treeContainer = container.createDiv('wn-sidebar-tree');
 
 		// Start with all workspaces collapsed
 		const workspaces = this.plugin.getWorkspaceManager().getWorkspaceNames();
@@ -87,22 +87,22 @@ export class WorkspaceNavigatorView extends ItemView {
 	// ─────────────────────────────────────────────────────────────────
 
 	createHeaderActions(header: HTMLElement) {
-		const actionsContainer = header.createDiv('workspace-sidebar-actions');
+		const actionsContainer = header.createDiv('wn-sidebar-actions');
 
 		// Add group button
-		const addGroupBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+		const addGroupBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-action-btn' });
 		setIcon(addGroupBtn, 'folder-plus');
 		addGroupBtn.setAttribute('aria-label', 'Create new group');
 		addGroupBtn.addEventListener('click', () => this.createNewGroup());
 
 		// Add workspace button
-		const addWorkspaceBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+		const addWorkspaceBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-action-btn' });
 		setIcon(addWorkspaceBtn, 'plus');
 		addWorkspaceBtn.setAttribute('aria-label', 'Create new workspace');
 		addWorkspaceBtn.addEventListener('click', () => this.createNewWorkspace());
 
 		// Expand/Collapse groups button
-		const expandGroupsBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+		const expandGroupsBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-action-btn' });
 		this.updateExpandGroupsButton(expandGroupsBtn);
 		expandGroupsBtn.addEventListener('click', () => {
 			this.toggleAllGroups();
@@ -110,7 +110,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		});
 
 		// Expand/Collapse workspaces (files) button
-		const expandWorkspacesBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+		const expandWorkspacesBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-action-btn' });
 		this.updateExpandWorkspacesButton(expandWorkspacesBtn);
 		expandWorkspacesBtn.addEventListener('click', () => {
 			this.toggleAllWorkspaceFiles();
@@ -119,14 +119,14 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Style Settings button (only when enabled in settings AND the plugin is installed)
 		if (this.plugin.settings.showStyleSettingsInSidebar && this.plugin.isStyleSettingsEnabled()) {
-			const styleBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+			const styleBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-action-btn' });
 			setIcon(styleBtn, 'palette');
 			styleBtn.setAttribute('aria-label', 'Open Style Settings');
 			styleBtn.addEventListener('click', () => this.plugin.openStyleSettings());
 		}
 
 		// Settings button
-		const settingsBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-action-btn' });
+		const settingsBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-action-btn' });
 		setIcon(settingsBtn, 'settings');
 		settingsBtn.setAttribute('aria-label', 'Open plugin settings');
 		settingsBtn.addEventListener('click', () => {
@@ -229,6 +229,17 @@ export class WorkspaceNavigatorView extends ItemView {
 				if (el) this.treeContainer.appendChild(el);
 			}
 		}
+
+		// First-run empty state: nothing exists yet, so give the user their
+		// next action instead of a blank panel.
+		if (workspaceManager.getWorkspaceNames().length === 0 && workspaceManager.getGroups().length === 0) {
+			const empty = this.treeContainer.createDiv('wn-sidebar-empty');
+			const iconEl = empty.createDiv('wn-sidebar-empty-icon');
+			setIcon(iconEl, 'layout-template');
+			empty.createDiv({ cls: 'wn-sidebar-empty-hint', text: 'No workspaces yet. Save your current layout to get started.' });
+			const cta = empty.createEl('button', { cls: 'mod-cta', text: 'Create workspace' });
+			cta.addEventListener('click', () => this.createNewWorkspace());
+		}
 	}
 
 	/**
@@ -241,7 +252,7 @@ export class WorkspaceNavigatorView extends ItemView {
 	 */
 	rerenderGroup(groupName: string) {
 		const existing = this.treeContainer.querySelector(
-			`.workspace-sidebar-group[data-group-name="${CSS.escape(groupName)}"]`
+			`.wn-sidebar-group[data-group-name="${CSS.escape(groupName)}"]`
 		) as HTMLElement | null;
 		if (!existing) {
 			this.renderTree();
@@ -277,11 +288,11 @@ export class WorkspaceNavigatorView extends ItemView {
 		if (workspaces.length === 0 && isNoGroup) return null;
 
 		// Group container (detached; caller inserts it)
-		const groupContainer = createDiv('workspace-sidebar-group');
+		const groupContainer = createDiv('wn-sidebar-group');
 		groupContainer.dataset.groupName = groupName;
 
 		// Group header
-		const groupHeader = groupContainer.createDiv('workspace-sidebar-group-header');
+		const groupHeader = groupContainer.createDiv('wn-sidebar-group-header');
 		groupHeader.dataset.groupName = groupName;
 
 		// Make draggable if manual order
@@ -297,7 +308,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		groupHeader.addEventListener('dragleave', (evt) => this.onDragLeave(evt));
 
 		// Chevron
-		const chevron = groupHeader.createSpan('workspace-sidebar-chevron');
+		const chevron = groupHeader.createSpan('wn-sidebar-chevron');
 		setIcon(chevron, isCollapsed ? 'chevron-right' : 'chevron-down');
 		chevron.addEventListener('click', (evt) => {
 			evt.stopPropagation();
@@ -305,7 +316,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		});
 
 		// Group icon
-		const iconSpan = groupHeader.createSpan('workspace-sidebar-group-icon');
+		const iconSpan = groupHeader.createSpan('wn-sidebar-group-icon');
 		const groupIcon = workspaceManager.getGroupIcon(groupName);
 		if (groupIcon) {
 			setIcon(iconSpan, groupIcon);
@@ -317,7 +328,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		}
 
 		// Group name
-		const nameSpan = groupHeader.createSpan('workspace-sidebar-group-name');
+		const nameSpan = groupHeader.createSpan('wn-sidebar-group-name');
 		nameSpan.textContent = displayName;
 
 		// Apply group text styling
@@ -330,15 +341,15 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Count badge for collapsed groups
 		if (isCollapsed) {
-			const countBadge = groupHeader.createSpan('workspace-sidebar-count');
+			const countBadge = groupHeader.createSpan('wn-sidebar-count');
 			countBadge.textContent = `(${workspaces.length})`;
 		}
 
 		// Action buttons container
-		const actionsContainer = groupHeader.createDiv('workspace-sidebar-group-actions');
+		const actionsContainer = groupHeader.createDiv('wn-sidebar-group-actions');
 
 		// Edit button (pencil)
-		const editBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-item-btn' });
+		const editBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-item-btn' });
 		setIcon(editBtn, 'pencil');
 		editBtn.setAttribute('aria-label', isNoGroup ? 'Edit ungrouped style' : 'Edit group');
 		editBtn.addEventListener('click', (evt) => {
@@ -348,7 +359,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Delete button (trash) - only for named groups
 		if (!isNoGroup) {
-			const deleteBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-item-btn workspace-sidebar-delete-btn' });
+			const deleteBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-item-btn wn-sidebar-delete-btn' });
 			setIcon(deleteBtn, 'trash-2');
 			deleteBtn.setAttribute('aria-label', 'Delete group');
 			deleteBtn.addEventListener('click', (evt) => {
@@ -368,20 +379,20 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Workspaces container (collapsible)
 		if (!isCollapsed) {
-			const workspacesContainer = groupContainer.createDiv('workspace-sidebar-workspaces');
+			const workspacesContainer = groupContainer.createDiv('wn-sidebar-workspaces');
 
 			// The body's indent padding isn't covered by any row, so without its
 			// own dragover preventDefault a drop there is silently discarded by
 			// the browser. Accept it as a drop into this group; drops on rows
 			// are left to the row handlers.
 			workspacesContainer.addEventListener('dragover', (evt) => {
-				if ((evt.target as HTMLElement).closest('.workspace-sidebar-item')) return;
+				if ((evt.target as HTMLElement).closest('.wn-sidebar-item')) return;
 				if (this.draggedType !== 'workspace') return;
 				evt.preventDefault();
 				evt.dataTransfer!.dropEffect = 'move';
 			});
 			workspacesContainer.addEventListener('drop', (evt) => {
-				if ((evt.target as HTMLElement).closest('.workspace-sidebar-item')) return;
+				if ((evt.target as HTMLElement).closest('.wn-sidebar-item')) return;
 				this.onGroupDrop(evt, groupName);
 			});
 
@@ -408,11 +419,11 @@ export class WorkspaceNavigatorView extends ItemView {
 		const isActive         = workspaceName === activeWorkspace;
 
 		// Workspace container (holds header + files)
-		const wsContainer = container.createDiv('workspace-sidebar-ws-container');
+		const wsContainer = container.createDiv('wn-sidebar-ws-container');
 		wsContainer.dataset.workspaceName = workspaceName;
 
 		// Workspace header row
-		const item = wsContainer.createDiv('workspace-sidebar-item');
+		const item = wsContainer.createDiv('wn-sidebar-item');
 		item.dataset.workspaceName = workspaceName;
 		// Structural emphasis (bar + fill) only when the setting is on; the
 		// checkmark below is added regardless so "active" is always identifiable.
@@ -436,7 +447,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Chevron for expanding/collapsing files list (only if has files)
 		if (openFiles.length > 0) {
-			const chevron = item.createSpan('workspace-sidebar-ws-chevron');
+			const chevron = item.createSpan('wn-sidebar-ws-chevron');
 			setIcon(chevron, isWsCollapsed ? 'chevron-right' : 'chevron-down');
 			chevron.addEventListener('click', (evt) => {
 				evt.stopPropagation();
@@ -444,11 +455,11 @@ export class WorkspaceNavigatorView extends ItemView {
 			});
 		} else {
 			// Spacer for alignment when no files
-			item.createSpan('workspace-sidebar-ws-chevron-spacer');
+			item.createSpan('wn-sidebar-ws-chevron-spacer');
 		}
 
 		// Icon (always show - default if not set)
-		const iconSpan = item.createSpan('workspace-sidebar-item-icon');
+		const iconSpan = item.createSpan('wn-sidebar-item-icon');
 		const wsIcon   = workspaceManager.getWorkspaceIcon(workspaceName);
 		if (wsIcon) {
 			setIcon(iconSpan, wsIcon);
@@ -461,7 +472,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		}
 
 		// Name
-		const nameSpan = item.createSpan('workspace-sidebar-item-name');
+		const nameSpan = item.createSpan('wn-sidebar-item-name');
 		nameSpan.textContent = workspaceName;
 
 		// Apply workspace text styling
@@ -472,22 +483,22 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Active-workspace marker — an explicit checkmark for "you are here"
 		if (isActive) {
-			const activeCheck = item.createSpan('workspace-sidebar-active-check');
+			const activeCheck = item.createSpan('wn-sidebar-active-check');
 			setIcon(activeCheck, 'check');
 			activeCheck.setAttribute('aria-label', 'Current workspace');
 		}
 
 		// File count badge
 		if (openFiles.length > 0) {
-			const countBadge = item.createSpan('workspace-sidebar-file-count');
+			const countBadge = item.createSpan('wn-sidebar-file-count');
 			countBadge.textContent = `(${openFiles.length})`;
 		}
 
 		// Action buttons container
-		const actionsContainer = item.createDiv('workspace-sidebar-item-actions');
+		const actionsContainer = item.createDiv('wn-sidebar-item-actions');
 
 		// Edit button (pencil)
-		const editBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-item-btn' });
+		const editBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-item-btn' });
 		setIcon(editBtn, 'pencil');
 		editBtn.setAttribute('aria-label', 'Edit workspace');
 		editBtn.addEventListener('click', (evt) => {
@@ -496,7 +507,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		});
 
 		// Delete button (trash)
-		const deleteBtn = actionsContainer.createEl('button', { cls: 'workspace-sidebar-item-btn workspace-sidebar-delete-btn' });
+		const deleteBtn = actionsContainer.createEl('button', { cls: 'wn-sidebar-item-btn wn-sidebar-delete-btn' });
 		setIcon(deleteBtn, 'trash-2');
 		deleteBtn.setAttribute('aria-label', 'Delete workspace');
 		deleteBtn.addEventListener('click', (evt) => {
@@ -507,8 +518,8 @@ export class WorkspaceNavigatorView extends ItemView {
 		// Click to switch workspace
 		item.addEventListener('click', async (evt) => {
 			// Don't switch if clicking on action buttons or chevron
-			if ((evt.target as HTMLElement).closest('.workspace-sidebar-item-actions')) return;
-			if ((evt.target as HTMLElement).closest('.workspace-sidebar-ws-chevron')) return;
+			if ((evt.target as HTMLElement).closest('.wn-sidebar-item-actions')) return;
+			if ((evt.target as HTMLElement).closest('.wn-sidebar-ws-chevron')) return;
 
 			// Save current workspace before switching if auto-save is enabled
 			if (this.plugin.settings.autoSaveOnSwitch) {
@@ -536,7 +547,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Render open files list (if expanded and has files)
 		if (openFiles.length > 0 && !isWsCollapsed) {
-			const filesContainer = wsContainer.createDiv('workspace-sidebar-files');
+			const filesContainer = wsContainer.createDiv('wn-sidebar-files');
 
 			for (let i = 0; i < openFiles.length; i++) {
 				this.renderFileItem(filesContainer, openFiles[i], workspaceName, isActive, i);
@@ -549,7 +560,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		const fileName = filePath.split('/').pop() || filePath;
 		const baseName = fileName.replace(/\.md$/, '');
 
-		const fileItem = container.createDiv('workspace-sidebar-file-item');
+		const fileItem = container.createDiv('wn-sidebar-file-item');
 		fileItem.dataset.filePath = filePath;
 		fileItem.dataset.workspaceName = workspaceName;
 		fileItem.dataset.fileIndex = String(fileIndex);
@@ -567,18 +578,18 @@ export class WorkspaceNavigatorView extends ItemView {
 		});
 
 		// File icon
-		const iconSpan = fileItem.createSpan('workspace-sidebar-file-icon');
+		const iconSpan = fileItem.createSpan('wn-sidebar-file-icon');
 		setIcon(iconSpan, 'file-text');
 
 		// File name
-		const nameSpan = fileItem.createSpan('workspace-sidebar-file-name');
+		const nameSpan = fileItem.createSpan('wn-sidebar-file-name');
 		nameSpan.textContent = baseName;
 		nameSpan.setAttribute('aria-label', filePath);
 
 		// Check if file exists in other workspaces
 		const otherWorkspaces = workspaceManager.getWorkspacesWithFile(filePath, workspaceName);
 		if (otherWorkspaces.length > 0) {
-			const dupIndicator = fileItem.createSpan('workspace-sidebar-file-dup');
+			const dupIndicator = fileItem.createSpan('wn-sidebar-file-dup');
 			if (otherWorkspaces.length === 1) {
 				setIcon(dupIndicator, 'layers');
 			} else {
@@ -615,7 +626,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			evt.preventDefault();
 			evt.dataTransfer!.dropEffect = 'move';
 
-			const fileItem = (evt.target as HTMLElement).closest('.workspace-sidebar-file-item') as HTMLElement;
+			const fileItem = (evt.target as HTMLElement).closest('.wn-sidebar-file-item') as HTMLElement;
 			if (!fileItem) return;
 
 			const rect   = fileItem.getBoundingClientRect();
@@ -635,7 +646,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		if (!this.draggedFile || !this.draggedFileWorkspace) return;
 
-		const fileItem = (evt.target as HTMLElement).closest('.workspace-sidebar-file-item') as HTMLElement;
+		const fileItem = (evt.target as HTMLElement).closest('.wn-sidebar-file-item') as HTMLElement;
 		if (fileItem) {
 			fileItem.removeClass('drop-above', 'drop-below');
 		}
@@ -719,7 +730,8 @@ export class WorkspaceNavigatorView extends ItemView {
 			for (const ws of allWorkspaces) {
 				const alreadyHas = workspaceManager.getOpenFilesInWorkspace(ws).includes(filePath);
 				submenu.addItem((subItem: any) => {
-					subItem.setTitle(ws + (alreadyHas ? ' ✓' : ''))
+					subItem.setTitle(ws)
+						.setChecked(alreadyHas)
 						.setDisabled(alreadyHas)
 						.onClick(async () => {
 							// Guard against copying a stale entry for a file that no
@@ -766,7 +778,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		this.rerenderGroup(groupName);
 
 		// Update expand/collapse button in header
-		const btn = this.containerEl.querySelector('.workspace-sidebar-action-btn:nth-child(3)') as HTMLElement;
+		const btn = this.containerEl.querySelector('.wn-sidebar-action-btn:nth-child(3)') as HTMLElement;
 		if (btn) this.updateExpandGroupsButton(btn);
 	}
 
@@ -1047,11 +1059,11 @@ export class WorkspaceNavigatorView extends ItemView {
 
 	renameWorkspaceInline(workspaceName: string) {
 		const item = this.treeContainer.querySelector(
-			`.workspace-sidebar-item[data-workspace-name="${CSS.escape(workspaceName)}"]`
+			`.wn-sidebar-item[data-workspace-name="${CSS.escape(workspaceName)}"]`
 		) as HTMLElement;
 		if (!item) return;
 
-		const nameSpan = item.querySelector('.workspace-sidebar-item-name') as HTMLElement;
+		const nameSpan = item.querySelector('.wn-sidebar-item-name') as HTMLElement;
 		if (!nameSpan) return;
 
 		// Add renaming class to keep buttons visible
@@ -1061,7 +1073,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		const input     = document.createElement('input');
 		input.type      = 'text';
 		input.value     = workspaceName;
-		input.className = 'workspace-sidebar-rename-input';
+		input.className = 'wn-sidebar-rename-input';
 
 		// Replace name span with input
 		nameSpan.replaceWith(input);
@@ -1111,11 +1123,11 @@ export class WorkspaceNavigatorView extends ItemView {
 
 	renameGroupInline(groupName: string) {
 		const header = this.treeContainer.querySelector(
-			`.workspace-sidebar-group-header[data-group-name="${CSS.escape(groupName)}"]`
+			`.wn-sidebar-group-header[data-group-name="${CSS.escape(groupName)}"]`
 		) as HTMLElement;
 		if (!header) return;
 
-		const nameSpan = header.querySelector('.workspace-sidebar-group-name') as HTMLElement;
+		const nameSpan = header.querySelector('.wn-sidebar-group-name') as HTMLElement;
 		if (!nameSpan) return;
 
 		// Add renaming class to keep buttons visible
@@ -1125,7 +1137,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		const input     = document.createElement('input');
 		input.type      = 'text';
 		input.value     = groupName;
-		input.className = 'workspace-sidebar-rename-input';
+		input.className = 'wn-sidebar-rename-input';
 
 		// Replace name span with input
 		nameSpan.replaceWith(input);
@@ -1258,7 +1270,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		// Show drop indicator
 		const target = evt.target as HTMLElement;
-		const item   = target.closest('.workspace-sidebar-item') as HTMLElement;
+		const item   = target.closest('.wn-sidebar-item') as HTMLElement;
 		if (!item) return;
 
 		const rect   = item.getBoundingClientRect();
@@ -1278,7 +1290,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const target           = evt.target as HTMLElement;
-		const item             = target.closest('.workspace-sidebar-item') as HTMLElement;
+		const item             = target.closest('.wn-sidebar-item') as HTMLElement;
 
 		if (!item) return;
 
@@ -1311,7 +1323,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			evt.preventDefault();
 			evt.dataTransfer!.dropEffect = 'move';
 
-			const header = (evt.target as HTMLElement).closest('.workspace-sidebar-group-header');
+			const header = (evt.target as HTMLElement).closest('.wn-sidebar-group-header');
 			if (header) {
 				header.addClass('drop-target');
 			}
@@ -1325,7 +1337,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		evt.preventDefault();
 		evt.dataTransfer!.dropEffect = 'move';
 
-		const header = (evt.target as HTMLElement).closest('.workspace-sidebar-group-header') as HTMLElement;
+		const header = (evt.target as HTMLElement).closest('.wn-sidebar-group-header') as HTMLElement;
 		if (!header) return;
 
 		const rect   = header.getBoundingClientRect();
@@ -1358,7 +1370,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		if (this.draggedType !== 'group' || !this.draggedItem || this.draggedItem === targetGroup) return;
 		if (targetGroup === NO_GROUP_KEY) return;
 
-		const header = (evt.target as HTMLElement).closest('.workspace-sidebar-group-header') as HTMLElement;
+		const header = (evt.target as HTMLElement).closest('.wn-sidebar-group-header') as HTMLElement;
 		if (!header) return;
 
 		const rect       = header.getBoundingClientRect();
@@ -1375,7 +1387,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		const target = evt.target as HTMLElement;
 		target.removeClass('drop-above', 'drop-below', 'drop-target');
 
-		const item = target.closest('.workspace-sidebar-item, .workspace-sidebar-group-header');
+		const item = target.closest('.wn-sidebar-item, .wn-sidebar-group-header');
 		if (item) {
 			item.removeClass('drop-above', 'drop-below', 'drop-target');
 		}

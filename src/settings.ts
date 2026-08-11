@@ -79,6 +79,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+		containerEl.addClass('wn-root');
 
 		// A collapsible section (native <details>); returns the body element to
 		// append Settings into. Top sections start open; advanced ones collapsed.
@@ -367,6 +368,23 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 		const maintenance = section('Maintenance', true);
 
 		new Setting(maintenance)
+			.setName('Debug mode')
+			.setDesc('Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.debugMode)
+				.onChange(async (value) => {
+					this.plugin.settings.debugMode = value;
+					await this.plugin.saveSettings();
+					if (value) {
+						notify('Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.');
+					}
+				}));
+
+		// ── Danger zone (destructive actions, bordered, always last) ─────
+		const danger = maintenance.createDiv('wn-danger-zone');
+		danger.createEl('div', { cls: 'wn-danger-zone-heading', text: 'Danger zone' });
+
+		new Setting(danger)
 			.setName('Reset all workspace styles')
 			.setDesc('Clear all icons, colors, and formatting from all workspaces.')
 			.addButton(button => button
@@ -386,17 +404,26 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					});
 				}));
 
-		new Setting(maintenance)
-			.setName('Debug mode')
-			.setDesc('Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).')
-			.addToggle(toggle => toggle
-				.setValue(this.plugin.settings.debugMode)
-				.onChange(async (value) => {
-					this.plugin.settings.debugMode = value;
-					await this.plugin.saveSettings();
-					if (value) {
-						notify('Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.');
-					}
+		new Setting(danger)
+			.setName('Reset settings to defaults')
+			.setDesc('Restore every plugin setting to its shipped default. Workspaces, groups, and styles are not touched.')
+			.addButton(button => button
+				.setButtonText('Reset Settings')
+				.setWarning()
+				.onClick(async () => {
+					createConfirmationDialog(this.app, {
+						title:   'Reset Settings?',
+						text:    'This will restore all plugin settings to their defaults. Your workspaces, groups, and styles are kept. This cannot be undone.',
+						cta:     'Reset',
+						onAccept: async () => {
+							Object.assign(this.plugin.settings, DEFAULT_SETTINGS);
+							await this.plugin.saveSettings();
+							this.plugin.updateStatusBar();
+							this.plugin.refreshSidebarView();
+							this.display();  // re-render the tab with default values
+							notify('Settings reset to defaults', 'success');
+						}
+					});
 				}));
 	}
 }
