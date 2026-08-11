@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { App, FuzzySuggestModal, FuzzyMatch, Notice, Scope, Modal, Setting, setIcon } from 'obsidian';
+import { notify } from './notify';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 import { createPopper, Instance as PopperInstance } from '@popperjs/core';
@@ -792,7 +793,7 @@ export class WorkspacePickerModal extends FuzzySuggestModal<string> {
 		const workspaceManager = this.plugin.getWorkspaceManager();
 		const openFiles = workspaceManager.getOpenFilesInWorkspace(workspace);
 		if (openFiles.includes(this.filePath)) {
-			new Notice(`File is already open in "${workspace}"`);
+			notify(`File is already open in "${workspace}"`);
 			return;
 		}
 
@@ -1154,7 +1155,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Use GroupStylePickerModal with empty name - user fills it in
 		const modal = new GroupStylePickerModal(this.app, this.plugin, '', async (result) => {
 			if (!result.newName || !result.newName.trim()) {
-				new Notice('Group name is required');
+				notify('Group name is required', 'error');
 				return;
 			}
 
@@ -1163,7 +1164,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			// Check if group already exists
 			if (workspaceManager.getGroups().includes(trimmedName)) {
-				new Notice(`Group "${trimmedName}" already exists`);
+				notify(`Group "${trimmedName}" already exists`, 'error');
 				return;
 			}
 
@@ -1181,7 +1182,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 			await this.plugin.saveSettings();
 			await workspaceManager.saveLog();
-			new Notice(`Created group "${trimmedName}"`);
+			notify(`Created group "${trimmedName}"`, 'success');
 
 			// Refresh modal
 			this.lastRenderedGroup = undefined;
@@ -1211,7 +1212,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			async (result) => {
 				const newName = result.newName?.trim();
 				if (!newName) {
-					new Notice('Workspace name is required');
+					notify('Workspace name is required', 'error');
 					return;
 				}
 
@@ -1219,7 +1220,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				// Check if workspace already exists
 				if (workspaceManager.hasWorkspace(newName)) {
-					new Notice(`Workspace "${newName}" already exists`);
+					notify(`Workspace "${newName}" already exists`, 'error');
 					return;
 				}
 
@@ -1238,7 +1239,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				}
 
 				await this.plugin.saveSettings();
-				new Notice(`Created workspace "${newName}"`);
+				notify(`Created workspace "${newName}"`, 'success');
 
 				// Refresh
 				this.lastRenderedGroup = undefined;
@@ -1377,7 +1378,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					await this.plugin.saveSettings();
 
 					const groupDisplay = targetGroup || 'No Group';
-					new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+					notify(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`, 'success');
 					moved = true;
 				} else if (useManualOrder && this.draggedWorkspace !== dropTarget.workspace) {
 					// Reordering within the same group
@@ -1408,7 +1409,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 						await this.plugin.saveSettings();
 
 						const groupDisplay = targetGroup || 'No Group';
-						new Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+						notify(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`, 'success');
 						moved = true;
 					}
 				}
@@ -1909,7 +1910,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Check if new name already exists
 		if (workspaceManager.hasWorkspace(newName)) {
-			new Notice(`Workspace "${newName}" already exists`);
+			notify(`Workspace "${newName}" already exists`, 'error');
 			textSpan.textContent = oldName;
 			textSpan.focus();
 			return;
@@ -1942,7 +1943,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		// Refresh sidebar view (preserving collapsed state)
 		this.plugin.notifySidebarWorkspaceRenamed(oldName, newName);
 
-		new Notice(`Renamed workspace to "${newName}"`);
+		notify(`Renamed workspace to "${newName}"`, 'success');
 	}
 
 
@@ -1976,7 +1977,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			refreshSuggestions(this);
 			this.createActionButtons();
 
-			new Notice(`Deleted workspace: ${workspaceName}`);
+			notify(`Deleted workspace: ${workspaceName}`, 'success');
 		};
 
 		// Deletion always confirms; there is deliberately no toggle to skip it.
@@ -2029,7 +2030,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		refreshSuggestions(this);
 		this.createActionButtons();
 
-		new Notice(`Duplicated workspace to: ${newName}`);
+		notify(`Duplicated workspace to: ${newName}`, 'success');
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -2125,7 +2126,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					workspaceManager.setGroupCollapsed('\x00nogroup', false);
 				}
 
-				new Notice(`Created group "${newName}" with ${ungrouped.length} workspace(s)`);
+				notify(`Created group "${newName}" with ${ungrouped.length} workspace(s)`, 'success');
 
 				await this.plugin.saveSettings();
 
@@ -2139,7 +2140,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			} else {
 				// Normal rename
 				workspaceManager.renameGroup(groupName, newName);
-				new Notice(`Renamed group to "${newName}"`);
+				notify(`Renamed group to "${newName}"`, 'success');
 
 				await this.plugin.saveSettings();
 
@@ -2183,7 +2184,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			if (result.newName) {
 				// Check if new group name already exists (unless naming "No Group")
 				if (!isNoGroup && workspaceManager.getGroups().includes(result.newName)) {
-					new Notice(`Group "${result.newName}" already exists`);
+					notify(`Group "${result.newName}" already exists`, 'error');
 					return;
 				}
 
@@ -2219,7 +2220,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 					if (collapsed) workspaceManager.setGroupCollapsed(result.newName, true);
 
 					finalGroupName = result.newName;
-					new Notice(`Created group "${result.newName}" with ${ungrouped.length} workspace(s)`);
+					notify(`Created group "${result.newName}" with ${ungrouped.length} workspace(s)`, 'success');
 				} else if (result.newName !== groupName) {
 					// Normal rename
 					const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
@@ -2276,7 +2277,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			}
 
 			if (!isNoGroup || !result.newName) {
-				new Notice(`Updated "${finalGroupName === '\x00nogroup' ? 'No Group' : finalGroupName}"`);
+				notify(`Updated "${finalGroupName === '\x00nogroup' ? 'No Group' : finalGroupName}"`);
 			}
 		});
 		modal.open();
@@ -2352,7 +2353,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 				await this.plugin.saveSettings();
 
-				new Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
+				notify(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`, 'success');
 
 				// Refresh the suggestions
 				this.lastRenderedGroup = undefined;
@@ -2388,7 +2389,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			// Handle rename if name changed
 			if (newStyle.newName && newStyle.newName !== workspaceName) {
 				if (workspaceManager.hasWorkspace(newStyle.newName)) {
-					new Notice(`Workspace "${newStyle.newName}" already exists`);
+					notify(`Workspace "${newStyle.newName}" already exists`, 'error');
 					return;
 				}
 				workspaceManager.renameWorkspace(workspaceName, newStyle.newName);
@@ -2418,7 +2419,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			this.createActionButtons();
 			this.plugin.updateStatusBar();
 
-			new Notice(`Updated "${finalName}"`);
+			notify(`Updated "${finalName}"`);
 		});
 		modal.open();
 	}
@@ -2456,13 +2457,13 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		const workspaceName = inputEl?.value?.trim();
 
 		if (!workspaceName) {
-			new Notice('Please enter a workspace name');
+			notify('Please enter a workspace name', 'error');
 			return;
 		}
 
 		// Check if workspace already exists
 		if (workspaceManager.hasWorkspace(workspaceName)) {
-			new Notice(`Workspace "${workspaceName}" already exists`);
+			notify(`Workspace "${workspaceName}" already exists`, 'error');
 			return;
 		}
 
@@ -2481,7 +2482,7 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 		this.plugin.updateStatusBar();
 		this.plugin.refreshSidebarView();
 
-		new Notice(`Created workspace: ${workspaceName}`);
+		notify(`Created workspace: ${workspaceName}`, 'success');
 
 		// Close the modal
 		this.close();
@@ -2520,12 +2521,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				await this.plugin.saveNavigationLayout(currentWorkspace);
 				const saveFolderState = this.plugin.settings.rememberNavigationLayout;
 				await workspaceManager.saveWorkspace(currentWorkspace, saveFolderState);
-				new Notice(`Saved workspace: ${currentWorkspace}`);
+				notify(`Saved workspace: ${currentWorkspace}`, 'success');
 			}
 
 			// Switch to selected workspace
 			await this.plugin.loadWorkspace(workspace);
-			new Notice(`Switched to workspace: ${workspace}`);
+			notify(`Switched to workspace: ${workspace}`, 'success');
 			this.close();
 			return;
 		}
@@ -2537,12 +2538,12 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 				await this.plugin.saveNavigationLayout(currentWorkspace);
 				const saveFolderState = this.plugin.settings.rememberNavigationLayout;
 				await workspaceManager.saveWorkspace(currentWorkspace, saveFolderState);
-				new Notice(`Saved workspace: ${currentWorkspace}`);
+				notify(`Saved workspace: ${currentWorkspace}`, 'success');
 			}
 
 			// Switch to selected workspace
 			await this.plugin.loadWorkspace(workspace);
-			new Notice(`Switched to workspace: ${workspace}`);
+			notify(`Switched to workspace: ${workspace}`, 'success');
 			return;
 		}
 
@@ -2562,6 +2563,6 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 		// Load the selected workspace
 		await this.plugin.loadWorkspace(workspace);
-		new Notice(`Switched to workspace: ${workspace}`);
+		notify(`Switched to workspace: ${workspace}`, 'success');
 	}
 }

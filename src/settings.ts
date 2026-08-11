@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
+import { notify } from './notify';
 import WorkspaceNavigator from './main';
 import { createConfirmationDialog } from './confirm-modal';
 
@@ -297,13 +298,13 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 
 					if (result.imported.length > 0) {
-						new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+						notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`, 'success');
 					}
 					if (result.skipped.length > 0) {
-						new Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+						notify(`Skipped ${result.skipped.length} existing workspace(s)`);
 					}
 					if (result.imported.length === 0 && result.skipped.length === 0) {
-						new Notice('No workspaces to import');
+						notify('No workspaces to import', 'error');
 					}
 				}));
 
@@ -325,10 +326,10 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 
 							if (result.imported.length > 0) {
-								new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+								notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`, 'success');
 							}
 							if (result.imported.length === 0) {
-								new Notice('No workspaces to import');
+								notify('No workspaces to import', 'error');
 							}
 						}
 					});
@@ -344,7 +345,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 					backupPathSetting.settingEl.style.display = value ? '' : 'none';
 					if (value && !this.plugin.settings.autoBackupPath) {
-						new Notice('Set a backup folder below to enable auto-backup.');
+						notify('Set a backup folder below to enable auto-backup.');
 					}
 				}));
 
@@ -380,7 +381,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 							this.plugin.getWorkspaceManager().clearAllStyles();
 							this.plugin.updateStatusBar();
 							await this.plugin.saveSettings();
-							new Notice('All workspace styles have been reset');
+							notify('All workspace styles have been reset', 'success');
 						}
 					});
 				}));
@@ -394,7 +395,7 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					this.plugin.settings.debugMode = value;
 					await this.plugin.saveSettings();
 					if (value) {
-						new Notice('Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.');
+						notify('Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.');
 					}
 				}));
 	}

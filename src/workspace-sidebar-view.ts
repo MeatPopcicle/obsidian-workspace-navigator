@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { ItemView, WorkspaceLeaf, Menu, setIcon, Notice } from 'obsidian';
+import { notify } from './notify';
 import WorkspaceNavigator from './main';
 import { WorkspaceStyleModal, WorkspaceStyleResult, GroupStylePickerModal, GroupStyleResult } from './workspace-modal';
 import { createConfirmationDialog } from './confirm-modal';
@@ -520,7 +521,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			}
 
 			await this.plugin.loadWorkspace(workspaceName);
-			new Notice(`Switched to: ${workspaceName}`);
+			notify(`Switched to: ${workspaceName}`, 'success');
 			this.renderTree();
 		});
 
@@ -679,7 +680,7 @@ export class WorkspaceNavigatorView extends ItemView {
 					await this.plugin.saveSettings();
 					this.renderTree();
 					this.plugin.updateTabIndicators();
-					new Notice(`Removed "${fileName}" from ${workspaceName}`);
+					notify(`Removed "${fileName}" from ${workspaceName}`, 'success');
 				});
 		});
 
@@ -724,14 +725,14 @@ export class WorkspaceNavigatorView extends ItemView {
 							// Guard against copying a stale entry for a file that no
 							// longer exists in the vault.
 							if (!this.plugin.app.vault.getAbstractFileByPath(filePath)) {
-								new Notice(`File not found: ${filePath}`);
+								notify(`File not found: ${filePath}`, 'error');
 								return;
 							}
 							workspaceManager.addFileToWorkspace(ws, filePath);
 							await this.plugin.saveSettings();
 							this.renderTree();
 							this.plugin.updateTabIndicators();
-							new Notice(`Copied "${fileName}" to ${ws}`);
+							notify(`Copied "${fileName}" to ${ws}`, 'success');
 						});
 				});
 			}
@@ -817,7 +818,7 @@ export class WorkspaceNavigatorView extends ItemView {
 					.setIcon('arrow-right')
 					.onClick(async () => {
 						await this.plugin.loadWorkspace(workspaceName);
-						new Notice(`Switched to: ${workspaceName}`);
+						notify(`Switched to: ${workspaceName}`, 'success');
 						this.renderTree();
 					});
 			});
@@ -834,7 +835,7 @@ export class WorkspaceNavigatorView extends ItemView {
 					const saveFolderState = this.plugin.settings.rememberNavigationLayout;
 					await workspaceManager.saveWorkspace(workspaceName, saveFolderState);
 					await this.plugin.saveSettings();
-					new Notice(`Saved: ${workspaceName}`);
+					notify(`Saved: ${workspaceName}`, 'success');
 				});
 		});
 
@@ -938,7 +939,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		// sync (it otherwise updates only on layout-change / workspace load).
 		this.plugin.updateStatusBar();
 
-		new Notice(`Created workspace: ${name}`);
+		notify(`Created workspace: ${name}`, 'success');
 
 		// Start inline rename
 		setTimeout(() => this.renameWorkspaceInline(name), 100);
@@ -971,7 +972,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 		this.renderTree();
 
-		new Notice(`Created group: ${name}`);
+		notify(`Created group: ${name}`, 'success');
 
 		// Start inline rename
 		setTimeout(() => this.renameGroupInline(name), 100);
@@ -1087,9 +1088,9 @@ export class WorkspaceNavigatorView extends ItemView {
 						this.collapsedWorkspaces.add(newName);
 					}
 
-					new Notice(`Renamed to: ${newName}`);
+					notify(`Renamed to: ${newName}`, 'success');
 				} else {
-					new Notice(`Workspace "${newName}" already exists`);
+					notify(`Workspace "${newName}" already exists`, 'error');
 				}
 			}
 			this.renderTree();
@@ -1150,9 +1151,9 @@ export class WorkspaceNavigatorView extends ItemView {
 						this.collapsedGroups.add(newName);
 					}
 
-					new Notice(`Renamed group to: ${newName}`);
+					notify(`Renamed group to: ${newName}`, 'success');
 				} else {
-					new Notice(`Group "${newName}" already exists`);
+					notify(`Group "${newName}" already exists`, 'error');
 				}
 			}
 			this.renderTree();
@@ -1194,7 +1195,7 @@ export class WorkspaceNavigatorView extends ItemView {
 		this.plugin.refreshWorkspaceCommands();
 		this.renderTree();
 
-		new Notice(`Duplicated to: ${newName}`);
+		notify(`Duplicated to: ${newName}`, 'success');
 	}
 
 	deleteWorkspace(workspaceName: string) {
@@ -1206,7 +1207,7 @@ export class WorkspaceNavigatorView extends ItemView {
 			await this.plugin.saveSettings();
 			this.plugin.updateStatusBar();
 			this.renderTree();
-			new Notice(`Deleted: ${workspaceName}`);
+			notify(`Deleted: ${workspaceName}`, 'success');
 		};
 
 		// Deletion always confirms; there is deliberately no toggle to skip it.
@@ -1233,7 +1234,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 				await this.plugin.saveSettings();
 				this.renderTree();
-				new Notice(`Deleted group: ${groupName}`);
+				notify(`Deleted group: ${groupName}`, 'success');
 			}
 		});
 	}
@@ -1430,7 +1431,7 @@ export class WorkspaceNavigatorView extends ItemView {
 
 			// Check if already in target workspace
 			if (workspaceManager.getOpenFilesInWorkspace(workspaceName).includes(filePath)) {
-				new Notice(`"${fileName}" is already in ${workspaceName}`);
+				notify(`"${fileName}" is already in ${workspaceName}`);
 				return;
 			}
 
@@ -1439,9 +1440,9 @@ export class WorkspaceNavigatorView extends ItemView {
 
 			if (isMove && sourceWorkspace) {
 				workspaceManager.removeFileFromWorkspace(sourceWorkspace, filePath);
-				new Notice(`Moved "${fileName}" to ${workspaceName}`);
+				notify(`Moved "${fileName}" to ${workspaceName}`, 'success');
 			} else {
-				new Notice(`Copied "${fileName}" to ${workspaceName}`);
+				notify(`Copied "${fileName}" to ${workspaceName}`, 'success');
 			}
 
 			workspaceManager.addFileToWorkspace(workspaceName, filePath);

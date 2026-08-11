@@ -3,6 +3,7 @@
 // ═══════════════════════════════════════════════════════════════════════════════
 
 import { Plugin, Notice, setIcon, WorkspaceLeaf, Platform } from 'obsidian';
+import { notify } from './notify';
 import { WorkspaceNavigatorSettings, DEFAULT_SETTINGS, WorkspaceNavigatorSettingTab } from './settings';
 import { WorkspaceSwitcherModal, WorkspacePickerModal } from './workspace-modal';
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
@@ -331,16 +332,16 @@ export default class WorkspaceNavigator extends Plugin {
 			callback: async () => {
 				const prev = this.previousWorkspace;
 				if (!prev) {
-					new Notice('No previous workspace yet');
+					notify('No previous workspace yet');
 					return;
 				}
 				if (!this.workspaceManager.hasWorkspace(prev)) {
-					new Notice(`Previous workspace "${prev}" no longer exists`);
+					notify(`Previous workspace "${prev}" no longer exists`);
 					this.previousWorkspace = null;
 					return;
 				}
 				await this.loadWorkspace(prev);
-				new Notice(`Switched to: ${prev}`);
+				notify(`Switched to: ${prev}`, 'success');
 			}
 		});
 
@@ -351,14 +352,14 @@ export default class WorkspaceNavigator extends Plugin {
 			callback: async () => {
 				const workspaceName = this.workspaceManager.getActiveWorkspace();
 				if (!workspaceName) {
-					new Notice('No active workspace');
+					notify('No active workspace', 'error');
 					return;
 				}
 
 				await this.saveNavigationLayout(workspaceName);
 				const saveFolderState = this.settings.rememberNavigationLayout;
 				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
-				new Notice(`Saved workspace: ${workspaceName}`);
+				notify(`Saved workspace: ${workspaceName}`, 'success');
 			}
 		});
 
@@ -369,7 +370,7 @@ export default class WorkspaceNavigator extends Plugin {
 			callback: () => {
 				const workspaceName = this.workspaceManager.getActiveWorkspace();
 				if (!workspaceName) {
-					new Notice('No active workspace');
+					notify('No active workspace', 'error');
 					return;
 				}
 
@@ -392,7 +393,7 @@ export default class WorkspaceNavigator extends Plugin {
 
 				this.saveSettings();
 
-				new Notice(`Duplicated workspace to: ${newName}`);
+				notify(`Duplicated workspace to: ${newName}`, 'success');
 			}
 		});
 
@@ -407,13 +408,13 @@ export default class WorkspaceNavigator extends Plugin {
 				// Register commands for imported workspaces
 				if (result.imported.length > 0) {
 					this.refreshWorkspaceCommands();
-					new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+					notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`, 'success');
 				}
 				if (result.skipped.length > 0) {
-					new Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+					notify(`Skipped ${result.skipped.length} existing workspace(s)`);
 				}
 				if (result.imported.length === 0 && result.skipped.length === 0) {
-					new Notice('No workspaces to import');
+					notify('No workspaces to import', 'error');
 				}
 			}
 		});
@@ -436,10 +437,10 @@ export default class WorkspaceNavigator extends Plugin {
 						// Register commands for imported workspaces
 						if (result.imported.length > 0) {
 							this.refreshWorkspaceCommands();
-							new Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`);
+							notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(', ')}`, 'success');
 						}
 						if (result.imported.length === 0) {
-							new Notice('No workspaces to import');
+							notify('No workspaces to import', 'error');
 						}
 					}
 				});
@@ -456,7 +457,7 @@ export default class WorkspaceNavigator extends Plugin {
 			callback: async () => {
 				const name = this.workspaceManager.getActiveWorkspace();
 				if (!name) {
-					new Notice('No active workspace');
+					notify('No active workspace', 'error');
 					return;
 				}
 
@@ -475,7 +476,7 @@ export default class WorkspaceNavigator extends Plugin {
 				console.log(`\nAll workspaces:`, this.workspaceManager.getWorkspaceNames());
 				console.log('═══════════════════════════════════════════');
 
-				new Notice(`Workspace data dumped to console (Ctrl+Shift+I)`);
+				notify(`Workspace data dumped to console (Ctrl+Shift+I)`);
 			}
 		});
 
@@ -551,11 +552,11 @@ export default class WorkspaceNavigator extends Plugin {
 				}
 
 				await adapter.write(filePath, report);
-				new Notice(`Debug report saved to plugin logs folder`);
+				notify(`Debug report saved to plugin logs folder`, 'success');
 
 				// Also copy to clipboard
 				await navigator.clipboard.writeText(report);
-				new Notice('Also copied to clipboard!');
+				notify('Also copied to clipboard!', 'success');
 			}
 		});
 		} // end debug-only commands
@@ -567,7 +568,7 @@ export default class WorkspaceNavigator extends Plugin {
 			callback: () => {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (!activeFile) {
-					new Notice('No active file');
+					notify('No active file', 'error');
 					return;
 				}
 
@@ -591,7 +592,7 @@ export default class WorkspaceNavigator extends Plugin {
 			callback: () => {
 				const activeFile = this.app.workspace.getActiveFile();
 				if (!activeFile) {
-					new Notice('No active file');
+					notify('No active file', 'error');
 					return;
 				}
 
@@ -710,7 +711,7 @@ export default class WorkspaceNavigator extends Plugin {
 				name: `Switch to workspace: ${name}`,
 				callback: async () => {
 					await this.loadWorkspace(name);
-					new Notice(`Switched to workspace: ${name}`);
+					notify(`Switched to workspace: ${name}`, 'success');
 				}
 			});
 
@@ -945,7 +946,7 @@ export default class WorkspaceNavigator extends Plugin {
 	 */
 	async sendFileToWorkspace(targetWorkspace: string, filePath: string, leaf: WorkspaceLeaf | null, andSwitch: boolean): Promise<void> {
 		if (!this.app.vault.getAbstractFileByPath(filePath)) {
-			new Notice(`File not found: ${filePath}`);
+			notify(`File not found: ${filePath}`, 'error');
 			return;
 		}
 		const displayName = filePath.split('/').pop() || filePath;
@@ -953,7 +954,7 @@ export default class WorkspaceNavigator extends Plugin {
 		const viewType = (leaf?.view as any)?.getViewType?.() || WorkspaceManager.viewTypeForPath(filePath);
 		const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, filePath, viewType);
 		if (!success) {
-			new Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+			notify(`Failed to add file to workspace "${targetWorkspace}"`, 'error');
 			return;
 		}
 
@@ -970,11 +971,11 @@ export default class WorkspaceNavigator extends Plugin {
 		await this.saveSettings();
 		this.updateTabIndicators();
 		this.refreshSidebarView();
-		new Notice(`${leaf ? 'Moved' : 'Sent'} "${displayName}" to workspace "${targetWorkspace}"`);
+		notify(`${leaf ? 'Moved' : 'Sent'} "${displayName}" to workspace "${targetWorkspace}"`, 'success');
 
 		if (andSwitch) {
 			await this.loadWorkspace(targetWorkspace);
-			new Notice(`Switched to workspace: ${targetWorkspace}`);
+			notify(`Switched to workspace: ${targetWorkspace}`, 'success');
 		}
 	}
 
@@ -994,7 +995,7 @@ export default class WorkspaceNavigator extends Plugin {
 		}
 
 		await this.loadWorkspace(name);
-		new Notice(`Switched to: ${name}`);
+		notify(`Switched to: ${name}`, 'success');
 	}
 
 	// ─────────────────────────────────────────────────────────────────
@@ -1031,7 +1032,7 @@ export default class WorkspaceNavigator extends Plugin {
 						const saveFolderState = this.settings.rememberNavigationLayout;
 						await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
 						await this.saveSettings();
-						new Notice(`Saved workspace: ${workspaceName}`);
+						notify(`Saved workspace: ${workspaceName}`, 'success');
 					}
 					return;
 				}

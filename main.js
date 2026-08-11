@@ -29,12 +29,19 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian7 = require("obsidian");
 
+// src/notify.ts
+var import_obsidian = require("obsidian");
+var PREFIX = { success: "\u2713 ", error: "\u2717 ", info: "" };
+function notify(message, kind = "info") {
+  new import_obsidian.Notice(PREFIX[kind] + message, kind === "error" ? 8e3 : 4e3);
+}
+
 // src/settings.ts
-var import_obsidian2 = require("obsidian");
+var import_obsidian3 = require("obsidian");
 
 // src/confirm-modal.ts
-var import_obsidian = require("obsidian");
-var ConfirmationModal = class extends import_obsidian.Modal {
+var import_obsidian2 = require("obsidian");
+var ConfirmationModal = class extends import_obsidian2.Modal {
   constructor(app, config) {
     super(app);
     this.modalEl.addClass("workspace-delete-confirm-modal");
@@ -93,7 +100,7 @@ var DEFAULT_SETTINGS = {
   autoBackupPath: "",
   debugMode: false
 };
-var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingTab {
+var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
     this.plugin = plugin;
@@ -114,34 +121,34 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       return setting;
     };
     const saving = section("Saving & layout");
-    new import_obsidian2.Setting(saving).setName("Remember navigation layout per workspace").setDesc("Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When off, navigation state carries over from the previous workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.rememberNavigationLayout).onChange(async (value) => {
+    new import_obsidian3.Setting(saving).setName("Remember navigation layout per workspace").setDesc("Each workspace remembers its own navigation panel state (sidebar, active tab, folder expansion). When off, navigation state carries over from the previous workspace.").addToggle((toggle) => toggle.setValue(this.plugin.settings.rememberNavigationLayout).onChange(async (value) => {
       this.plugin.settings.rememberNavigationLayout = value;
       await this.plugin.saveSettings();
       maintainSetting.settingEl.style.display = value ? "" : "none";
     }));
     const maintainSetting = dependent(
-      new import_obsidian2.Setting(saving).setName("Maintain layout across workspaces").setDesc("Keep the current navigation layout when switching, instead of loading each workspace's saved layout.").addToggle((toggle) => toggle.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces).onChange(async (value) => {
+      new import_obsidian3.Setting(saving).setName("Maintain layout across workspaces").setDesc("Keep the current navigation layout when switching, instead of loading each workspace's saved layout.").addToggle((toggle) => toggle.setValue(this.plugin.settings.maintainLayoutAcrossWorkspaces).onChange(async (value) => {
         this.plugin.settings.maintainLayoutAcrossWorkspaces = value;
         await this.plugin.saveSettings();
       })),
       this.plugin.settings.rememberNavigationLayout
     );
-    new import_obsidian2.Setting(saving).setName("Auto-save on workspace switch").setDesc("Automatically save the current workspace layout before switching to another.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnSwitch).onChange(async (value) => {
+    new import_obsidian3.Setting(saving).setName("Auto-save on workspace switch").setDesc("Automatically save the current workspace layout before switching to another.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnSwitch).onChange(async (value) => {
       this.plugin.settings.autoSaveOnSwitch = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(saving).setName("Auto-save on layout change").setDesc("Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnLayoutChange).onChange(async (value) => {
+    new import_obsidian3.Setting(saving).setName("Auto-save on layout change").setDesc("Automatically save whenever the layout changes (panels, panes, folders). Can result in frequent saves.").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoSaveOnLayoutChange).onChange(async (value) => {
       this.plugin.settings.autoSaveOnLayoutChange = value;
       await this.plugin.saveSettings();
     }));
     const workspaces = section("Workspaces");
     const getSortDescription = (isManual) => isManual ? "Currently: Manual order \u2014 drag workspaces to reorder within groups." : "Currently: Alphabetical order (A-Z, 0-9).";
-    const sortSetting = new import_obsidian2.Setting(workspaces).setName("Manual sort order").setDesc(getSortDescription(this.plugin.settings.manualSortOrder)).addToggle((toggle) => toggle.setValue(this.plugin.settings.manualSortOrder).onChange(async (value) => {
+    const sortSetting = new import_obsidian3.Setting(workspaces).setName("Manual sort order").setDesc(getSortDescription(this.plugin.settings.manualSortOrder)).addToggle((toggle) => toggle.setValue(this.plugin.settings.manualSortOrder).onChange(async (value) => {
       this.plugin.settings.manualSortOrder = value;
       await this.plugin.saveSettings();
       sortSetting.setDesc(getSortDescription(value));
     }));
-    new import_obsidian2.Setting(workspaces).setName("Default group for new workspaces").setDesc("Automatically assign new workspaces to this group.").addDropdown((dropdown) => {
+    new import_obsidian3.Setting(workspaces).setName("Default group for new workspaces").setDesc("Automatically assign new workspaces to this group.").addDropdown((dropdown) => {
       const groups = this.plugin.getWorkspaceManager().getGroups();
       dropdown.addOption("", "(None)");
       for (const group of groups) {
@@ -158,27 +165,27 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       });
     });
     const appearance = section("Appearance");
-    new import_obsidian2.Setting(appearance).setName("Highlight active workspace").setDesc("Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.").addToggle((toggle) => toggle.setValue(this.plugin.settings.highlightActiveWorkspace).onChange(async (value) => {
+    new import_obsidian3.Setting(appearance).setName("Highlight active workspace").setDesc("Emphasize the current workspace in the sidebar and switcher with an accent bar and tinted background. Leaves your custom name colors untouched; the checkmark shows regardless.").addToggle((toggle) => toggle.setValue(this.plugin.settings.highlightActiveWorkspace).onChange(async (value) => {
       this.plugin.settings.highlightActiveWorkspace = value;
       await this.plugin.saveSettings();
       this.plugin.refreshSidebarView();
     }));
-    new import_obsidian2.Setting(appearance).setName("Transparent switcher modal").setDesc("Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.").addToggle((toggle) => toggle.setValue(this.plugin.settings.transparentModal).onChange(async (value) => {
+    new import_obsidian3.Setting(appearance).setName("Transparent switcher modal").setDesc("Make the switcher modal transparent and borderless, showing workspace cards floating over the editor.").addToggle((toggle) => toggle.setValue(this.plugin.settings.transparentModal).onChange(async (value) => {
       this.plugin.settings.transparentModal = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(appearance).setName("Keyboard-shortcut hints in switcher").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
+    new import_obsidian3.Setting(appearance).setName("Keyboard-shortcut hints in switcher").setDesc("Display keyboard shortcut hints at the bottom of the switcher modal.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showInstructions).onChange(async (value) => {
       this.plugin.settings.showInstructions = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian2.Setting(appearance).setName("Show status-bar indicator").setDesc("Display the current workspace name in the status bar.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
+    new import_obsidian3.Setting(appearance).setName("Show status-bar indicator").setDesc("Display the current workspace name in the status bar.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStatusBar).onChange(async (value) => {
       this.plugin.settings.showStatusBar = value;
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
       statusGroupSetting.settingEl.style.display = value ? "" : "none";
     }));
     const statusGroupSetting = dependent(
-      new import_obsidian2.Setting(appearance).setName("Show group in status bar").setDesc(`Also show the active workspace's group (e.g. "Group \u203A Workspace").`).addToggle((toggle) => toggle.setValue(this.plugin.settings.showGroupInStatusBar).onChange(async (value) => {
+      new import_obsidian3.Setting(appearance).setName("Show group in status bar").setDesc(`Also show the active workspace's group (e.g. "Group \u203A Workspace").`).addToggle((toggle) => toggle.setValue(this.plugin.settings.showGroupInStatusBar).onChange(async (value) => {
         this.plugin.settings.showGroupInStatusBar = value;
         await this.plugin.saveSettings();
         this.plugin.updateStatusBar();
@@ -186,11 +193,11 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       this.plugin.settings.showStatusBar
     );
     const theming = section("Theming (Style Settings)");
-    const ssRow = new import_obsidian2.Setting(theming).setName("Style Settings");
+    const ssRow = new import_obsidian3.Setting(theming).setName("Style Settings");
     if (this.plugin.isStyleSettingsEnabled()) {
       ssRow.setDesc("Theme the active highlight, guide lines, density, and sizing.").addButton((button) => button.setButtonText("Open Style Settings").setCta().onClick(() => this.plugin.openStyleSettings()));
       dependent(
-        new import_obsidian2.Setting(theming).setName("Show shortcut button in sidebar").setDesc("Add a button to the sidebar header that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInSidebar).onChange(async (value) => {
+        new import_obsidian3.Setting(theming).setName("Show shortcut button in sidebar").setDesc("Add a button to the sidebar header that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInSidebar).onChange(async (value) => {
           this.plugin.settings.showStyleSettingsInSidebar = value;
           await this.plugin.saveSettings();
           this.plugin.refreshSidebarView();
@@ -198,7 +205,7 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
         true
       );
       dependent(
-        new import_obsidian2.Setting(theming).setName("Show shortcut button in switcher").setDesc("Add a button to the switcher modal that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInModal).onChange(async (value) => {
+        new import_obsidian3.Setting(theming).setName("Show shortcut button in switcher").setDesc("Add a button to the switcher modal that opens Style Settings.").addToggle((toggle) => toggle.setValue(this.plugin.settings.showStyleSettingsInModal).onChange(async (value) => {
           this.plugin.settings.showStyleSettingsInModal = value;
           await this.plugin.saveSettings();
         })),
@@ -208,20 +215,20 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
       ssRow.setDesc('Install the community plugin "Style Settings" to theme Workspace Navigator (active highlight, guide lines, density, sizing).');
     }
     const importBackup = section("Import & backup", true);
-    new import_obsidian2.Setting(importBackup).setName("Import from Obsidian core Workspaces plugin").setDesc("Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name are skipped.").addButton((button) => button.setButtonText("Import").onClick(async () => {
+    new import_obsidian3.Setting(importBackup).setName("Import from Obsidian core Workspaces plugin").setDesc("Import all workspaces from the built-in Workspaces plugin (.obsidian/workspaces.json). Existing workspaces with the same name are skipped.").addButton((button) => button.setButtonText("Import").onClick(async () => {
       const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(false);
       await this.plugin.saveSettings();
       if (result.imported.length > 0) {
-        new import_obsidian2.Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`);
+        notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`, "success");
       }
       if (result.skipped.length > 0) {
-        new import_obsidian2.Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+        notify(`Skipped ${result.skipped.length} existing workspace(s)`);
       }
       if (result.imported.length === 0 && result.skipped.length === 0) {
-        new import_obsidian2.Notice("No workspaces to import");
+        notify("No workspaces to import", "error");
       }
     }));
-    new import_obsidian2.Setting(importBackup).setName("Import and overwrite").setDesc("Import all workspaces from the core plugin. WARNING: deletes all existing workspaces first.").addButton((button) => button.setButtonText("Import (Overwrite)").setWarning().onClick(async () => {
+    new import_obsidian3.Setting(importBackup).setName("Import and overwrite").setDesc("Import all workspaces from the core plugin. WARNING: deletes all existing workspaces first.").addButton((button) => button.setButtonText("Import (Overwrite)").setWarning().onClick(async () => {
       const existingCount = this.plugin.getWorkspaceManager().getWorkspaceNames().length;
       createConfirmationDialog(this.app, {
         title: "Overwrite All Workspaces?",
@@ -231,31 +238,31 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
           const result = await this.plugin.getWorkspaceManager().importFromCorePlugin(true);
           await this.plugin.saveSettings();
           if (result.imported.length > 0) {
-            new import_obsidian2.Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`);
+            notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`, "success");
           }
           if (result.imported.length === 0) {
-            new import_obsidian2.Notice("No workspaces to import");
+            notify("No workspaces to import", "error");
           }
         }
       });
     }));
-    new import_obsidian2.Setting(importBackup).setName("Auto-backup on save").setDesc("Automatically write a backup of all settings and workspaces whenever configuration changes. (Desktop only.)").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoBackupEnabled).onChange(async (value) => {
+    new import_obsidian3.Setting(importBackup).setName("Auto-backup on save").setDesc("Automatically write a backup of all settings and workspaces whenever configuration changes. (Desktop only.)").addToggle((toggle) => toggle.setValue(this.plugin.settings.autoBackupEnabled).onChange(async (value) => {
       this.plugin.settings.autoBackupEnabled = value;
       await this.plugin.saveSettings();
       backupPathSetting.settingEl.style.display = value ? "" : "none";
       if (value && !this.plugin.settings.autoBackupPath) {
-        new import_obsidian2.Notice("Set a backup folder below to enable auto-backup.");
+        notify("Set a backup folder below to enable auto-backup.");
       }
     }));
     const backupPathSetting = dependent(
-      new import_obsidian2.Setting(importBackup).setName("Backup folder").setDesc("Absolute path where the backup file is saved (e.g. /home/user/backups or C:\\backups). Leave empty to use the vault root.").addText((text) => text.setPlaceholder("Enter absolute path...").setValue(this.plugin.settings.autoBackupPath).onChange(async (value) => {
+      new import_obsidian3.Setting(importBackup).setName("Backup folder").setDesc("Absolute path where the backup file is saved (e.g. /home/user/backups or C:\\backups). Leave empty to use the vault root.").addText((text) => text.setPlaceholder("Enter absolute path...").setValue(this.plugin.settings.autoBackupPath).onChange(async (value) => {
         this.plugin.settings.autoBackupPath = value.trim();
         await this.plugin.saveSettings();
       })),
       this.plugin.settings.autoBackupEnabled
     );
     const maintenance = section("Maintenance", true);
-    new import_obsidian2.Setting(maintenance).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
+    new import_obsidian3.Setting(maintenance).setName("Reset all workspace styles").setDesc("Clear all icons, colors, and formatting from all workspaces.").addButton((button) => button.setButtonText("Reset Styles").setWarning().onClick(async () => {
       createConfirmationDialog(this.app, {
         title: "Reset All Styles?",
         text: "This will remove all icons, colors, and formatting from all workspaces. This cannot be undone.",
@@ -264,22 +271,22 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian2.PluginSettingT
           this.plugin.getWorkspaceManager().clearAllStyles();
           this.plugin.updateStatusBar();
           await this.plugin.saveSettings();
-          new import_obsidian2.Notice("All workspace styles have been reset");
+          notify("All workspace styles have been reset", "success");
         }
       });
     }));
-    new import_obsidian2.Setting(maintenance).setName("Debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
+    new import_obsidian3.Setting(maintenance).setName("Debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
       this.plugin.settings.debugMode = value;
       await this.plugin.saveSettings();
       if (value) {
-        new import_obsidian2.Notice("Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.");
+        notify("Debug mode enabled. Open Developer Tools (Ctrl+Shift+I) to view logs.");
       }
     }));
   }
 };
 
 // src/workspace-modal.ts
-var import_obsidian4 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 
 // node_modules/@popperjs/core/lib/enums.js
 var top = "top";
@@ -1740,7 +1747,7 @@ var createPopper = /* @__PURE__ */ popperGenerator({
 });
 
 // src/group-header.ts
-var import_obsidian3 = require("obsidian");
+var import_obsidian4 = require("obsidian");
 var NO_GROUP_KEY = "\0nogroup";
 function renderGroupHeader(container, config) {
   const {
@@ -1795,7 +1802,7 @@ function renderGroupHeader(container, config) {
     dragHandle.style.justifyContent = "center";
     dragHandle.style.width = "20px";
     dragHandle.style.height = "20px";
-    (0, import_obsidian3.setIcon)(dragHandle, "grip-vertical");
+    (0, import_obsidian4.setIcon)(dragHandle, "grip-vertical");
     if (isNoGroup) {
       dragHandle.style.opacity = "0.15";
       dragHandle.style.cursor = "default";
@@ -1848,13 +1855,13 @@ function renderGroupHeader(container, config) {
   iconSpan.style.justifyContent = "center";
   iconSpan.style.width = "24px";
   if (groupIcon) {
-    (0, import_obsidian3.setIcon)(iconSpan, groupIcon);
+    (0, import_obsidian4.setIcon)(iconSpan, groupIcon);
     const iconColor = isNoGroup ? workspaceManager.getGroupIconColor(NO_GROUP_KEY) : workspaceManager.getGroupIconColor(groupName);
     if (iconColor) {
       iconSpan.style.color = iconColor;
     }
   } else {
-    (0, import_obsidian3.setIcon)(iconSpan, "folder");
+    (0, import_obsidian4.setIcon)(iconSpan, "folder");
     iconSpan.style.opacity = "0.4";
   }
   const svg = iconSpan.querySelector("svg");
@@ -2124,7 +2131,7 @@ var PRESET_COLORS = [
   { color: "#6b7280", name: "gray" },
   { color: "#ffffff", name: "white" }
 ];
-var WorkspaceStyleModal = class extends import_obsidian4.Modal {
+var WorkspaceStyleModal = class extends import_obsidian5.Modal {
   constructor(app, plugin, workspaceName, currentStyle, onSubmit) {
     super(app);
     this.plugin = plugin;
@@ -2153,7 +2160,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
         return;
       iconPreview.empty();
       if (iconValue) {
-        (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+        (0, import_obsidian5.setIcon)(iconPreview, iconValue);
         iconPreview.style.color = iconColorValue || "";
       }
       namePreview.textContent = renameValue || this.workspaceName;
@@ -2165,7 +2172,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
     iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
     namePreview = previewContainer.createSpan("workspace-style-preview-name");
     if (iconValue) {
-      (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+      (0, import_obsidian5.setIcon)(iconPreview, iconValue);
       if (iconColorValue)
         iconPreview.style.color = iconColorValue;
     }
@@ -2178,14 +2185,14 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
       namePreview.style.fontStyle = "italic";
     const generalCard = contentEl.createDiv("workspace-style-card");
     generalCard.createDiv({ cls: "workspace-style-card-label", text: "General" });
-    new import_obsidian4.Setting(generalCard).setName("Name").addText((text) => {
+    new import_obsidian5.Setting(generalCard).setName("Name").addText((text) => {
       text.setValue(this.workspaceName);
       text.onChange((value) => {
         renameValue = value.trim();
         updatePreview();
       });
     });
-    new import_obsidian4.Setting(generalCard).setName("Group").addDropdown((dropdown) => {
+    new import_obsidian5.Setting(generalCard).setName("Group").addDropdown((dropdown) => {
       dropdown.addOption("", "(None)");
       for (const group of existingGroups) {
         dropdown.addOption(group, group);
@@ -2218,7 +2225,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
     });
     for (const iconName of LUCIDE_ICONS) {
       const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
-      (0, import_obsidian4.setIcon)(btn, iconName);
+      (0, import_obsidian5.setIcon)(btn, iconName);
       btn.setAttribute("aria-label", iconName);
       if (iconName === iconValue)
         btn.addClass("is-selected");
@@ -2229,7 +2236,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
         updatePreview();
       });
     }
-    new import_obsidian4.Setting(iconCard).setName("Color").then((setting) => {
+    new import_obsidian5.Setting(iconCard).setName("Color").then((setting) => {
       const swatches = setting.controlEl.createDiv("workspace-color-swatches");
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
@@ -2258,7 +2265,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
     });
     const nameCard = contentEl.createDiv("workspace-style-card");
     nameCard.createDiv({ cls: "workspace-style-card-label", text: "Name Style" });
-    new import_obsidian4.Setting(nameCard).setName("Color").then((setting) => {
+    new import_obsidian5.Setting(nameCard).setName("Color").then((setting) => {
       const swatches = setting.controlEl.createDiv("workspace-color-swatches");
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
@@ -2285,7 +2292,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
         updatePreview();
       });
     });
-    new import_obsidian4.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(nameBoldValue).setTooltip("Bold").onChange((value) => {
+    new import_obsidian5.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(nameBoldValue).setTooltip("Bold").onChange((value) => {
       nameBoldValue = value;
       updatePreview();
     })).addToggle((toggle) => toggle.setValue(nameItalicValue).setTooltip("Italic").onChange((value) => {
@@ -2320,7 +2327,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
       });
       this.close();
     };
-    new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
+    new import_obsidian5.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
       this.onSubmit({
         group: "",
         icon: "",
@@ -2341,7 +2348,7 @@ var WorkspaceStyleModal = class extends import_obsidian4.Modal {
     this.contentEl.empty();
   }
 };
-var GroupStylePickerModal = class extends import_obsidian4.Modal {
+var GroupStylePickerModal = class extends import_obsidian5.Modal {
   constructor(app, plugin, groupName, onSubmit) {
     super(app);
     this.plugin = plugin;
@@ -2369,7 +2376,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
         return;
       iconPreview.empty();
       if (iconValue) {
-        (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+        (0, import_obsidian5.setIcon)(iconPreview, iconValue);
         iconPreview.style.color = iconColorValue || "";
       }
       namePreview.textContent = renameValue || displayName;
@@ -2381,7 +2388,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
     iconPreview = previewContainer.createSpan("workspace-style-preview-icon");
     namePreview = previewContainer.createSpan("workspace-style-preview-name");
     if (iconValue) {
-      (0, import_obsidian4.setIcon)(iconPreview, iconValue);
+      (0, import_obsidian5.setIcon)(iconPreview, iconValue);
       if (iconColorValue)
         iconPreview.style.color = iconColorValue;
     }
@@ -2394,7 +2401,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       namePreview.style.fontStyle = "italic";
     const generalCard = contentEl.createDiv("workspace-style-card");
     generalCard.createDiv({ cls: "workspace-style-card-label", text: "General" });
-    new import_obsidian4.Setting(generalCard).setName("Name").addText((text) => {
+    new import_obsidian5.Setting(generalCard).setName("Name").addText((text) => {
       text.setValue(isNoGroup ? "" : this.groupName);
       text.setPlaceholder(isNoGroup ? "Enter group name..." : "");
       text.onChange((value) => {
@@ -2418,7 +2425,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
     });
     for (const iconName of LUCIDE_ICONS) {
       const btn = grid.createEl("button", { cls: "workspace-icon-btn-grid" });
-      (0, import_obsidian4.setIcon)(btn, iconName);
+      (0, import_obsidian5.setIcon)(btn, iconName);
       btn.setAttribute("aria-label", iconName);
       if (iconName === iconValue)
         btn.addClass("is-selected");
@@ -2429,7 +2436,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
         updatePreview();
       });
     }
-    new import_obsidian4.Setting(iconCard).setName("Color").then((setting) => {
+    new import_obsidian5.Setting(iconCard).setName("Color").then((setting) => {
       const swatches = setting.controlEl.createDiv("workspace-color-swatches");
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
@@ -2458,7 +2465,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
     });
     const nameCard = contentEl.createDiv("workspace-style-card");
     nameCard.createDiv({ cls: "workspace-style-card-label", text: "Name Style" });
-    new import_obsidian4.Setting(nameCard).setName("Color").then((setting) => {
+    new import_obsidian5.Setting(nameCard).setName("Color").then((setting) => {
       const swatches = setting.controlEl.createDiv("workspace-color-swatches");
       for (const { color, name } of PRESET_COLORS) {
         const swatch = swatches.createEl("button", { cls: "workspace-color-swatch" });
@@ -2485,7 +2492,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
         updatePreview();
       });
     });
-    new import_obsidian4.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(textBoldValue).setTooltip("Bold").onChange((value) => {
+    new import_obsidian5.Setting(nameCard).setName("Format").addToggle((toggle) => toggle.setValue(textBoldValue).setTooltip("Bold").onChange((value) => {
       textBoldValue = value;
       updatePreview();
     })).addToggle((toggle) => toggle.setValue(textItalicValue).setTooltip("Italic").onChange((value) => {
@@ -2521,7 +2528,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
       });
       this.close();
     };
-    new import_obsidian4.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
+    new import_obsidian5.Setting(contentEl).addButton((btn) => btn.setButtonText("Clear All").onClick(() => {
       this.onSubmit({
         newName: null,
         icon: null,
@@ -2542,7 +2549,7 @@ var GroupStylePickerModal = class extends import_obsidian4.Modal {
     this.contentEl.empty();
   }
 };
-var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
+var WorkspacePickerModal = class extends import_obsidian5.FuzzySuggestModal {
   constructor(app, plugin, filePath, follow, onSelect) {
     super(app);
     this.plugin = plugin;
@@ -2573,7 +2580,7 @@ var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
     const icon = workspaceManager.getWorkspaceIcon(workspaceName);
     if (icon) {
       const iconSpan = el.createSpan("workspace-picker-icon");
-      (0, import_obsidian4.setIcon)(iconSpan, icon);
+      (0, import_obsidian5.setIcon)(iconSpan, icon);
       const iconColor = workspaceManager.getWorkspaceIconColor(workspaceName);
       if (iconColor)
         iconSpan.style.color = iconColor;
@@ -2589,7 +2596,7 @@ var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
       nameSpan.style.fontStyle = "italic";
     if (alreadyHasFile) {
       const indicator = el.createSpan("workspace-picker-has-file");
-      (0, import_obsidian4.setIcon)(indicator, "layers");
+      (0, import_obsidian5.setIcon)(indicator, "layers");
       indicator.setAttribute("aria-label", "File already open in this workspace");
     }
     const group = workspaceManager.getWorkspaceGroup(workspaceName);
@@ -2602,13 +2609,13 @@ var WorkspacePickerModal = class extends import_obsidian4.FuzzySuggestModal {
     const workspaceManager = this.plugin.getWorkspaceManager();
     const openFiles = workspaceManager.getOpenFilesInWorkspace(workspace);
     if (openFiles.includes(this.filePath)) {
-      new import_obsidian4.Notice(`File is already open in "${workspace}"`);
+      notify(`File is already open in "${workspace}"`);
       return;
     }
     this.onSelect(workspace);
   }
 };
-var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
+var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
   constructor(app, plugin) {
     super(app);
     this.popper = null;
@@ -2639,7 +2646,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         { command: "esc", purpose: "cancel" }
       ]);
     }
-    this.scope = new import_obsidian4.Scope();
+    this.scope = new import_obsidian5.Scope();
     this.setupScope();
   }
   setupScope() {
@@ -2764,7 +2771,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const addGroupBtn = document.createElement("button");
     addGroupBtn.className = "workspace-action-btn btn-add-group";
     const groupIcon = document.createElement("span");
-    (0, import_obsidian4.setIcon)(groupIcon, "folder-plus");
+    (0, import_obsidian5.setIcon)(groupIcon, "folder-plus");
     addGroupBtn.appendChild(groupIcon);
     addGroupBtn.appendChild(document.createTextNode("Group"));
     addGroupBtn.setAttribute("aria-label", "Create a new group");
@@ -2777,7 +2784,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const addWorkspaceBtn = document.createElement("button");
     addWorkspaceBtn.className = "workspace-action-btn btn-add-workspace";
     const workspaceIcon = document.createElement("span");
-    (0, import_obsidian4.setIcon)(workspaceIcon, "file-plus");
+    (0, import_obsidian5.setIcon)(workspaceIcon, "file-plus");
     addWorkspaceBtn.appendChild(workspaceIcon);
     addWorkspaceBtn.appendChild(document.createTextNode("Workspace"));
     addWorkspaceBtn.setAttribute("aria-label", "Save current layout as new workspace");
@@ -2789,7 +2796,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     bottomActions.appendChild(addWorkspaceBtn);
     const sidebarBtn = document.createElement("button");
     sidebarBtn.className = "workspace-action-btn btn-sidebar";
-    (0, import_obsidian4.setIcon)(sidebarBtn, "panel-left");
+    (0, import_obsidian5.setIcon)(sidebarBtn, "panel-left");
     sidebarBtn.setAttribute("aria-label", "Open sidebar navigator");
     sidebarBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
@@ -2801,7 +2808,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     if (this.plugin.settings.showStyleSettingsInModal && this.plugin.isStyleSettingsEnabled()) {
       const styleBtn = document.createElement("button");
       styleBtn.className = "workspace-action-btn btn-style-settings";
-      (0, import_obsidian4.setIcon)(styleBtn, "palette");
+      (0, import_obsidian5.setIcon)(styleBtn, "palette");
       styleBtn.setAttribute("aria-label", "Open Style Settings");
       styleBtn.addEventListener("click", (evt) => {
         evt.preventDefault();
@@ -2813,7 +2820,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     const settingsBtn = document.createElement("button");
     settingsBtn.className = "workspace-action-btn btn-settings";
-    (0, import_obsidian4.setIcon)(settingsBtn, "settings");
+    (0, import_obsidian5.setIcon)(settingsBtn, "settings");
     settingsBtn.setAttribute("aria-label", "Open plugin settings");
     settingsBtn.addEventListener("click", (evt) => {
       evt.preventDefault();
@@ -2832,10 +2839,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const anyCollapsed = allGroups.some((g) => workspaceManager.isGroupCollapsed(g));
     btn.empty();
     if (anyCollapsed) {
-      (0, import_obsidian4.setIcon)(btn, "chevrons-up");
+      (0, import_obsidian5.setIcon)(btn, "chevrons-up");
       btn.setAttribute("aria-label", "Expand all groups");
     } else {
-      (0, import_obsidian4.setIcon)(btn, "chevrons-down");
+      (0, import_obsidian5.setIcon)(btn, "chevrons-down");
       btn.setAttribute("aria-label", "Collapse all groups");
     }
   }
@@ -2855,13 +2862,13 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
   openNewGroupModal() {
     const modal = new GroupStylePickerModal(this.app, this.plugin, "", async (result) => {
       if (!result.newName || !result.newName.trim()) {
-        new import_obsidian4.Notice("Group name is required");
+        notify("Group name is required", "error");
         return;
       }
       const trimmedName = result.newName.trim();
       const workspaceManager = this.plugin.getWorkspaceManager();
       if (workspaceManager.getGroups().includes(trimmedName)) {
-        new import_obsidian4.Notice(`Group "${trimmedName}" already exists`);
+        notify(`Group "${trimmedName}" already exists`, "error");
         return;
       }
       const order2 = workspaceManager.getGroupOrder();
@@ -2878,7 +2885,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         workspaceManager.setGroupItalic(trimmedName, true);
       await this.plugin.saveSettings();
       await workspaceManager.saveLog();
-      new import_obsidian4.Notice(`Created group "${trimmedName}"`);
+      notify(`Created group "${trimmedName}"`, "success");
       this.lastRenderedGroup = void 0;
       refreshSuggestions(this);
       this.createActionButtons();
@@ -2904,12 +2911,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         var _a;
         const newName = (_a = result.newName) == null ? void 0 : _a.trim();
         if (!newName) {
-          new import_obsidian4.Notice("Workspace name is required");
+          notify("Workspace name is required", "error");
           return;
         }
         const workspaceManager = this.plugin.getWorkspaceManager();
         if (workspaceManager.hasWorkspace(newName)) {
-          new import_obsidian4.Notice(`Workspace "${newName}" already exists`);
+          notify(`Workspace "${newName}" already exists`, "error");
           return;
         }
         await workspaceManager.saveWorkspace(newName, this.plugin.settings.rememberNavigationLayout);
@@ -2925,7 +2932,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           });
         }
         await this.plugin.saveSettings();
-        new import_obsidian4.Notice(`Created workspace "${newName}"`);
+        notify(`Created workspace "${newName}"`, "success");
         this.lastRenderedGroup = void 0;
         refreshSuggestions(this);
         this.createActionButtons();
@@ -3030,7 +3037,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           }
           await this.plugin.saveSettings();
           const groupDisplay = targetGroup || "No Group";
-          new import_obsidian4.Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+          notify(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`, "success");
           moved = true;
         } else if (useManualOrder && this.draggedWorkspace !== dropTarget.workspace) {
           const position = dropTarget.insertBefore ? "before" : "after";
@@ -3056,7 +3063,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
             workspaceManager.moveWorkspaceToGroup(this.draggedWorkspace, targetGroup);
             await this.plugin.saveSettings();
             const groupDisplay = targetGroup || "No Group";
-            new import_obsidian4.Notice(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`);
+            notify(`Moved "${this.draggedWorkspace}" to ${groupDisplay}`, "success");
             moved = true;
           }
         }
@@ -3300,12 +3307,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     iconSpan.style.marginRight = "6px";
     iconSpan.style.verticalAlign = "middle";
     if (icon) {
-      (0, import_obsidian4.setIcon)(iconSpan, icon);
+      (0, import_obsidian5.setIcon)(iconSpan, icon);
       if (iconColor) {
         iconSpan.style.color = iconColor;
       }
     } else {
-      (0, import_obsidian4.setIcon)(iconSpan, "layout-grid");
+      (0, import_obsidian5.setIcon)(iconSpan, "layout-grid");
       iconSpan.style.opacity = "0.4";
     }
     const svg = iconSpan.querySelector("svg");
@@ -3331,7 +3338,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         el.style.backgroundImage = "linear-gradient(var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)), var(--wn-active-fill, hsla(var(--interactive-accent-hsl), 0.12)))";
       }
       const activeCheck = el.createSpan("workspace-active-check");
-      (0, import_obsidian4.setIcon)(activeCheck, "check");
+      (0, import_obsidian5.setIcon)(activeCheck, "check");
       activeCheck.setAttribute("aria-label", "Current workspace");
       activeCheck.style.position = "absolute";
       activeCheck.style.top = "50%";
@@ -3440,7 +3447,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     }
     const workspaceManager = this.plugin.getWorkspaceManager();
     if (workspaceManager.hasWorkspace(newName)) {
-      new import_obsidian4.Notice(`Workspace "${newName}" already exists`);
+      notify(`Workspace "${newName}" already exists`, "error");
       textSpan.textContent = oldName;
       textSpan.focus();
       return;
@@ -3458,7 +3465,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     refreshSuggestions(this);
     this.createActionButtons();
     this.plugin.notifySidebarWorkspaceRenamed(oldName, newName);
-    new import_obsidian4.Notice(`Renamed workspace to "${newName}"`);
+    notify(`Renamed workspace to "${newName}"`, "success");
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle workspace deletion
@@ -3480,7 +3487,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       this.plugin.saveSettings();
       refreshSuggestions(this);
       this.createActionButtons();
-      new import_obsidian4.Notice(`Deleted workspace: ${workspaceName}`);
+      notify(`Deleted workspace: ${workspaceName}`, "success");
     };
     createConfirmationDialog(this.app, {
       title: "Delete Workspace",
@@ -3517,7 +3524,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     this.plugin.saveSettings();
     refreshSuggestions(this);
     this.createActionButtons();
-    new import_obsidian4.Notice(`Duplicated workspace to: ${newName}`);
+    notify(`Duplicated workspace to: ${newName}`, "success");
   }
   // ─────────────────────────────────────────────────────────────────
   // Handle group rename click (inline editing)
@@ -3589,7 +3596,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           workspaceManager.setGroupCollapsed(newName, true);
           workspaceManager.setGroupCollapsed("\0nogroup", false);
         }
-        new import_obsidian4.Notice(`Created group "${newName}" with ${ungrouped.length} workspace(s)`);
+        notify(`Created group "${newName}" with ${ungrouped.length} workspace(s)`, "success");
         await this.plugin.saveSettings();
         this.lastRenderedGroup = void 0;
         refreshSuggestions(this);
@@ -3597,7 +3604,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         this.plugin.notifySidebarGroupRenamed("\0nogroup", newName);
       } else {
         workspaceManager.renameGroup(groupName, newName);
-        new import_obsidian4.Notice(`Renamed group to "${newName}"`);
+        notify(`Renamed group to "${newName}"`, "success");
         await this.plugin.saveSettings();
         this.lastRenderedGroup = void 0;
         refreshSuggestions(this);
@@ -3628,7 +3635,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       let finalGroupName = groupName;
       if (result.newName) {
         if (!isNoGroup && workspaceManager.getGroups().includes(result.newName)) {
-          new import_obsidian4.Notice(`Group "${result.newName}" already exists`);
+          notify(`Group "${result.newName}" already exists`, "error");
           return;
         }
         if (isNoGroup) {
@@ -3661,7 +3668,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
           if (collapsed)
             workspaceManager.setGroupCollapsed(result.newName, true);
           finalGroupName = result.newName;
-          new import_obsidian4.Notice(`Created group "${result.newName}" with ${ungrouped.length} workspace(s)`);
+          notify(`Created group "${result.newName}" with ${ungrouped.length} workspace(s)`, "success");
         } else if (result.newName !== groupName) {
           const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
           for (const workspace of workspacesInGroup) {
@@ -3709,7 +3716,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         this.plugin.refreshSidebarView();
       }
       if (!isNoGroup || !result.newName) {
-        new import_obsidian4.Notice(`Updated "${finalGroupName === "\0nogroup" ? "No Group" : finalGroupName}"`);
+        notify(`Updated "${finalGroupName === "\0nogroup" ? "No Group" : finalGroupName}"`);
       }
     });
     modal.open();
@@ -3767,7 +3774,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         const workspacesInGroup = workspaceManager.getWorkspacesByGroup(groupName);
         workspaceManager.deleteGroup(groupName);
         await this.plugin.saveSettings();
-        new import_obsidian4.Notice(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`);
+        notify(`Deleted group "${groupName}" (${workspacesInGroup.length} workspace(s) ungrouped)`, "success");
         this.lastRenderedGroup = void 0;
         refreshSuggestions(this);
         this.createActionButtons();
@@ -3795,7 +3802,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       let finalName = workspaceName;
       if (newStyle.newName && newStyle.newName !== workspaceName) {
         if (workspaceManager.hasWorkspace(newStyle.newName)) {
-          new import_obsidian4.Notice(`Workspace "${newStyle.newName}" already exists`);
+          notify(`Workspace "${newStyle.newName}" already exists`, "error");
           return;
         }
         workspaceManager.renameWorkspace(workspaceName, newStyle.newName);
@@ -3818,7 +3825,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       refreshSuggestions(this);
       this.createActionButtons();
       this.plugin.updateStatusBar();
-      new import_obsidian4.Notice(`Updated "${finalName}"`);
+      notify(`Updated "${finalName}"`);
     });
     modal.open();
   }
@@ -3847,11 +3854,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     const inputEl = this.inputEl;
     const workspaceName = (_a = inputEl == null ? void 0 : inputEl.value) == null ? void 0 : _a.trim();
     if (!workspaceName) {
-      new import_obsidian4.Notice("Please enter a workspace name");
+      notify("Please enter a workspace name", "error");
       return;
     }
     if (workspaceManager.hasWorkspace(workspaceName)) {
-      new import_obsidian4.Notice(`Workspace "${workspaceName}" already exists`);
+      notify(`Workspace "${workspaceName}" already exists`, "error");
       return;
     }
     const saveFolderState = this.plugin.settings.rememberNavigationLayout;
@@ -3862,7 +3869,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
     await this.plugin.saveSettings();
     this.plugin.updateStatusBar();
     this.plugin.refreshSidebarView();
-    new import_obsidian4.Notice(`Created workspace: ${workspaceName}`);
+    notify(`Created workspace: ${workspaceName}`, "success");
     this.close();
   }
   // ─────────────────────────────────────────────────────────────────
@@ -3888,10 +3895,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         await this.plugin.saveNavigationLayout(currentWorkspace2);
         const saveFolderState = this.plugin.settings.rememberNavigationLayout;
         await workspaceManager.saveWorkspace(currentWorkspace2, saveFolderState);
-        new import_obsidian4.Notice(`Saved workspace: ${currentWorkspace2}`);
+        notify(`Saved workspace: ${currentWorkspace2}`, "success");
       }
       await this.plugin.loadWorkspace(workspace);
-      new import_obsidian4.Notice(`Switched to workspace: ${workspace}`);
+      notify(`Switched to workspace: ${workspace}`, "success");
       this.close();
       return;
     }
@@ -3901,10 +3908,10 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
         await this.plugin.saveNavigationLayout(currentWorkspace2);
         const saveFolderState = this.plugin.settings.rememberNavigationLayout;
         await workspaceManager.saveWorkspace(currentWorkspace2, saveFolderState);
-        new import_obsidian4.Notice(`Saved workspace: ${currentWorkspace2}`);
+        notify(`Saved workspace: ${currentWorkspace2}`, "success");
       }
       await this.plugin.loadWorkspace(workspace);
-      new import_obsidian4.Notice(`Switched to workspace: ${workspace}`);
+      notify(`Switched to workspace: ${workspace}`, "success");
       return;
     }
     const currentWorkspace = workspaceManager.getActiveWorkspace();
@@ -3916,12 +3923,11 @@ var WorkspaceSwitcherModal = class extends import_obsidian4.FuzzySuggestModal {
       await workspaceManager.saveWorkspace(currentWorkspace, saveFolderState);
     }
     await this.plugin.loadWorkspace(workspace);
-    new import_obsidian4.Notice(`Switched to workspace: ${workspace}`);
+    notify(`Switched to workspace: ${workspace}`, "success");
   }
 };
 
 // src/workspace-manager.ts
-var import_obsidian5 = require("obsidian");
 var WorkspaceLogger = class {
   constructor(app, debugEnabled) {
     this.logs = [];
@@ -4633,7 +4639,7 @@ var _WorkspaceManager = class _WorkspaceManager {
     this.logger.log(`- Save folder state: ${saveFolderState}`);
     if (!name || name.trim() === "") {
       this.logger.log("\u274C ERROR: Workspace name cannot be empty");
-      new import_obsidian5.Notice("Workspace name cannot be empty");
+      notify("Workspace name cannot be empty", "error");
       return false;
     }
     try {
@@ -4698,7 +4704,7 @@ ${error.stack}
 \`\`\``);
       await this.logger.save();
       console.error("Failed to save workspace:", error);
-      new import_obsidian5.Notice(`Failed to save workspace: ${error.message}`);
+      notify(`Failed to save workspace: ${error.message}`, "error");
       throw error;
     }
   }
@@ -4714,7 +4720,7 @@ ${error.stack}
     if (!workspace) {
       this.logger.log(`\u274C ERROR: Workspace "${name}" not found`);
       await this.logger.save();
-      new import_obsidian5.Notice(`Workspace "${name}" not found`);
+      notify(`Workspace "${name}" not found`, "error");
       return;
     }
     try {
@@ -4792,7 +4798,7 @@ ${error.stack}
 \`\`\``);
       await this.logger.save();
       console.error("Failed to load workspace:", error);
-      new import_obsidian5.Notice(`Failed to load workspace: ${error.message}`);
+      notify(`Failed to load workspace: ${error.message}`, "error");
       throw error;
     }
   }
@@ -4804,7 +4810,7 @@ ${error.stack}
 ### DELETE WORKSPACE: "${name}"`);
     if (!this.hasWorkspace(name)) {
       this.logger.log(`\u274C ERROR: Workspace "${name}" not found`);
-      new import_obsidian5.Notice(`Workspace "${name}" not found`);
+      notify(`Workspace "${name}" not found`, "error");
       return;
     }
     delete this.storage.workspaces[name];
@@ -4825,17 +4831,17 @@ ${error.stack}
 ### RENAME WORKSPACE: "${oldName}" \u2192 "${newName}"`);
     if (!this.hasWorkspace(oldName)) {
       this.logger.log(`\u274C ERROR: Workspace "${oldName}" not found`);
-      new import_obsidian5.Notice(`Workspace "${oldName}" not found`);
+      notify(`Workspace "${oldName}" not found`, "error");
       return;
     }
     if (this.hasWorkspace(newName)) {
       this.logger.log(`\u274C ERROR: Workspace "${newName}" already exists`);
-      new import_obsidian5.Notice(`Workspace "${newName}" already exists`);
+      notify(`Workspace "${newName}" already exists`, "error");
       return;
     }
     if (!newName || newName.trim() === "") {
       this.logger.log(`\u274C ERROR: New workspace name cannot be empty`);
-      new import_obsidian5.Notice("Workspace name cannot be empty");
+      notify("Workspace name cannot be empty", "error");
       return;
     }
     this.storage.workspaces[newName] = this.storage.workspaces[oldName];
@@ -4867,17 +4873,17 @@ ${error.stack}
 ### DUPLICATE WORKSPACE: "${sourceName}" \u2192 "${newName}"`);
     if (!this.hasWorkspace(sourceName)) {
       this.logger.log(`\u274C ERROR: Source workspace "${sourceName}" not found`);
-      new import_obsidian5.Notice(`Workspace "${sourceName}" not found`);
+      notify(`Workspace "${sourceName}" not found`, "error");
       return;
     }
     if (this.hasWorkspace(newName)) {
       this.logger.log(`\u274C ERROR: Workspace "${newName}" already exists`);
-      new import_obsidian5.Notice(`Workspace "${newName}" already exists`);
+      notify(`Workspace "${newName}" already exists`, "error");
       return;
     }
     if (!newName || newName.trim() === "") {
       this.logger.log(`\u274C ERROR: New workspace name cannot be empty`);
-      new import_obsidian5.Notice("Workspace name cannot be empty");
+      notify("Workspace name cannot be empty", "error");
       return;
     }
     const sourceWorkspace = this.storage.workspaces[sourceName];
@@ -5226,7 +5232,7 @@ ${error.stack}
       const exists = await this.app.vault.adapter.exists(configPath);
       if (!exists) {
         this.logger.log(`\u274C ERROR: workspaces.json not found`);
-        new import_obsidian5.Notice("No core workspaces.json found. Is the Workspaces plugin enabled?");
+        notify("No core workspaces.json found. Is the Workspaces plugin enabled?", "error");
         return result;
       }
       const content = await this.app.vault.adapter.read(configPath);
@@ -5237,7 +5243,7 @@ ${JSON.stringify(Object.keys(coreData.workspaces || {}), null, 2)}
 \`\`\``);
       if (!coreData.workspaces || Object.keys(coreData.workspaces).length === 0) {
         this.logger.log(`\u26A0\uFE0F No workspaces found in core plugin`);
-        new import_obsidian5.Notice("No workspaces found in core Workspaces plugin");
+        notify("No workspaces found in core Workspaces plugin", "error");
         return result;
       }
       if (overwrite) {
@@ -5293,7 +5299,7 @@ ${JSON.stringify(Object.keys(coreData.workspaces || {}), null, 2)}
       await this.logger.save();
     } catch (err) {
       this.logger.log(`\u274C ERROR reading workspaces.json: ${err}`);
-      new import_obsidian5.Notice(`Failed to read core workspaces: ${err}`);
+      notify(`Failed to read core workspaces: ${err}`, "error");
     }
     return result;
   }
@@ -5680,7 +5686,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         }
       }
       await this.plugin.loadWorkspace(workspaceName);
-      new import_obsidian6.Notice(`Switched to: ${workspaceName}`);
+      notify(`Switched to: ${workspaceName}`, "success");
       this.renderTree();
     });
     item.addEventListener("contextmenu", (evt) => {
@@ -5797,7 +5803,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         await this.plugin.saveSettings();
         this.renderTree();
         this.plugin.updateTabIndicators();
-        new import_obsidian6.Notice(`Removed "${fileName}" from ${workspaceName}`);
+        notify(`Removed "${fileName}" from ${workspaceName}`, "success");
       });
     });
     const otherWorkspaces = workspaceManager.getWorkspacesWithFile(filePath, workspaceName);
@@ -5829,14 +5835,14 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         submenu.addItem((subItem) => {
           subItem.setTitle(ws + (alreadyHas ? " \u2713" : "")).setDisabled(alreadyHas).onClick(async () => {
             if (!this.plugin.app.vault.getAbstractFileByPath(filePath)) {
-              new import_obsidian6.Notice(`File not found: ${filePath}`);
+              notify(`File not found: ${filePath}`, "error");
               return;
             }
             workspaceManager.addFileToWorkspace(ws, filePath);
             await this.plugin.saveSettings();
             this.renderTree();
             this.plugin.updateTabIndicators();
-            new import_obsidian6.Notice(`Copied "${fileName}" to ${ws}`);
+            notify(`Copied "${fileName}" to ${ws}`, "success");
           });
         });
       }
@@ -5894,7 +5900,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       menu.addItem((item) => {
         item.setTitle("Switch to workspace").setIcon("arrow-right").onClick(async () => {
           await this.plugin.loadWorkspace(workspaceName);
-          new import_obsidian6.Notice(`Switched to: ${workspaceName}`);
+          notify(`Switched to: ${workspaceName}`, "success");
           this.renderTree();
         });
       });
@@ -5907,7 +5913,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         const saveFolderState = this.plugin.settings.rememberNavigationLayout;
         await workspaceManager.saveWorkspace(workspaceName, saveFolderState);
         await this.plugin.saveSettings();
-        new import_obsidian6.Notice(`Saved: ${workspaceName}`);
+        notify(`Saved: ${workspaceName}`, "success");
       });
     });
     menu.addItem((item) => {
@@ -5972,7 +5978,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     this.plugin.refreshWorkspaceCommands();
     this.renderTree();
     this.plugin.updateStatusBar();
-    new import_obsidian6.Notice(`Created workspace: ${name}`);
+    notify(`Created workspace: ${name}`, "success");
     setTimeout(() => this.renameWorkspaceInline(name), 100);
   }
   async createNewGroup() {
@@ -5991,7 +5997,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     workspaceManager.setGroupIcon(name, "folder");
     await this.plugin.saveSettings();
     this.renderTree();
-    new import_obsidian6.Notice(`Created group: ${name}`);
+    notify(`Created group: ${name}`, "success");
     setTimeout(() => this.renameGroupInline(name), 100);
   }
   editWorkspace(workspaceName) {
@@ -6082,9 +6088,9 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
             this.collapsedWorkspaces.delete(workspaceName);
             this.collapsedWorkspaces.add(newName);
           }
-          new import_obsidian6.Notice(`Renamed to: ${newName}`);
+          notify(`Renamed to: ${newName}`, "success");
         } else {
-          new import_obsidian6.Notice(`Workspace "${newName}" already exists`);
+          notify(`Workspace "${newName}" already exists`, "error");
         }
       }
       this.renderTree();
@@ -6134,9 +6140,9 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
             this.collapsedGroups.delete(groupName);
             this.collapsedGroups.add(newName);
           }
-          new import_obsidian6.Notice(`Renamed group to: ${newName}`);
+          notify(`Renamed group to: ${newName}`, "success");
         } else {
-          new import_obsidian6.Notice(`Group "${newName}" already exists`);
+          notify(`Group "${newName}" already exists`, "error");
         }
       }
       this.renderTree();
@@ -6169,7 +6175,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
     this.plugin.saveSettings();
     this.plugin.refreshWorkspaceCommands();
     this.renderTree();
-    new import_obsidian6.Notice(`Duplicated to: ${newName}`);
+    notify(`Duplicated to: ${newName}`, "success");
   }
   deleteWorkspace(workspaceName) {
     const doDelete = async () => {
@@ -6180,7 +6186,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       await this.plugin.saveSettings();
       this.plugin.updateStatusBar();
       this.renderTree();
-      new import_obsidian6.Notice(`Deleted: ${workspaceName}`);
+      notify(`Deleted: ${workspaceName}`, "success");
     };
     createConfirmationDialog(this.app, {
       title: "Delete Workspace?",
@@ -6200,7 +6206,7 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
         this.collapsedGroups.delete(groupName);
         await this.plugin.saveSettings();
         this.renderTree();
-        new import_obsidian6.Notice(`Deleted group: ${groupName}`);
+        notify(`Deleted group: ${groupName}`, "success");
       }
     });
   }
@@ -6361,15 +6367,15 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
       const sourceWorkspace = this.draggedFileWorkspace;
       const fileName = filePath.split("/").pop() || filePath;
       if (workspaceManager.getOpenFilesInWorkspace(workspaceName).includes(filePath)) {
-        new import_obsidian6.Notice(`"${fileName}" is already in ${workspaceName}`);
+        notify(`"${fileName}" is already in ${workspaceName}`);
         return;
       }
       const isMove = evt.shiftKey;
       if (isMove && sourceWorkspace) {
         workspaceManager.removeFileFromWorkspace(sourceWorkspace, filePath);
-        new import_obsidian6.Notice(`Moved "${fileName}" to ${workspaceName}`);
+        notify(`Moved "${fileName}" to ${workspaceName}`, "success");
       } else {
-        new import_obsidian6.Notice(`Copied "${fileName}" to ${workspaceName}`);
+        notify(`Copied "${fileName}" to ${workspaceName}`, "success");
       }
       workspaceManager.addFileToWorkspace(workspaceName, filePath);
       await this.plugin.saveSettings();
@@ -6635,16 +6641,16 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
       callback: async () => {
         const prev = this.previousWorkspace;
         if (!prev) {
-          new import_obsidian7.Notice("No previous workspace yet");
+          notify("No previous workspace yet");
           return;
         }
         if (!this.workspaceManager.hasWorkspace(prev)) {
-          new import_obsidian7.Notice(`Previous workspace "${prev}" no longer exists`);
+          notify(`Previous workspace "${prev}" no longer exists`);
           this.previousWorkspace = null;
           return;
         }
         await this.loadWorkspace(prev);
-        new import_obsidian7.Notice(`Switched to: ${prev}`);
+        notify(`Switched to: ${prev}`, "success");
       }
     });
     this.addCommand({
@@ -6653,13 +6659,13 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
       callback: async () => {
         const workspaceName = this.workspaceManager.getActiveWorkspace();
         if (!workspaceName) {
-          new import_obsidian7.Notice("No active workspace");
+          notify("No active workspace", "error");
           return;
         }
         await this.saveNavigationLayout(workspaceName);
         const saveFolderState = this.settings.rememberNavigationLayout;
         await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
-        new import_obsidian7.Notice(`Saved workspace: ${workspaceName}`);
+        notify(`Saved workspace: ${workspaceName}`, "success");
       }
     });
     this.addCommand({
@@ -6668,7 +6674,7 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
       callback: () => {
         const workspaceName = this.workspaceManager.getActiveWorkspace();
         if (!workspaceName) {
-          new import_obsidian7.Notice("No active workspace");
+          notify("No active workspace", "error");
           return;
         }
         let newName = `${workspaceName} (copy)`;
@@ -6683,7 +6689,7 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
           this.navigationLayouts.set(newName, JSON.parse(JSON.stringify(layout)));
         }
         this.saveSettings();
-        new import_obsidian7.Notice(`Duplicated workspace to: ${newName}`);
+        notify(`Duplicated workspace to: ${newName}`, "success");
       }
     });
     this.addCommand({
@@ -6694,13 +6700,13 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
         await this.saveSettings();
         if (result.imported.length > 0) {
           this.refreshWorkspaceCommands();
-          new import_obsidian7.Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`);
+          notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`, "success");
         }
         if (result.skipped.length > 0) {
-          new import_obsidian7.Notice(`Skipped ${result.skipped.length} existing workspace(s)`);
+          notify(`Skipped ${result.skipped.length} existing workspace(s)`);
         }
         if (result.imported.length === 0 && result.skipped.length === 0) {
-          new import_obsidian7.Notice("No workspaces to import");
+          notify("No workspaces to import", "error");
         }
       }
     });
@@ -6718,10 +6724,10 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
             await this.saveSettings();
             if (result.imported.length > 0) {
               this.refreshWorkspaceCommands();
-              new import_obsidian7.Notice(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`);
+              notify(`Imported ${result.imported.length} workspace(s): ${result.imported.join(", ")}`, "success");
             }
             if (result.imported.length === 0) {
-              new import_obsidian7.Notice("No workspaces to import");
+              notify("No workspaces to import", "error");
             }
           }
         });
@@ -6734,7 +6740,7 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
         callback: async () => {
           const name = this.workspaceManager.getActiveWorkspace();
           if (!name) {
-            new import_obsidian7.Notice("No active workspace");
+            notify("No active workspace", "error");
             return;
           }
           const workspace = this.workspaceManager.getWorkspace(name);
@@ -6754,7 +6760,7 @@ Stored workspace data:`, workspace);
           console.log(`
 All workspaces:`, this.workspaceManager.getWorkspaceNames());
           console.log("\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550");
-          new import_obsidian7.Notice(`Workspace data dumped to console (Ctrl+Shift+I)`);
+          notify(`Workspace data dumped to console (Ctrl+Shift+I)`);
         }
       });
       this.addCommand({
@@ -6858,9 +6864,9 @@ ${JSON.stringify(layout, null, 2)}
             await adapter.mkdir(logsDir);
           }
           await adapter.write(filePath, report);
-          new import_obsidian7.Notice(`Debug report saved to plugin logs folder`);
+          notify(`Debug report saved to plugin logs folder`, "success");
           await navigator.clipboard.writeText(report);
-          new import_obsidian7.Notice("Also copied to clipboard!");
+          notify("Also copied to clipboard!", "success");
         }
       });
     }
@@ -6870,7 +6876,7 @@ ${JSON.stringify(layout, null, 2)}
       callback: () => {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) {
-          new import_obsidian7.Notice("No active file");
+          notify("No active file", "error");
           return;
         }
         new WorkspacePickerModal(
@@ -6891,7 +6897,7 @@ ${JSON.stringify(layout, null, 2)}
       callback: () => {
         const activeFile = this.app.workspace.getActiveFile();
         if (!activeFile) {
-          new import_obsidian7.Notice("No active file");
+          notify("No active file", "error");
           return;
         }
         new WorkspacePickerModal(
@@ -6981,7 +6987,7 @@ ${JSON.stringify(layout, null, 2)}
         name: `Switch to workspace: ${name}`,
         callback: async () => {
           await this.loadWorkspace(name);
-          new import_obsidian7.Notice(`Switched to workspace: ${name}`);
+          notify(`Switched to workspace: ${name}`, "success");
         }
       });
       this.workspaceCommandIds.add(commandId);
@@ -7160,14 +7166,14 @@ ${JSON.stringify(layout, null, 2)}
   async sendFileToWorkspace(targetWorkspace, filePath, leaf, andSwitch) {
     var _a, _b;
     if (!this.app.vault.getAbstractFileByPath(filePath)) {
-      new import_obsidian7.Notice(`File not found: ${filePath}`);
+      notify(`File not found: ${filePath}`, "error");
       return;
     }
     const displayName = filePath.split("/").pop() || filePath;
     const viewType = ((_b = (_a = leaf == null ? void 0 : leaf.view) == null ? void 0 : _a.getViewType) == null ? void 0 : _b.call(_a)) || WorkspaceManager.viewTypeForPath(filePath);
     const success = this.workspaceManager.addFileToWorkspace(targetWorkspace, filePath, viewType);
     if (!success) {
-      new import_obsidian7.Notice(`Failed to add file to workspace "${targetWorkspace}"`);
+      notify(`Failed to add file to workspace "${targetWorkspace}"`, "error");
       return;
     }
     if (leaf) {
@@ -7180,10 +7186,10 @@ ${JSON.stringify(layout, null, 2)}
     await this.saveSettings();
     this.updateTabIndicators();
     this.refreshSidebarView();
-    new import_obsidian7.Notice(`${leaf ? "Moved" : "Sent"} "${displayName}" to workspace "${targetWorkspace}"`);
+    notify(`${leaf ? "Moved" : "Sent"} "${displayName}" to workspace "${targetWorkspace}"`, "success");
     if (andSwitch) {
       await this.loadWorkspace(targetWorkspace);
-      new import_obsidian7.Notice(`Switched to workspace: ${targetWorkspace}`);
+      notify(`Switched to workspace: ${targetWorkspace}`, "success");
     }
   }
   /**
@@ -7201,7 +7207,7 @@ ${JSON.stringify(layout, null, 2)}
       }
     }
     await this.loadWorkspace(name);
-    new import_obsidian7.Notice(`Switched to: ${name}`);
+    notify(`Switched to: ${name}`, "success");
   }
   // ─────────────────────────────────────────────────────────────────
   // Status Bar UI
@@ -7228,7 +7234,7 @@ ${JSON.stringify(layout, null, 2)}
             const saveFolderState = this.settings.rememberNavigationLayout;
             await this.workspaceManager.saveWorkspace(workspaceName2, saveFolderState);
             await this.saveSettings();
-            new import_obsidian7.Notice(`Saved workspace: ${workspaceName2}`);
+            notify(`Saved workspace: ${workspaceName2}`, "success");
           }
           return;
         }

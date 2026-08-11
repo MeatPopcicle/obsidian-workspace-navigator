@@ -1,4 +1,5 @@
 import { App, Notice } from 'obsidian';
+import { notify } from './notify';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // WORKSPACE MANAGER - Standalone Implementation
@@ -957,7 +958,7 @@ export class WorkspaceManager {
 
 		if (!name || name.trim() === '') {
 			this.logger.log('❌ ERROR: Workspace name cannot be empty');
-			new Notice('Workspace name cannot be empty');
+			notify('Workspace name cannot be empty', 'error');
 			return false;
 		}
 
@@ -1036,7 +1037,7 @@ export class WorkspaceManager {
 			this.logger.log(`\`\`\`\n${error.stack}\n\`\`\``);
 			await this.logger.save();
 			console.error('Failed to save workspace:', error);
-			new Notice(`Failed to save workspace: ${error.message}`);
+			notify(`Failed to save workspace: ${error.message}`, 'error');
 			throw error;
 		}
 	}
@@ -1052,7 +1053,7 @@ export class WorkspaceManager {
 		if (!workspace) {
 			this.logger.log(`❌ ERROR: Workspace "${name}" not found`);
 			await this.logger.save();
-			new Notice(`Workspace "${name}" not found`);
+			notify(`Workspace "${name}" not found`, 'error');
 			return;
 		}
 
@@ -1144,7 +1145,7 @@ export class WorkspaceManager {
 			this.logger.log(`\`\`\`\n${error.stack}\n\`\`\``);
 			await this.logger.save();
 			console.error('Failed to load workspace:', error);
-			new Notice(`Failed to load workspace: ${error.message}`);
+			notify(`Failed to load workspace: ${error.message}`, 'error');
 			throw error;
 		}
 	}
@@ -1157,7 +1158,7 @@ export class WorkspaceManager {
 
 		if (!this.hasWorkspace(name)) {
 			this.logger.log(`❌ ERROR: Workspace "${name}" not found`);
-			new Notice(`Workspace "${name}" not found`);
+			notify(`Workspace "${name}" not found`, 'error');
 			return;
 		}
 
@@ -1185,19 +1186,19 @@ export class WorkspaceManager {
 
 		if (!this.hasWorkspace(oldName)) {
 			this.logger.log(`❌ ERROR: Workspace "${oldName}" not found`);
-			new Notice(`Workspace "${oldName}" not found`);
+			notify(`Workspace "${oldName}" not found`, 'error');
 			return;
 		}
 
 		if (this.hasWorkspace(newName)) {
 			this.logger.log(`❌ ERROR: Workspace "${newName}" already exists`);
-			new Notice(`Workspace "${newName}" already exists`);
+			notify(`Workspace "${newName}" already exists`, 'error');
 			return;
 		}
 
 		if (!newName || newName.trim() === '') {
 			this.logger.log(`❌ ERROR: New workspace name cannot be empty`);
-			new Notice('Workspace name cannot be empty');
+			notify('Workspace name cannot be empty', 'error');
 			return;
 		}
 
@@ -1239,19 +1240,19 @@ export class WorkspaceManager {
 
 		if (!this.hasWorkspace(sourceName)) {
 			this.logger.log(`❌ ERROR: Source workspace "${sourceName}" not found`);
-			new Notice(`Workspace "${sourceName}" not found`);
+			notify(`Workspace "${sourceName}" not found`, 'error');
 			return;
 		}
 
 		if (this.hasWorkspace(newName)) {
 			this.logger.log(`❌ ERROR: Workspace "${newName}" already exists`);
-			new Notice(`Workspace "${newName}" already exists`);
+			notify(`Workspace "${newName}" already exists`, 'error');
 			return;
 		}
 
 		if (!newName || newName.trim() === '') {
 			this.logger.log(`❌ ERROR: New workspace name cannot be empty`);
-			new Notice('Workspace name cannot be empty');
+			notify('Workspace name cannot be empty', 'error');
 			return;
 		}
 
@@ -1667,7 +1668,7 @@ export class WorkspaceManager {
 			const exists = await this.app.vault.adapter.exists(configPath);
 			if (!exists) {
 				this.logger.log(`❌ ERROR: workspaces.json not found`);
-				new Notice('No core workspaces.json found. Is the Workspaces plugin enabled?');
+				notify('No core workspaces.json found. Is the Workspaces plugin enabled?', 'error');
 				return result;
 			}
 
@@ -1681,7 +1682,7 @@ export class WorkspaceManager {
 			// Check if there are workspaces to import
 			if (!coreData.workspaces || Object.keys(coreData.workspaces).length === 0) {
 				this.logger.log(`⚠️ No workspaces found in core plugin`);
-				new Notice('No workspaces found in core Workspaces plugin');
+				notify('No workspaces found in core Workspaces plugin', 'error');
 				return result;
 			}
 
@@ -1759,7 +1760,7 @@ export class WorkspaceManager {
 
 		} catch (err) {
 			this.logger.log(`❌ ERROR reading workspaces.json: ${err}`);
-			new Notice(`Failed to read core workspaces: ${err}`);
+			notify(`Failed to read core workspaces: ${err}`, 'error');
 		}
 
 		return result;
