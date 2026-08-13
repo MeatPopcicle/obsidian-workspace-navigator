@@ -1,6 +1,6 @@
-# Workspace Navigator
+# .Workspace Navigator
 
-Enhanced workspace management for Obsidian with navigation layout memory and alphabetical sorting.
+Enhanced workspace management for Obsidian with navigation layout memory and alphabetical sorting. (The leading dot in the display name is a personal-vault convention that groups my plugins at the top of Obsidian's Community Plugins list; the plugin id is unaffected.)
 
 ## Features
 
