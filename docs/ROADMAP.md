@@ -1,7 +1,7 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.24.0
-**Last Updated:** 2026-08-10
+**Current Version:** v2.25.0
+**Last Updated:** 2026-08-18
 
 ---
 
@@ -134,6 +134,7 @@ Full multi-pass code review and cleanup, landed in tiers:
 - **v2.22:** modal group-delete confirmation; file-op flaw fixes (dual leaf-shape matching, container pruning, root-leaf removal, tabs-creation for empty layouts, correct view types, honest Moved/Sent notices, persisted moves, active-workspace removal closes the live tab, vanished-file guards, one shared `sendFileToWorkspace()`).
 - **v2.23:** unconditional delete confirmation (toggle removed); red danger CTA on the confirm modal; `notify()` wrapper for all notices (check/cross prefixes, errors linger 8s).
 - **v2.24:** full rulebook migration (see `docs/rulebook-migration.md`): `wn-` class prefix (393 renames), `setIcon()` everywhere (no hand-rolled SVGs), hardcoded colors removed, `:focus-visible` on every interactive element + keyboard reveal of hover-only buttons, kit token scale on `.wn-root`, settings danger zone + reset-to-defaults, sidebar first-run empty state, deduped style-modal builders, legacy icon class removed, group-header styling moved from inline JS to CSS. The Style Settings block stays as a documented exception.
+- **v2.25:** "Delete all workspaces" in the settings danger zone, guarded by the new typed-name confirmation modal (type DELETE; rulebook tier-2). Also ships the `.Workspace Navigator` display-name grouping prefix.
 
 ---
 

@@ -76,8 +76,57 @@ var ConfirmationModal = class extends import_obsidian2.Modal {
     });
   }
 };
+var TypedConfirmationModal = class extends import_obsidian2.Modal {
+  constructor(app, config) {
+    super(app);
+    this.modalEl.addClass("wn-delete-confirm-modal", "wn-root");
+    const { cta, onAccept, text, title, requiredText } = config;
+    this.contentEl.createEl("h3", { text: title });
+    this.contentEl.createEl("p", { text });
+    this.contentEl.createEl("p", {
+      cls: "wn-typed-confirm-hint",
+      text: `Type ${requiredText} to confirm.`
+    });
+    const input = this.contentEl.createEl("input", {
+      cls: "wn-typed-confirm-input",
+      attr: { type: "text", placeholder: requiredText }
+    });
+    this.contentEl.createDiv("modal-button-container", (buttonsEl) => {
+      buttonsEl.createEl("button", { text: "Cancel" }).addEventListener("click", () => this.close());
+      const btnSubmit = buttonsEl.createEl("button", {
+        text: cta,
+        cls: "mod-warning",
+        attr: { type: "submit" }
+      });
+      btnSubmit.disabled = true;
+      input.addEventListener("input", () => {
+        btnSubmit.disabled = input.value !== requiredText;
+      });
+      input.addEventListener("keydown", (evt) => {
+        if (evt.key === "Enter" && !btnSubmit.disabled)
+          btnSubmit.click();
+      });
+      let accepting = false;
+      btnSubmit.addEventListener("click", async () => {
+        if (accepting)
+          return;
+        accepting = true;
+        btnSubmit.disabled = true;
+        try {
+          await onAccept();
+        } finally {
+          this.close();
+        }
+      });
+      setTimeout(() => input.focus(), 50);
+    });
+  }
+};
 function createConfirmationDialog(app, config) {
   new ConfirmationModal(app, config).open();
+}
+function createTypedConfirmationDialog(app, config) {
+  new TypedConfirmationModal(app, config).open();
 }
 
 // src/settings.ts
@@ -297,6 +346,25 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingT
           this.plugin.refreshSidebarView();
           this.display();
           notify("Settings reset to defaults", "success");
+        }
+      });
+    }));
+    new import_obsidian3.Setting(danger).setName("Delete all workspaces").setDesc("Remove every workspace and group. The plugin returns to a fresh, empty state. Settings are kept.").addButton((button) => button.setButtonText("Delete All").setWarning().onClick(async () => {
+      createTypedConfirmationDialog(this.app, {
+        title: "Delete All Workspaces?",
+        text: "This permanently removes every workspace, group, and style. This cannot be undone.",
+        requiredText: "DELETE",
+        cta: "Delete All",
+        onAccept: async () => {
+          this.plugin.getWorkspaceManager().resetAllWorkspaces();
+          this.plugin.navigationLayouts.clear();
+          this.plugin.settings.defaultGroup = "";
+          await this.plugin.saveSettings();
+          this.plugin.refreshWorkspaceCommands();
+          this.plugin.updateStatusBar();
+          this.plugin.refreshSidebarView();
+          this.display();
+          notify("All workspaces deleted", "success");
         }
       });
     }));
@@ -4463,6 +4531,22 @@ var _WorkspaceManager = class _WorkspaceManager {
       }
     }
     this.logger.log("Cleared all workspace styles");
+  }
+  /**
+   * Delete ALL workspace data: workspaces, groups, styles, and orders.
+   * Returns the plugin's stored state to a fresh install (settings are the
+   * caller's concern). Guarded by the typed-name confirmation in settings.
+   */
+  resetAllWorkspaces() {
+    this.storage.workspaces = {};
+    this.storage.activeWorkspace = null;
+    for (const key of _WorkspaceManager.GROUP_STYLE_MAP_KEYS) {
+      delete this.storage[key];
+    }
+    delete this.storage.groupOrder;
+    delete this.storage.workspaceOrder;
+    this.invalidateNameCache();
+    this.logger.log("Deleted all workspaces and groups (full reset)");
   }
   /**
    * Save current workspace layout

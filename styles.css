@@ -1554,3 +1554,15 @@ body.wn-hide-guides .wn-sidebar-file-item::before {
 	outline: 2px solid var(--interactive-accent);
 	outline-offset: 1px;
 }
+
+/* Typed-name confirmation (tier-2 destructive) */
+.wn-typed-confirm-hint {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-bottom: var(--wn-space-1, 4px);
+}
+
+.wn-typed-confirm-input {
+	width: 100%;
+	margin-bottom: var(--wn-space-2, 8px);
+}

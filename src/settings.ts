@@ -5,7 +5,7 @@
 import { App, PluginSettingTab, Setting, Notice } from 'obsidian';
 import { notify } from './notify';
 import WorkspaceNavigator from './main';
-import { createConfirmationDialog } from './confirm-modal';
+import { createConfirmationDialog, createTypedConfirmationDialog } from './confirm-modal';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Settings Interface
@@ -422,6 +422,33 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 							this.plugin.refreshSidebarView();
 							this.display();  // re-render the tab with default values
 							notify('Settings reset to defaults', 'success');
+						}
+					});
+				}));
+
+		new Setting(danger)
+			.setName('Delete all workspaces')
+			.setDesc('Remove every workspace and group. The plugin returns to a fresh, empty state. Settings are kept.')
+			.addButton(button => button
+				.setButtonText('Delete All')
+				.setWarning()
+				.onClick(async () => {
+					createTypedConfirmationDialog(this.app, {
+						title:        'Delete All Workspaces?',
+						text:         'This permanently removes every workspace, group, and style. This cannot be undone.',
+						requiredText: 'DELETE',
+						cta:          'Delete All',
+						onAccept: async () => {
+							this.plugin.getWorkspaceManager().resetAllWorkspaces();
+							this.plugin.navigationLayouts.clear();
+							// The default group no longer exists; mirror the ghost-group guard above.
+							this.plugin.settings.defaultGroup = '';
+							await this.plugin.saveSettings();
+							this.plugin.refreshWorkspaceCommands();
+							this.plugin.updateStatusBar();
+							this.plugin.refreshSidebarView();
+							this.display();
+							notify('All workspaces deleted', 'success');
 						}
 					});
 				}));

@@ -949,6 +949,23 @@ export class WorkspaceManager {
 	}
 
 	/**
+	 * Delete ALL workspace data: workspaces, groups, styles, and orders.
+	 * Returns the plugin's stored state to a fresh install (settings are the
+	 * caller's concern). Guarded by the typed-name confirmation in settings.
+	 */
+	resetAllWorkspaces(): void {
+		this.storage.workspaces = {};
+		this.storage.activeWorkspace = null;
+		for (const key of WorkspaceManager.GROUP_STYLE_MAP_KEYS) {
+			delete this.storage[key];
+		}
+		delete this.storage.groupOrder;
+		delete this.storage.workspaceOrder;
+		this.invalidateNameCache();
+		this.logger.log('Deleted all workspaces and groups (full reset)');
+	}
+
+	/**
 	 * Save current workspace layout
 	 * @returns true if this was a new workspace, false if updating existing
 	 */
