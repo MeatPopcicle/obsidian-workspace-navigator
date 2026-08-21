@@ -13,7 +13,11 @@
  * so "first page" attaches to the wrong window and the symptom looks like a
  * plugin bug that is not there.
  */
-const PORT = process.env.OBSIDIAN_CDP_PORT ?? "9222";
+/* CDP_PORT is the standard name (driving-electron-uis.md section 1a); it is
+ * read here, inside the module that uses it, because `import` hoists and an
+ * importer setting process.env after its imports runs too late. Set it in the
+ * shell: `CDP_PORT=9223 node scripts/verify-ui.mjs`. */
+const PORT = process.env.CDP_PORT ?? process.env.OBSIDIAN_CDP_PORT ?? "9222";
 
 /** The vault these verifications run against. Never a production vault. */
 export const TEST_VAULT = "Vault-Test";
@@ -22,7 +26,16 @@ export const TEST_VAULT = "Vault-Test";
 export const PLUGIN_ID = "workspace-navigator";
 
 export async function attach(vault = TEST_VAULT) {
-    const targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+    let targets;
+    try {
+        targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
+    } catch {
+        throw new Error(
+            `Nothing is listening on CDP port ${PORT}. Launch Obsidian with ` +
+            `--remote-debugging-port=${PORT}, or set CDP_PORT to the right port ` +
+            `(a debug instance per driving-electron-uis.md section 1a typically uses 9223).`,
+        );
+    }
     const pages = targets.filter((t) => t.type === "page" && /Obsidian/i.test(t.title ?? ""));
     const page = pages.find((t) => (t.title ?? "").includes(` - ${vault} - `));
 

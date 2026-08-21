@@ -6,13 +6,23 @@
 
 ## One-time setup
 
-Launch Obsidian with the debugging port, pointed at the test vault (the flag only takes effect at process start):
+Two ways to get the port (details and caveats in `driving-electron-uis.md`):
+
+**Restart with the flag** (flag only takes effect at process start):
 
 ```bash
 /usr/lib/electron43/electron /usr/lib/obsidian/app.asar \
   --remote-debugging-port=9222 "obsidian://vault/Vault-Test"
 # confirm: curl -s http://127.0.0.1:9222/json/list
 ```
+
+**Or a side-by-side debug instance** (doc section 1a) — separate `--user-data-dir` profile with `obsidian.json` copied in, on port **9223**, while the user's normal instance keeps running. Then point the scripts at it:
+
+```bash
+CDP_PORT=9223 node scripts/verify-ui.mjs
+```
+
+Section-1a caveats that read like plugin bugs but are not: the fresh profile shows a one-time trust prompt (until clicked, every check fails "plugin not installed"), and the same vault must never be open in both instances at once.
 
 ## The scripts
 
