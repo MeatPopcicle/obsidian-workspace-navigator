@@ -115,20 +115,26 @@ function readSidebar(id) {
 }
 
 function focusVisibleRules() {
-    let rules = 0;
+    /* Count SELECTORS, not rules: the plugin ships one grouped rule with all
+       its :focus-visible selectors comma-joined, which cssRules counts as a
+       single rule (first live run failed on exactly this). */
+    let selectors = 0;
     let sheets = 0;
     for (const sheet of document.styleSheets) {
         let list;
         try { list = sheet.cssRules; } catch { continue; }
         sheets++;
         for (const rule of list) {
-            if (rule.selectorText?.includes(":focus-visible") && rule.selectorText.includes(".wn-")) rules++;
+            if (!rule.selectorText?.includes(":focus-visible")) continue;
+            selectors += rule.selectorText
+                .split(",")
+                .filter((s) => s.includes(":focus-visible") && s.includes(".wn-")).length;
         }
     }
     const interactive = document.querySelectorAll(
         ".wn-root button, .wn-root .wn-sidebar-item, .wn-root .wn-sidebar-group-header",
     ).length;
-    return { rules, sheets, interactive };
+    return { selectors, sheets, interactive };
 }
 
 async function statusIcon(id, icon) {
@@ -247,7 +253,7 @@ try {
 
     const fv = await run(focusVisibleRules);
     check("interactive elements exist (subject)", fv.interactive > 0, `${fv.interactive}`);
-    check("focus-visible rules present", fv.rules >= 5, `${fv.rules} wn- rules across ${fv.sheets} sheets`);
+    check("focus-visible selectors present", fv.selectors >= 10, `${fv.selectors} wn- selectors across ${fv.sheets} sheets`);
 
     const iconOff = await run(statusIcon, PLUGIN_ID, "");
     check("status icon hidden without icon", iconOff.hidden === true);
