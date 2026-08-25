@@ -2643,6 +2643,7 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
   }
   // Override selectSuggestion to prevent selection during rename mode or right-click
   selectSuggestion(value, evt) {
+    var _a, _b;
     if (evt instanceof MouseEvent && evt.button === 2) {
       return;
     }
@@ -2652,6 +2653,12 @@ var WorkspaceSwitcherModal = class extends import_obsidian5.FuzzySuggestModal {
     }
     const renamingGroup = this.modalEl.querySelector(".wn-group-header.is-renaming");
     if (renamingGroup) {
+      return;
+    }
+    const item = (_a = value == null ? void 0 : value.item) != null ? _a : "";
+    const group = (_b = this.isCollapsedGroupPlaceholder(item)) != null ? _b : this.isEmptyGroupPlaceholder(item);
+    if (group) {
+      void this.onGroupToggleCollapse(group);
       return;
     }
     super.selectSuggestion(value, evt);
@@ -6962,11 +6969,15 @@ ${JSON.stringify(layout, null, 2)}
       clearTimeout(this.autoSaveTimeout);
     }
     this.autoSaveTimeout = setTimeout(async () => {
-      this.debug(`\u{1F4BE} Auto-saving workspace "${workspaceName}" after layout change`);
+      const current = this.workspaceManager.getActiveWorkspace();
+      if (!current || !this.workspaceManager.hasWorkspace(current)) {
+        return;
+      }
+      this.debug(`\u{1F4BE} Auto-saving workspace "${current}" after layout change`);
       try {
-        await this.saveNavigationLayout(workspaceName);
+        await this.saveNavigationLayout(current);
         const saveFolderState = this.settings.rememberNavigationLayout;
-        await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+        await this.workspaceManager.saveWorkspace(current, saveFolderState);
         await this.saveSettings();
       } catch (error) {
         console.error("[Workspace Navigator] Auto-save failed:", error);

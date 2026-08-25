@@ -778,12 +778,22 @@ export default class WorkspaceNavigator extends Plugin {
 
 		// Schedule save after 2 seconds of no layout changes
 		this.autoSaveTimeout = setTimeout(async () => {
-			this.debug(`💾 Auto-saving workspace "${workspaceName}" after layout change`);
+			// Re-resolve at fire time: the name captured at schedule time may
+			// have been deleted or switched away from during the debounce
+			// window, and saveWorkspace would silently re-create the deleted
+			// workspace (and, via its set-active side effect, steal activation).
+			// Found live by the CDP suite: teardown-deleted verification
+			// workspaces kept resurrecting ~2s after the run.
+			const current = this.workspaceManager.getActiveWorkspace();
+			if (!current || !this.workspaceManager.hasWorkspace(current)) {
+				return;
+			}
+			this.debug(`💾 Auto-saving workspace "${current}" after layout change`);
 
 			try {
-				await this.saveNavigationLayout(workspaceName);
+				await this.saveNavigationLayout(current);
 				const saveFolderState = this.settings.rememberNavigationLayout;
-				await this.workspaceManager.saveWorkspace(workspaceName, saveFolderState);
+				await this.workspaceManager.saveWorkspace(current, saveFolderState);
 				await this.saveSettings();
 			} catch (error) {
 				console.error('[Workspace Navigator] Auto-save failed:', error);

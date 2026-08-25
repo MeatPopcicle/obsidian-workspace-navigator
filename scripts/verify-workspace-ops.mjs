@@ -16,7 +16,7 @@
  *
  * NOTE: written ahead of live use; not yet run against a real Obsidian.
  */
-import { attach, call, requireResponsive, requireTestVault, PLUGIN_ID } from "./lib/cdp.mjs";
+import { attach, attachTitled, call, requireResponsive, requireTestVault, PLUGIN_ID, TEST_VAULT } from "./lib/cdp.mjs";
 
 const WS = "WSN-Ops A";
 const WS2 = "WSN-Ops B";
@@ -78,26 +78,33 @@ async function opsProbe(id, ws, ws2, grp, file, fileLegacy) {
     return out;
 }
 
-async function typedConfirmProbe(id) {
-    const setting = window.app.setting;
-    setting.open();
-    setting.openTabById(id);
-    await new Promise((r) => setTimeout(r, 300));
+async function openSettings(id) {
+    window.app.setting.open();
+    window.app.setting.openTabById(id);
+    await new Promise((r) => setTimeout(r, 600));
+    return { tabId: window.app.setting.activeTab?.id ?? null };
+}
 
-    const tab = setting.activeTab?.containerEl ?? document;
-    for (const d of tab.querySelectorAll("details.wn-settings-section")) d.open = true;
+/* Pure DOM: runs in the Settings WINDOW's context, which has no window.app
+   (its document holds the settings UI and receives the modal). App-level
+   reads/cleanup happen from the main session around it. */
+async function typedConfirmProbeDOM() {
+    for (const d of document.querySelectorAll("details.wn-settings-section")) d.open = true;
+    await new Promise((r) => setTimeout(r, 100));
 
-    const rows = [...tab.querySelectorAll(".wn-danger-zone .setting-item")];
+    const rows = [...document.querySelectorAll(".wn-danger-zone .setting-item")];
     const deleteRow = rows.find((r) => r.querySelector(".setting-item-name")?.textContent === "Delete all workspaces");
-    if (!deleteRow) { setting.close(); return { error: "Delete-all row not found in danger zone" }; }
+    if (!deleteRow) return { error: "Delete-all row not found in danger zone" };
 
     deleteRow.querySelector("button")?.click();
-    await new Promise((r) => setTimeout(r, 300));
+    for (let i = 0; i < 20 && !document.querySelector(".wn-typed-confirm-input"); i++) {
+        await new Promise((r) => setTimeout(r, 100));
+    }
 
     const modal = document.querySelector(".wn-delete-confirm-modal");
     const input = modal?.querySelector(".wn-typed-confirm-input");
     const cta = modal?.querySelector("button.mod-warning");
-    if (!modal || !input || !cta) { setting.close(); return { error: "typed modal did not appear" }; }
+    if (!modal || !input || !cta) return { error: "typed modal did not appear" };
 
     const out = { initialDisabled: cta.disabled };
 
@@ -116,11 +123,12 @@ async function typedConfirmProbe(id) {
     cancel?.click();
     await new Promise((r) => setTimeout(r, 200));
     out.cancelled = !document.querySelector(".wn-delete-confirm-modal");
-
-    setting.close();
-    const mgr = window.app.plugins.plugins[id].getWorkspaceManager();
-    out.workspacesSurvived = mgr.getWorkspaceNames().length;
     return out;
+}
+
+function closeSettingsAndCount(id) {
+    window.app.setting.close();
+    return { workspacesSurvived: window.app.plugins.plugins[id].getWorkspaceManager().getWorkspaceNames().length };
 }
 
 async function teardown(id, names, grp, originalActive) {
@@ -172,13 +180,32 @@ try {
     check("legacy-shape leaf removable (F3)", ops.legacyRemoveOk === true, String(ops.legacyRemoveOk));
     check("legacy-shape leaf gone", ops.legacyGone === true, String(ops.legacyGone));
 
-    const tc = await run(typedConfirmProbe, PLUGIN_ID);
+    /* This Obsidian renders Settings as its OWN OS window, and modals attach
+       to the active window's document. So: open settings from the main
+       session, then attach to the Settings window's target that appears, and
+       run the modal probe THERE. Probing from the main window measures an
+       empty page (found live 2026-08-25). */
+    const opened = await call(session, openSettings, PLUGIN_ID);
+    check("settings tab opened (subject)", opened.tabId === PLUGIN_ID, String(opened.tabId));
+    let settingsSession = null;
+    for (let i = 0; i < 10 && !settingsSession; i++) {
+        try { settingsSession = await attachTitled(`Settings - ${TEST_VAULT}`); }
+        catch { await new Promise((r) => setTimeout(r, 300)); }
+    }
+    /* The Settings window's context has no window.app; the probe is pure DOM
+       and the vault-identity guard is the title match plus the presence of
+       our own danger zone in that document. Fall back to the main session
+       when settings render in the main window instead. */
+    const tcSession = settingsSession ?? session;
+    const tc = await call(tcSession, typedConfirmProbeDOM);
+    if (settingsSession) settingsSession.close();
+    const post = await call(session, closeSettingsAndCount, PLUGIN_ID);
     check("typed modal appeared (subject)", !tc.error, tc.error);
     check("CTA disabled initially", tc.initialDisabled === true);
     check("CTA disabled on wrong text", tc.wrongTextDisabled === true);
     check("CTA enabled on exact DELETE", tc.exactTextEnabled === true);
-    check("Cancel closes without deleting", tc.cancelled === true && tc.workspacesSurvived >= 2,
-        `${tc.workspacesSurvived} workspaces survive`);
+    check("Cancel closes without deleting", tc.cancelled === true && post.workspacesSurvived >= 2,
+        `${post.workspacesSurvived} workspaces survive`);
 } finally {
     const post = await run(teardown, PLUGIN_ID, [WS, WS2], GRP, pre.active);
     const restored =

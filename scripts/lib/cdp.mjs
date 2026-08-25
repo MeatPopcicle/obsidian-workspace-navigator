@@ -16,16 +16,35 @@
 /* CDP_PORT is the standard name (driving-electron-uis.md section 1a); it is
  * read here, inside the module that uses it, because `import` hoists and an
  * importer setting process.env after its imports runs too late. Set it in the
- * shell: `CDP_PORT=9223 node scripts/verify-ui.mjs`. */
-const PORT = process.env.CDP_PORT ?? process.env.OBSIDIAN_CDP_PORT ?? "9222";
+ * shell: `CDP_PORT=9224 node scripts/verify-ui.mjs`.
+ *
+ * The default is THIS project's registered port (9224, see the registry table
+ * in driving-electron-uis.md), never 9222: a 9222 default silently drives the
+ * user's own instance in the multi-agent setup. */
+const PORT = process.env.CDP_PORT ?? process.env.OBSIDIAN_CDP_PORT ?? "9224";
 
-/** The vault these verifications run against. Never a production vault. */
-export const TEST_VAULT = "Vault-Test";
+/** The vault these verifications run against: this project's local clone
+ *  (cloned from Vault-Test 2026-08-25), owned by the 9224 instance. Never a
+ *  production vault, never the shared Vault-Test that other agents drive. */
+export const TEST_VAULT = process.env.WSN_TEST_VAULT ?? "Vault-WSN-Test";
 
 /** The plugin under test. */
 export const PLUGIN_ID = "workspace-navigator";
 
 export async function attach(vault = TEST_VAULT) {
+    /* A Settings window's title also contains " - <vault> - " but its JS
+       context has no window.app; never pick it as the main session. */
+    return attachTitled(` - ${vault} - `, (title) => !title.startsWith("Settings - "));
+}
+
+/**
+ * Attach to any Obsidian window on our port whose title contains the substring.
+ * Needed because Obsidian attaches modals and the settings UI to its ACTIVE
+ * window's document; when a separate Settings window exists, DOM probes for
+ * those must run in THAT target, not the main window's (found live 2026-08-25:
+ * settings-driven modal checks measured an empty document).
+ */
+export async function attachTitled(titleIncludes, extraFilter = () => true) {
     let targets;
     try {
         targets = await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json();
@@ -33,15 +52,15 @@ export async function attach(vault = TEST_VAULT) {
         throw new Error(
             `Nothing is listening on CDP port ${PORT}. Launch Obsidian with ` +
             `--remote-debugging-port=${PORT}, or set CDP_PORT to the right port ` +
-            `(a debug instance per driving-electron-uis.md section 1a typically uses 9223).`,
+            `(this project's registered port is 9224; see driving-electron-uis.md).`,
         );
     }
     const pages = targets.filter((t) => t.type === "page" && /Obsidian/i.test(t.title ?? ""));
-    const page = pages.find((t) => (t.title ?? "").includes(` - ${vault} - `));
+    const page = pages.find((t) => (t.title ?? "").includes(titleIncludes) && extraFilter(t.title ?? ""));
 
     if (!page) {
         const found = pages.map((t) => (t.title ?? "").replace(/ - Obsidian.*$/, "")).join(", ") || "none";
-        throw new Error(`No Obsidian window for ${vault} on port ${PORT}. Windows found: ${found}`);
+        throw new Error(`No Obsidian window matching "${titleIncludes}" on port ${PORT}. Windows found: ${found}`);
     }
 
     const ws = new WebSocket(page.webSocketDebuggerUrl);
@@ -89,14 +108,33 @@ export const call = (session, fn, ...args) =>
  * second check confirms the plugin is actually loaded there.
  */
 export async function requireTestVault(session) {
-    if (!session.title.includes(` - ${TEST_VAULT} - `)) {
-        throw new Error(`Attached window is "${session.title}", not ${TEST_VAULT}. Refusing to run.`);
+    /* Title matching FINDS the window; the app API is what we trust — a note
+       whose name contains " - Vault-X - " can make a title lie (protocol from
+       driving-electron-uis.md, "Several agents, several instances"). */
+    const ident = await session.evaluate(`(() => ({
+        name: window.app?.vault?.getName?.() ?? null,
+        base: window.app?.vault?.adapter?.basePath ?? null,
+    }))()`);
+    if (ident?.name !== TEST_VAULT) {
+        throw new Error(
+            `Attached window's vault is ${JSON.stringify(ident?.name)} at ${JSON.stringify(ident?.base)}, ` +
+            `not ${TEST_VAULT}. Refusing to run.`,
+        );
     }
+
+    /* Fresh debug profiles start in restricted mode, sometimes with no visible
+       prompt; setEnable(true) is what the trust button calls underneath. */
+    const restricted = await session.evaluate(`window.app?.plugins?.isEnabled?.() === false`);
+    if (restricted === true) {
+        await session.evaluate(`window.app.plugins.setEnable(true)`);
+        await new Promise((r) => setTimeout(r, 1500));
+    }
+
     const loaded = await session.evaluate(
         `!!window.app?.plugins?.plugins?.[${JSON.stringify(PLUGIN_ID)}]`,
     );
     if (loaded !== true) {
-        throw new Error(`Plugin ${PLUGIN_ID} is not loaded in ${TEST_VAULT}. Enable it first.`);
+        throw new Error(`Plugin ${PLUGIN_ID} is not loaded in ${TEST_VAULT} (community plugins enabled: check trust gate).`);
     }
 }
 

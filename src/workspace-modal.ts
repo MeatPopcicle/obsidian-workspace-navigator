@@ -864,6 +864,17 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 			return;
 		}
 
+		// Group-heading placeholders toggle IN PLACE: the base implementation
+		// closes the modal before onChooseItem runs, so routing heading clicks
+		// (or Enter on a heading) through normal selection collapsed the group
+		// and then closed the switcher. Found live by the CDP suite.
+		const item = value?.item ?? '';
+		const group = this.isCollapsedGroupPlaceholder(item) ?? this.isEmptyGroupPlaceholder(item);
+		if (group) {
+			void this.onGroupToggleCollapse(group);
+			return;
+		}
+
 		// Proceed with normal selection
 		super.selectSuggestion(value, evt);
 	}
@@ -2380,6 +2391,8 @@ export class WorkspaceSwitcherModal extends FuzzySuggestModal<string> {
 
 	async onChooseItem(workspace: string, evt: MouseEvent | KeyboardEvent): Promise<void> {
 		// Check if this is a collapsed group placeholder - expand it instead
+		// (also intercepted earlier in selectSuggestion; kept as belt-and-braces
+		// for any path that reaches onChooseItem directly)
 		const collapsedGroup = this.isCollapsedGroupPlaceholder(workspace);
 		if (collapsedGroup) {
 			await this.onGroupToggleCollapse(collapsedGroup);
