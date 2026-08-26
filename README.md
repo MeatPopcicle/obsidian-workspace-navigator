@@ -154,6 +154,20 @@ workspace-navigator/
 └── package.json         # Dependencies
 ```
 
+## Local API and MCP server
+
+For automation (Claude sessions, scripts): the plugin can run a loopback-only, token-authed HTTP API (Settings > Local API; desktop only, off by default; default port 27125). Endpoints: `GET /status`, `GET /workspaces`, `GET /workspace-for?path=`, `POST /switch`, `POST /reveal`. `reveal` opens a note in the workspace it belongs to: the most-recently-used workspace containing it wins (alternatives are reported), no switch happens if the current workspace already contains it, and a note in no workspace opens in place with `inNoWorkspace: true`.
+
+`mcp/server.mjs` is a zero-dependency stdio MCP server bridging to that API, exposing `list_workspaces`, `current_workspace`, `workspace_for_note`, `switch_workspace`, and `reveal_note`. Register per vault:
+
+```bash
+claude mcp add workspace-navigator -e WN_API_TOKEN=<token from settings> -- node /path/to/obsidian-workspace-navigator/mcp/server.mjs
+```
+
+There is also a command, "Switch to workspace containing current note", usable from the palette or invokable by id (`workspace-navigator:switch-to-note-workspace`) from any tooling that can execute Obsidian commands.
+
+Symlinked-vault caveat: vaults sharing this repo's `data.json` share the API settings too, including the port; the second instance to start logs a port-in-use notice and runs without the API. Give clone/test instances their own port if both need it.
+
 ## Notes
 
 - Settings and workspace data persist to the plugin's `data.json` via Obsidian's `saveData`. If this repo is symlinked into multiple vaults, those vaults share one `data.json` (settings, workspaces, groups, and styles are common to all of them).

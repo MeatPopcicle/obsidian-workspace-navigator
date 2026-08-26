@@ -1,7 +1,7 @@
 # Workspace Navigator - Roadmap
 
-**Current Version:** v2.25.0
-**Last Updated:** 2026-08-18
+**Current Version:** v2.26.0
+**Last Updated:** 2026-08-26
 
 ---
 
@@ -135,6 +135,15 @@ Full multi-pass code review and cleanup, landed in tiers:
 - **v2.23:** unconditional delete confirmation (toggle removed); red danger CTA on the confirm modal; `notify()` wrapper for all notices (check/cross prefixes, errors linger 8s).
 - **v2.24:** full rulebook migration (see `docs/rulebook-migration.md`): `wn-` class prefix (393 renames), `setIcon()` everywhere (no hand-rolled SVGs), hardcoded colors removed, `:focus-visible` on every interactive element + keyboard reveal of hover-only buttons, kit token scale on `.wn-root`, settings danger zone + reset-to-defaults, sidebar first-run empty state, deduped style-modal builders, legacy icon class removed, group-header styling moved from inline JS to CSS. The Style Settings block stays as a documented exception.
 - **v2.25:** "Delete all workspaces" in the settings danger zone, guarded by the new typed-name confirmation modal (type DELETE; rulebook tier-2). Also ships the `.Workspace Navigator` display-name grouping prefix.
+- **v2.25.1:** two bugs found by the CDP verification suite's first live runs: the auto-save debounce resurrecting deleted workspaces (name now re-resolved at fire time), and switcher heading clicks closing the modal (selection intercepted, toggles in place).
+
+### Phase 11 - Automation surface (v2.26)
+- **Local HTTP API:** loopback-only, token-authed, desktop-only, off by default (Settings > Local API, default port 27125): status, workspace listing with MRU order, workspace-for-note lookup, switch, and reveal.
+- **Reveal-note policy:** MRU wins among multiple owning workspaces (alternatives reported); no switch when the current workspace contains the note; a workspace-less note opens in place and is reported.
+- **MCP server:** `mcp/server.mjs`, zero-dependency stdio bridge exposing list_workspaces / current_workspace / workspace_for_note / switch_workspace / reveal_note.
+- **Command:** "Switch to workspace containing current note" (palette + invokable by id for tooling).
+- **MRU tracking:** workspaces stamp `lastUsedAt` on load.
+- Verified end-to-end by the new `scripts/verify-api.mjs` (auth, endpoints, all three reveal policies, MCP stdio round-trips).
 
 ---
 

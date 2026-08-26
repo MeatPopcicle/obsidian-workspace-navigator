@@ -27,7 +27,7 @@ __export(main_exports, {
   default: () => WorkspaceNavigator
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian7 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/notify.ts
 var import_obsidian = require("obsidian");
@@ -147,8 +147,16 @@ var DEFAULT_SETTINGS = {
   manualSortOrder: true,
   autoBackupEnabled: false,
   autoBackupPath: "",
+  apiEnabled: false,
+  apiPort: 27125,
+  apiToken: "",
   debugMode: false
 };
+function generateToken() {
+  const bytes = new Uint8Array(24);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+}
 var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingTab {
   constructor(app, plugin) {
     super(app, plugin);
@@ -311,6 +319,43 @@ var WorkspaceNavigatorSettingTab = class extends import_obsidian3.PluginSettingT
       })),
       this.plugin.settings.autoBackupEnabled
     );
+    const api = section("Local API (automation)", true);
+    const apiDependentRefs = [];
+    new import_obsidian3.Setting(api).setName("Enable local HTTP API").setDesc("Loopback-only, token-authed API so external tooling (the bundled MCP server, Claude sessions, scripts) can list, switch, and reveal workspaces. Desktop only.").addToggle((toggle) => toggle.setValue(this.plugin.settings.apiEnabled).onChange(async (value) => {
+      var _a;
+      this.plugin.settings.apiEnabled = value;
+      if (value && !this.plugin.settings.apiToken) {
+        this.plugin.settings.apiToken = generateToken();
+      }
+      await this.plugin.saveSettings();
+      (_a = this.plugin.apiServer) == null ? void 0 : _a.restart();
+      for (const s of apiDependentRefs)
+        s.settingEl.style.display = value ? "" : "none";
+      this.display();
+    }));
+    apiDependentRefs.push(dependent(
+      new import_obsidian3.Setting(api).setName("Port").setDesc("Loopback port for this vault's API. Each vault instance needs its own port.").addText((text) => text.setValue(String(this.plugin.settings.apiPort)).onChange(async (value) => {
+        var _a;
+        const port = parseInt(value, 10);
+        if (!Number.isInteger(port) || port < 1024 || port > 65535)
+          return;
+        this.plugin.settings.apiPort = port;
+        await this.plugin.saveSettings();
+        (_a = this.plugin.apiServer) == null ? void 0 : _a.restart();
+      })),
+      this.plugin.settings.apiEnabled
+    ));
+    apiDependentRefs.push(dependent(
+      new import_obsidian3.Setting(api).setName("Token").setDesc(this.plugin.settings.apiToken ? `Bearer token for API calls: ${this.plugin.settings.apiToken}` : "Generated when the API is first enabled.").addButton((button) => button.setButtonText("Regenerate").onClick(async () => {
+        var _a;
+        this.plugin.settings.apiToken = generateToken();
+        await this.plugin.saveSettings();
+        (_a = this.plugin.apiServer) == null ? void 0 : _a.restart();
+        this.display();
+        notify("API token regenerated; update any configured clients");
+      })),
+      this.plugin.settings.apiEnabled
+    ));
     const maintenance = section("Maintenance", true);
     new import_obsidian3.Setting(maintenance).setName("Debug mode").setDesc("Log detailed information about folder expansion state and workspace operations to the console (open Developer Tools to view).").addToggle((toggle) => toggle.setValue(this.plugin.settings.debugMode).onChange(async (value) => {
       this.plugin.settings.debugMode = value;
@@ -4650,6 +4695,9 @@ ${error.stack}
       notify(`Workspace "${name}" not found`, "error");
       return;
     }
+    if (!workspace.metadata)
+      workspace.metadata = {};
+    workspace.metadata.lastUsedAt = Date.now();
     try {
       this.logger.log(`- Workspace last saved: ${new Date(workspace.lastSaved).toLocaleString()}`);
       this.logger.log(`- Has folder state: ${!!workspace.folderExpandState}`);
@@ -4901,6 +4949,17 @@ ${error.stack}
       }
     }
     return workspaces;
+  }
+  /**
+   * Order workspace names most-recently-used first (never-used ones last,
+   * keeping their given order). Used by the reveal policy: when a note lives
+   * in several workspaces, MRU wins and the alternatives are reported.
+   */
+  sortByMostRecentlyUsed(names) {
+    return [...names].sort((a, b) => {
+      var _a, _b, _c, _d, _e, _f;
+      return ((_c = (_b = (_a = this.getWorkspace(b)) == null ? void 0 : _a.metadata) == null ? void 0 : _b.lastUsedAt) != null ? _c : 0) - ((_f = (_e = (_d = this.getWorkspace(a)) == null ? void 0 : _d.metadata) == null ? void 0 : _e.lastUsedAt) != null ? _f : 0);
+    });
   }
   /**
    * Add a file to a workspace's layout (in the main editor area)
@@ -6346,11 +6405,166 @@ var WorkspaceNavigatorView = class extends import_obsidian6.ItemView {
   }
 };
 
+// src/http-api.ts
+var import_obsidian7 = require("obsidian");
+var WnApiServer = class {
+  constructor(plugin) {
+    this.server = null;
+    this.plugin = plugin;
+  }
+  get running() {
+    return this.server !== null;
+  }
+  start() {
+    if (this.server)
+      return;
+    if (!import_obsidian7.Platform.isDesktopApp)
+      return;
+    if (!this.plugin.settings.apiEnabled)
+      return;
+    const http = require("http");
+    const port = this.plugin.settings.apiPort;
+    const server = http.createServer((req, res) => {
+      void this.handle(req, res);
+    });
+    server.on("error", (err) => {
+      var _a;
+      this.server = null;
+      if ((err == null ? void 0 : err.code) === "EADDRINUSE") {
+        notify(`Workspace API port ${port} is already in use (another vault instance?). API disabled for this instance.`, "error");
+      } else {
+        notify(`Workspace API failed to start: ${(_a = err == null ? void 0 : err.message) != null ? _a : err}`, "error");
+      }
+    });
+    server.listen(port, "127.0.0.1");
+    this.server = server;
+  }
+  stop() {
+    if (this.server) {
+      this.server.close();
+      this.server = null;
+    }
+  }
+  restart() {
+    this.stop();
+    this.start();
+  }
+  // ─────────────────────────────────────────────────────────────────
+  // Request handling
+  // ─────────────────────────────────────────────────────────────────
+  async handle(req, res) {
+    var _a, _b, _c, _d, _e, _f;
+    const send = (status, body) => {
+      const json = JSON.stringify(body);
+      res.writeHead(status, { "Content-Type": "application/json" });
+      res.end(json);
+    };
+    try {
+      const token = this.plugin.settings.apiToken;
+      const auth = String((_a = req.headers["authorization"]) != null ? _a : "");
+      if (!token || auth !== `Bearer ${token}`) {
+        send(401, { error: "missing or invalid token" });
+        return;
+      }
+      const url = new URL((_b = req.url) != null ? _b : "/", "http://127.0.0.1");
+      const route = `${req.method} ${url.pathname}`;
+      const mgr = this.plugin.getWorkspaceManager();
+      switch (route) {
+        case "GET /status": {
+          send(200, {
+            vault: this.plugin.app.vault.getName(),
+            plugin: this.plugin.manifest.version,
+            activeWorkspace: mgr.getActiveWorkspace(),
+            workspaceCount: mgr.getWorkspaceNames().length
+          });
+          return;
+        }
+        case "GET /workspaces": {
+          const names = mgr.getWorkspaceNames();
+          send(200, {
+            active: mgr.getActiveWorkspace(),
+            mruOrder: mgr.sortByMostRecentlyUsed(names),
+            workspaces: names.map((name) => {
+              var _a2, _b2, _c2;
+              return {
+                name,
+                group: mgr.getWorkspaceGroup(name),
+                lastUsedAt: (_c2 = (_b2 = (_a2 = mgr.getWorkspace(name)) == null ? void 0 : _a2.metadata) == null ? void 0 : _b2.lastUsedAt) != null ? _c2 : null
+              };
+            }),
+            groups: mgr.getGroups()
+          });
+          return;
+        }
+        case "GET /workspace-for": {
+          const path = (_c = url.searchParams.get("path")) != null ? _c : "";
+          if (!path) {
+            send(400, { error: "path query parameter required" });
+            return;
+          }
+          const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(path));
+          send(200, { path, workspaces: candidates, active: mgr.getActiveWorkspace() });
+          return;
+        }
+        case "POST /switch": {
+          const body = await this.readJson(req);
+          const name = String((_d = body == null ? void 0 : body.workspace) != null ? _d : "");
+          if (!name) {
+            send(400, { error: "workspace required" });
+            return;
+          }
+          if (!mgr.hasWorkspace(name)) {
+            send(404, { error: `no workspace named ${JSON.stringify(name)}` });
+            return;
+          }
+          await this.plugin.switchToWorkspace(name);
+          send(200, { switched: name, active: mgr.getActiveWorkspace() });
+          return;
+        }
+        case "POST /reveal": {
+          const body = await this.readJson(req);
+          const path = String((_e = body == null ? void 0 : body.path) != null ? _e : "");
+          if (!path) {
+            send(400, { error: "path required" });
+            return;
+          }
+          const result = await this.plugin.revealNote(path);
+          send(result.error ? 404 : 200, result);
+          return;
+        }
+        default:
+          send(404, { error: `no route ${route}` });
+      }
+    } catch (err) {
+      send(500, { error: (_f = err == null ? void 0 : err.message) != null ? _f : String(err) });
+    }
+  }
+  readJson(req) {
+    return new Promise((resolve, reject) => {
+      let data = "";
+      req.on("data", (chunk) => {
+        data += chunk;
+        if (data.length > 65536)
+          reject(new Error("body too large"));
+      });
+      req.on("end", () => {
+        try {
+          resolve(data ? JSON.parse(data) : {});
+        } catch (e) {
+          reject(new Error("invalid JSON body"));
+        }
+      });
+      req.on("error", reject);
+    });
+  }
+};
+
 // src/main.ts
-var WorkspaceNavigator = class extends import_obsidian7.Plugin {
+var WorkspaceNavigator = class extends import_obsidian8.Plugin {
   constructor() {
     super(...arguments);
     this.statusBarItem = null;
+    this.apiServer = null;
     this.navigationLayouts = /* @__PURE__ */ new Map();
     this.isLoadingWorkspace = false;
     this.previousWorkspace = null;
@@ -6390,9 +6604,14 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
       if (activeWorkspace) {
         this.updateWorkspaceDataAttribute(activeWorkspace);
       }
+      this.apiServer = new WnApiServer(this);
+      this.apiServer.start();
     });
   }
   async onunload() {
+    var _a;
+    (_a = this.apiServer) == null ? void 0 : _a.stop();
+    this.apiServer = null;
     await this.workspaceManager.saveLog();
     this.updateWorkspaceDataAttribute(null);
     document.querySelectorAll(".wn-tab-indicator").forEach((el) => el.remove());
@@ -6530,7 +6749,7 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
    * Write backup file to specified path
    */
   async writeBackup(data) {
-    if (!import_obsidian7.Platform.isDesktopApp) {
+    if (!import_obsidian8.Platform.isDesktopApp) {
       return;
     }
     try {
@@ -6586,6 +6805,27 @@ var WorkspaceNavigator = class extends import_obsidian7.Plugin {
         }
         await this.loadWorkspace(prev);
         notify(`Switched to: ${prev}`, "success");
+      }
+    });
+    this.addCommand({
+      id: "switch-to-note-workspace",
+      name: "Switch to workspace containing current note",
+      callback: async () => {
+        const activeFile = this.app.workspace.getActiveFile();
+        if (!activeFile) {
+          notify("No active file", "error");
+          return;
+        }
+        const result = await this.revealNote(activeFile.path);
+        if (result.error) {
+          notify(result.error, "error");
+        } else if (result.inNoWorkspace) {
+          notify("This note is not part of any workspace");
+        } else if (result.switched) {
+          notify(`Switched to: ${result.workspace}`, "success");
+        } else {
+          notify(`Already in "${result.workspace}", which contains this note`);
+        }
       }
     });
     this.addCommand({
@@ -7132,6 +7372,55 @@ ${JSON.stringify(layout, null, 2)}
     }
   }
   /**
+   * Reveal a note in the workspace it belongs to: look up which workspaces
+   * contain it, switch to the winner, and focus the note.
+   *
+   * Policy (decided 2026-08-26): most-recently-used candidate wins, with the
+   * alternatives reported; if the CURRENT workspace already contains the
+   * note, no switch happens; if NO workspace contains it, the note opens in
+   * the current workspace and the result says so. Used by the "Switch to
+   * workspace containing current note" command and the local HTTP API.
+   */
+  async revealNote(filePath) {
+    const file = this.app.vault.getAbstractFileByPath(filePath);
+    if (!file || !("extension" in file)) {
+      return { error: `no file at ${JSON.stringify(filePath)}`, path: filePath, workspace: null, switched: false, inNoWorkspace: false, alternatives: [] };
+    }
+    const mgr = this.workspaceManager;
+    const current = mgr.getActiveWorkspace();
+    const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(filePath));
+    let target = null;
+    let switched = false;
+    if (candidates.length === 0) {
+      target = current;
+    } else if (current && candidates.includes(current)) {
+      target = current;
+    } else {
+      target = candidates[0];
+      await this.switchToWorkspace(target);
+      switched = true;
+    }
+    let leaf = null;
+    this.app.workspace.iterateAllLeaves((l) => {
+      var _a, _b;
+      if (!leaf && ((_b = (_a = l.view) == null ? void 0 : _a.file) == null ? void 0 : _b.path) === filePath)
+        leaf = l;
+    });
+    if (leaf) {
+      this.app.workspace.revealLeaf(leaf);
+      this.app.workspace.setActiveLeaf(leaf, { focus: true });
+    } else {
+      await this.app.workspace.getLeaf(false).openFile(file);
+    }
+    return {
+      path: filePath,
+      workspace: target,
+      switched,
+      inNoWorkspace: candidates.length === 0,
+      alternatives: candidates.filter((c) => c !== target)
+    };
+  }
+  /**
    * User-facing switch: saves the outgoing workspace first (when auto-save
    * on switch is enabled), then loads the target and announces it. Matches
    * the sidebar's click-to-switch semantics.
@@ -7163,7 +7452,7 @@ ${JSON.stringify(layout, null, 2)}
       this.statusBarItem = this.addStatusBarItem();
       this.statusBarItem.addClass("wn-navigator-status");
       const icon = this.statusBarItem.createSpan("wn-navigator-icon");
-      (0, import_obsidian7.setIcon)(icon, "layout-template");
+      (0, import_obsidian8.setIcon)(icon, "layout-template");
       this.statusBarItem.createSpan("wn-navigator-text");
       this.statusBarItem.addEventListener("click", async (evt) => {
         if (evt.shiftKey) {
@@ -7189,7 +7478,7 @@ ${JSON.stringify(layout, null, 2)}
       const resolvedIcon = workspaceIcon || groupIcon;
       if (resolvedIcon) {
         iconEl.style.display = "";
-        (0, import_obsidian7.setIcon)(iconEl, resolvedIcon);
+        (0, import_obsidian8.setIcon)(iconEl, resolvedIcon);
         const workspaceColor = workspaceName ? this.workspaceManager.getWorkspaceIconColor(workspaceName) : null;
         const groupColor = group ? this.workspaceManager.getGroupIconColor(group) : null;
         const resolvedColor = workspaceIcon ? workspaceColor : groupColor;
@@ -7238,7 +7527,7 @@ ${JSON.stringify(layout, null, 2)}
         if (otherWorkspaces.length > 1) {
           indicator.textContent = otherWorkspaces.length.toString();
         } else {
-          (0, import_obsidian7.setIcon)(indicator, "layers");
+          (0, import_obsidian8.setIcon)(indicator, "layers");
         }
         indicator.removeAttribute("title");
         indicator.setAttribute("aria-label", `Also open in: ${otherWorkspaces.join(", ")}`);

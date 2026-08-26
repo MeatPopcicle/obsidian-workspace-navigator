@@ -40,6 +40,11 @@ export interface WorkspaceNavigatorSettings {
 	autoBackupEnabled:               boolean;
 	autoBackupPath:                  string;
 
+	// Local HTTP API (desktop only; consumed by the bundled MCP server)
+	apiEnabled:                      boolean;
+	apiPort:                         number;
+	apiToken:                        string;
+
 	// Debug mode
 	debugMode:                       boolean;
 }
@@ -61,8 +66,22 @@ export const DEFAULT_SETTINGS: WorkspaceNavigatorSettings = {
 	manualSortOrder:                 true,
 	autoBackupEnabled:               false,
 	autoBackupPath:                  '',
+	apiEnabled:                      false,
+	apiPort:                         27125,
+	apiToken:                        '',
 	debugMode:                       false,
 };
+
+// ───────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ───────────────────────────────────────────────────────────────────────────────
+
+/** Random bearer token for the local API (crypto-strength, URL-safe). */
+function generateToken(): string {
+	const bytes = new Uint8Array(24);
+	crypto.getRandomValues(bytes);
+	return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Settings Tab
@@ -363,6 +382,61 @@ export class WorkspaceNavigatorSettingTab extends PluginSettingTab {
 					})),
 			this.plugin.settings.autoBackupEnabled
 		);
+
+		// ── Local API (advanced, collapsed) ──────────────────────────────
+		const api = section('Local API (automation)', true);
+
+		const apiDependentRefs: Setting[] = [];
+
+		new Setting(api)
+			.setName('Enable local HTTP API')
+			.setDesc('Loopback-only, token-authed API so external tooling (the bundled MCP server, Claude sessions, scripts) can list, switch, and reveal workspaces. Desktop only.')
+			.addToggle(toggle => toggle
+				.setValue(this.plugin.settings.apiEnabled)
+				.onChange(async (value) => {
+					this.plugin.settings.apiEnabled = value;
+					if (value && !this.plugin.settings.apiToken) {
+						this.plugin.settings.apiToken = generateToken();
+					}
+					await this.plugin.saveSettings();
+					this.plugin.apiServer?.restart();
+					for (const s of apiDependentRefs) s.settingEl.style.display = value ? '' : 'none';
+					this.display();  // token row needs the fresh value
+				}));
+
+		apiDependentRefs.push(dependent(
+			new Setting(api)
+				.setName('Port')
+				.setDesc('Loopback port for this vault\'s API. Each vault instance needs its own port.')
+				.addText(text => text
+					.setValue(String(this.plugin.settings.apiPort))
+					.onChange(async (value) => {
+						const port = parseInt(value, 10);
+						if (!Number.isInteger(port) || port < 1024 || port > 65535) return;
+						this.plugin.settings.apiPort = port;
+						await this.plugin.saveSettings();
+						this.plugin.apiServer?.restart();
+					})),
+			this.plugin.settings.apiEnabled
+		));
+
+		apiDependentRefs.push(dependent(
+			new Setting(api)
+				.setName('Token')
+				.setDesc(this.plugin.settings.apiToken
+					? `Bearer token for API calls: ${this.plugin.settings.apiToken}`
+					: 'Generated when the API is first enabled.')
+				.addButton(button => button
+					.setButtonText('Regenerate')
+					.onClick(async () => {
+						this.plugin.settings.apiToken = generateToken();
+						await this.plugin.saveSettings();
+						this.plugin.apiServer?.restart();
+						this.display();
+						notify('API token regenerated; update any configured clients');
+					})),
+			this.plugin.settings.apiEnabled
+		));
 
 		// ── Maintenance (advanced, collapsed) ────────────────────────────
 		const maintenance = section('Maintenance', true);

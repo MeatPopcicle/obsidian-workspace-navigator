@@ -9,6 +9,7 @@ import { WorkspaceSwitcherModal, WorkspacePickerModal } from './workspace-modal'
 import { WorkspaceManager, WorkspacesStorage } from './workspace-manager';
 import { createConfirmationDialog } from './confirm-modal';
 import { WorkspaceNavigatorView, VIEW_TYPE_WORKSPACE_NAVIGATOR } from './workspace-sidebar-view';
+import { WnApiServer } from './http-api';
 
 // ───────────────────────────────────────────────────────────────────────────────
 // Type Definitions
@@ -32,6 +33,7 @@ export default class WorkspaceNavigator extends Plugin {
 	settings:                    WorkspaceNavigatorSettings;
 	workspaceManager:            WorkspaceManager;
 	statusBarItem:               HTMLElement | null = null;
+	apiServer:                   WnApiServer | null = null;
 	navigationLayouts:           Map<string, NavigationLayoutState> = new Map();
 	isLoadingWorkspace:          boolean = false;
 	previousWorkspace:           string | null = null;  // for the "switch to last workspace" toggle
@@ -88,10 +90,18 @@ export default class WorkspaceNavigator extends Plugin {
 			if (activeWorkspace) {
 				this.updateWorkspaceDataAttribute(activeWorkspace);
 			}
+
+			// Local HTTP API (desktop only, off by default; see settings)
+			this.apiServer = new WnApiServer(this);
+			this.apiServer.start();
 		});
 	}
 
 	async onunload() {
+		// Stop the local API server (frees the port for reloads)
+		this.apiServer?.stop();
+		this.apiServer = null;
+
 		// Save development log before unloading
 		await this.workspaceManager.saveLog();
 
@@ -342,6 +352,31 @@ export default class WorkspaceNavigator extends Plugin {
 				}
 				await this.loadWorkspace(prev);
 				notify(`Switched to: ${prev}`, 'success');
+			}
+		});
+
+		// Jump to the workspace the current note belongs to (MRU wins when it
+		// belongs to several). Also the Tier 0 automation hook: external
+		// tooling can open a note and invoke this command by id.
+		this.addCommand({
+			id: 'switch-to-note-workspace',
+			name: 'Switch to workspace containing current note',
+			callback: async () => {
+				const activeFile = this.app.workspace.getActiveFile();
+				if (!activeFile) {
+					notify('No active file', 'error');
+					return;
+				}
+				const result = await this.revealNote(activeFile.path);
+				if (result.error) {
+					notify(result.error, 'error');
+				} else if (result.inNoWorkspace) {
+					notify('This note is not part of any workspace');
+				} else if (result.switched) {
+					notify(`Switched to: ${result.workspace}`, 'success');
+				} else {
+					notify(`Already in "${result.workspace}", which contains this note`);
+				}
 			}
 		});
 
@@ -987,6 +1022,67 @@ export default class WorkspaceNavigator extends Plugin {
 			await this.loadWorkspace(targetWorkspace);
 			notify(`Switched to workspace: ${targetWorkspace}`, 'success');
 		}
+	}
+
+	/**
+	 * Reveal a note in the workspace it belongs to: look up which workspaces
+	 * contain it, switch to the winner, and focus the note.
+	 *
+	 * Policy (decided 2026-08-26): most-recently-used candidate wins, with the
+	 * alternatives reported; if the CURRENT workspace already contains the
+	 * note, no switch happens; if NO workspace contains it, the note opens in
+	 * the current workspace and the result says so. Used by the "Switch to
+	 * workspace containing current note" command and the local HTTP API.
+	 */
+	async revealNote(filePath: string): Promise<{
+		error?: string;
+		path: string;
+		workspace: string | null;
+		switched: boolean;
+		inNoWorkspace: boolean;
+		alternatives: string[];
+	}> {
+		const file = this.app.vault.getAbstractFileByPath(filePath);
+		if (!file || !('extension' in file)) {
+			return { error: `no file at ${JSON.stringify(filePath)}`, path: filePath, workspace: null, switched: false, inNoWorkspace: false, alternatives: [] };
+		}
+
+		const mgr = this.workspaceManager;
+		const current = mgr.getActiveWorkspace();
+		const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(filePath));
+
+		let target: string | null = null;
+		let switched = false;
+		if (candidates.length === 0) {
+			target = current;  // open here, report inNoWorkspace
+		} else if (current && candidates.includes(current)) {
+			target = current;  // already home; no switch
+		} else {
+			target = candidates[0];  // MRU wins
+			await this.switchToWorkspace(target);
+			switched = true;
+		}
+
+		// Focus an existing tab for the note if the (possibly just-loaded)
+		// layout has one; otherwise open it in the active leaf.
+		let leaf: WorkspaceLeaf | null = null;
+		this.app.workspace.iterateAllLeaves((l) => {
+			if (!leaf && (l.view as any)?.file?.path === filePath) leaf = l;
+		});
+		if (leaf) {
+			this.app.workspace.revealLeaf(leaf);
+			this.app.workspace.setActiveLeaf(leaf, { focus: true });
+		} else {
+			await this.app.workspace.getLeaf(false).openFile(file as any);
+		}
+
+		return {
+			path: filePath,
+			workspace: target,
+			switched,
+			inNoWorkspace: candidates.length === 0,
+			alternatives: candidates.filter((c) => c !== target),
+		};
 	}
 
 	/**

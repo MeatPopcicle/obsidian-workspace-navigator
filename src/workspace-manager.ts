@@ -81,6 +81,7 @@ export interface WorkspaceData {
 		nameColor?: string;   // CSS color for the name
 		nameBold?: boolean;   // Bold name
 		nameItalic?: boolean; // Italic name
+		lastUsedAt?: number;  // Epoch ms of the last load; drives MRU policies
 	};
 }
 
@@ -1074,6 +1075,10 @@ export class WorkspaceManager {
 			return;
 		}
 
+		// Stamp MRU before loading; drives "most-recently-used wins" policies
+		if (!workspace.metadata) workspace.metadata = {};
+		workspace.metadata.lastUsedAt = Date.now();
+
 		try {
 			this.logger.log(`- Workspace last saved: ${new Date(workspace.lastSaved).toLocaleString()}`);
 			this.logger.log(`- Has folder state: ${!!workspace.folderExpandState}`);
@@ -1381,6 +1386,16 @@ export class WorkspaceManager {
 		}
 
 		return workspaces;
+	}
+
+	/**
+	 * Order workspace names most-recently-used first (never-used ones last,
+	 * keeping their given order). Used by the reveal policy: when a note lives
+	 * in several workspaces, MRU wins and the alternatives are reported.
+	 */
+	sortByMostRecentlyUsed(names: string[]): string[] {
+		return [...names].sort((a, b) =>
+			(this.getWorkspace(b)?.metadata?.lastUsedAt ?? 0) - (this.getWorkspace(a)?.metadata?.lastUsedAt ?? 0));
 	}
 
 	/**

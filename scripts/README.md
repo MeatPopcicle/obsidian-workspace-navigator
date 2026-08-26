@@ -32,6 +32,7 @@ Section-1a caveats that read like plugin bugs but are not: the fresh profile sho
 | `reload-plugin.mjs` | build (`--build`) + disable/enable in place; no Obsidian restart |
 | `verify-ui.mjs` | the shipped-regression suite: one active checkmark agreeing with the status bar; empty-group standalone cards; empty-heading click toggles (never switches); no legacy `workspace-` classes; focus-visible rules present; status-bar icon hidden/shown |
 | `verify-workspace-ops.mjs` | data round-trips: move-to-group order maintenance; add/remove file incl. the legacy `state.file` leaf shape (F3); the Delete-All typed confirm (CTA disabled until exact `DELETE`, Cancel cancels, **the enabled CTA is never clicked**) |
+| `verify-api.mjs` | the Local HTTP API + MCP server: auth rejection, every endpoint, all three reveal policies (MRU-switch / in-current / no-workspace), MCP stdio round-trips; restores API settings (shared `data.json` across symlinked vaults makes the restore mandatory) |
 
 The loop: `node scripts/reload-plugin.mjs --build && node scripts/verify-ui.mjs && node scripts/verify-workspace-ops.mjs`
 
