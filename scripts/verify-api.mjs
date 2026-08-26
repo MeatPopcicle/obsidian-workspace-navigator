@@ -43,17 +43,24 @@ async function seed(id, wsA, wsB, port, token) {
     const mgr = p.getWorkspaceManager();
 
     // Two markdown files: one that will belong to WS_A only, one to none.
+    // Prefer files with a vault-unique basename, so the partial-path
+    // resolution check is deterministic (an ambiguous basename legitimately
+    // resolves to Obsidian's own best match, which may not be ours).
     const mds = window.app.vault.getMarkdownFiles().map((f) => f.path);
     if (mds.length < 2) return { error: "need at least 2 markdown files in the vault" };
+    const counts = {};
+    for (const m of mds) { const b = m.split("/").pop(); counts[b] = (counts[b] ?? 0) + 1; }
+    const unique = mds.filter((m) => counts[m.split("/").pop()] === 1);
+    const pool = unique.length >= 2 ? unique : mds;
 
     await mgr.saveWorkspace(wsA, false);
     await mgr.saveWorkspace(wsB, false);
 
-    const inA = mds.find((m) => !mgr.getWorkspacesWithFile(m).includes(wsB)) ?? mds[0];
+    const inA = pool.find((m) => !mgr.getWorkspacesWithFile(m).includes(wsB)) ?? pool[0];
     mgr.addFileToWorkspace(wsA, inA);
     // ensure it is NOT in wsB so the reveal must switch
     mgr.removeFileFromWorkspace(wsB, inA);
-    const inNone = mds.find((m) => mgr.getWorkspacesWithFile(m).length === 0) ?? null;
+    const inNone = pool.find((m) => m !== inA && mgr.getWorkspacesWithFile(m).length === 0) ?? null;
 
     p.settings.apiEnabled = true;
     p.settings.apiPort = port;
@@ -157,6 +164,13 @@ try {
     // Reveal a nonexistent path: 404 with error
     const r4 = await http("POST", "/reveal", { body: { path: "WSN-does-not-exist.md" } });
     check("reveal missing file errors (404)", r4.status === 404 && !!r4.json.error);
+
+    // Forgiving resolution: a bare basename resolves via the wikilink resolver
+    // (field-reported: sub-vault-relative paths failed as hard misses)
+    const basename = seeded.inA.split("/").pop();
+    const r5 = await http("GET", `/workspace-for?path=${encodeURIComponent(basename)}`);
+    check("partial path resolves via link resolver", r5.status === 200 && r5.json.resolvedPath === seeded.inA,
+        JSON.stringify({ asked: basename, resolved: r5.json.resolvedPath ?? r5.json.error }));
 
     // Switch endpoint
     const sw = await http("POST", "/switch", { body: { workspace: WS_B } });

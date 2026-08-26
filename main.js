@@ -6502,8 +6502,13 @@ var WnApiServer = class {
             send(400, { error: "path query parameter required" });
             return;
           }
-          const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(path));
-          send(200, { path, workspaces: candidates, active: mgr.getActiveWorkspace() });
+          const resolved = this.plugin.resolveNotePath(path);
+          if (!resolved) {
+            send(404, { error: `no file matches ${JSON.stringify(path)} (paths are vault-root-relative; partial paths and note names are resolved when unambiguous)` });
+            return;
+          }
+          const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(resolved.resolvedPath));
+          send(200, { path, resolvedPath: resolved.resolvedPath, workspaces: candidates, active: mgr.getActiveWorkspace() });
           return;
         }
         case "POST /switch": {
@@ -7381,11 +7386,30 @@ ${JSON.stringify(layout, null, 2)}
    * the current workspace and the result says so. Used by the "Switch to
    * workspace containing current note" command and the local HTTP API.
    */
+  /**
+   * Resolve a caller-supplied path to a real file, forgivingly: exact
+   * vault-root-relative path first, then Obsidian's wikilink resolver, which
+   * handles sub-vault-relative paths and bare note names ("Ryan Heath").
+   * Field-reported 2026-08-26: callers working inside a sub-vault naturally
+   * omit the sub-vault prefix, and a hard miss there is just unfriendly.
+   */
+  resolveNotePath(filePath) {
+    const exact = this.app.vault.getAbstractFileByPath(filePath);
+    if (exact && "extension" in exact)
+      return { file: exact, resolvedPath: filePath };
+    const linkpath = filePath.replace(/\.md$/i, "");
+    const viaLink = this.app.metadataCache.getFirstLinkpathDest(linkpath, "");
+    if (viaLink)
+      return { file: viaLink, resolvedPath: viaLink.path };
+    return null;
+  }
   async revealNote(filePath) {
-    const file = this.app.vault.getAbstractFileByPath(filePath);
-    if (!file || !("extension" in file)) {
-      return { error: `no file at ${JSON.stringify(filePath)}`, path: filePath, workspace: null, switched: false, inNoWorkspace: false, alternatives: [] };
+    const resolved = this.resolveNotePath(filePath);
+    if (!resolved) {
+      return { error: `no file matches ${JSON.stringify(filePath)} (paths are vault-root-relative; partial paths and note names are resolved when unambiguous)`, path: filePath, workspace: null, switched: false, inNoWorkspace: false, alternatives: [] };
     }
+    const file = resolved.file;
+    filePath = resolved.resolvedPath;
     const mgr = this.workspaceManager;
     const current = mgr.getActiveWorkspace();
     const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(filePath));
@@ -7414,6 +7438,7 @@ ${JSON.stringify(layout, null, 2)}
     }
     return {
       path: filePath,
+      resolvedPath: filePath,
       workspace: target,
       switched,
       inNoWorkspace: candidates.length === 0,

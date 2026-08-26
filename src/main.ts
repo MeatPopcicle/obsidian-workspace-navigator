@@ -1034,18 +1034,37 @@ export default class WorkspaceNavigator extends Plugin {
 	 * the current workspace and the result says so. Used by the "Switch to
 	 * workspace containing current note" command and the local HTTP API.
 	 */
+	/**
+	 * Resolve a caller-supplied path to a real file, forgivingly: exact
+	 * vault-root-relative path first, then Obsidian's wikilink resolver, which
+	 * handles sub-vault-relative paths and bare note names ("Ryan Heath").
+	 * Field-reported 2026-08-26: callers working inside a sub-vault naturally
+	 * omit the sub-vault prefix, and a hard miss there is just unfriendly.
+	 */
+	resolveNotePath(filePath: string): { file: any; resolvedPath: string } | null {
+		const exact = this.app.vault.getAbstractFileByPath(filePath);
+		if (exact && 'extension' in exact) return { file: exact, resolvedPath: filePath };
+		const linkpath = filePath.replace(/\.md$/i, '');
+		const viaLink = this.app.metadataCache.getFirstLinkpathDest(linkpath, '');
+		if (viaLink) return { file: viaLink, resolvedPath: viaLink.path };
+		return null;
+	}
+
 	async revealNote(filePath: string): Promise<{
 		error?: string;
 		path: string;
+		resolvedPath?: string;
 		workspace: string | null;
 		switched: boolean;
 		inNoWorkspace: boolean;
 		alternatives: string[];
 	}> {
-		const file = this.app.vault.getAbstractFileByPath(filePath);
-		if (!file || !('extension' in file)) {
-			return { error: `no file at ${JSON.stringify(filePath)}`, path: filePath, workspace: null, switched: false, inNoWorkspace: false, alternatives: [] };
+		const resolved = this.resolveNotePath(filePath);
+		if (!resolved) {
+			return { error: `no file matches ${JSON.stringify(filePath)} (paths are vault-root-relative; partial paths and note names are resolved when unambiguous)`, path: filePath, workspace: null, switched: false, inNoWorkspace: false, alternatives: [] };
 		}
+		const file = resolved.file;
+		filePath = resolved.resolvedPath;
 
 		const mgr = this.workspaceManager;
 		const current = mgr.getActiveWorkspace();
@@ -1078,6 +1097,7 @@ export default class WorkspaceNavigator extends Plugin {
 
 		return {
 			path: filePath,
+			resolvedPath: filePath,
 			workspace: target,
 			switched,
 			inNoWorkspace: candidates.length === 0,

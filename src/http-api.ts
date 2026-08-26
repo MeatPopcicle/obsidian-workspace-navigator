@@ -113,8 +113,13 @@ export class WnApiServer {
 				case 'GET /workspace-for': {
 					const path = url.searchParams.get('path') ?? '';
 					if (!path) { send(400, { error: 'path query parameter required' }); return; }
-					const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(path));
-					send(200, { path, workspaces: candidates, active: mgr.getActiveWorkspace() });
+					const resolved = this.plugin.resolveNotePath(path);
+					if (!resolved) {
+						send(404, { error: `no file matches ${JSON.stringify(path)} (paths are vault-root-relative; partial paths and note names are resolved when unambiguous)` });
+						return;
+					}
+					const candidates = mgr.sortByMostRecentlyUsed(mgr.getWorkspacesWithFile(resolved.resolvedPath));
+					send(200, { path, resolvedPath: resolved.resolvedPath, workspaces: candidates, active: mgr.getActiveWorkspace() });
 					return;
 				}
 

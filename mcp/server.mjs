@@ -50,7 +50,7 @@ const TOOLS = [
     },
     {
         name: "workspace_for_note",
-        description: "Which workspaces contain a note (vault-relative path), most-recently-used first. Does not switch.",
+        description: "Which workspaces contain a note, most-recently-used first. Does not switch. Paths are VAULT-ROOT-relative (in a vault with sub-vaults, include the sub-vault prefix, e.g. '100 Personal/20 Identity/Ryan Heath.md'); partial paths and bare note names are resolved when unambiguous, and the response reports the resolvedPath.",
         inputSchema: {
             type: "object",
             properties: { path: { type: "string", description: "Vault-relative note path, e.g. 'Projects/Foo.md'" } },
@@ -72,7 +72,7 @@ const TOOLS = [
     },
     {
         name: "reveal_note",
-        description: "Open a note in the workspace it belongs to: switches to the most-recently-used workspace containing it (no switch if the current one has it; opens in place and reports if none do), then focuses the note. The response lists alternative workspaces when the note lives in several.",
+        description: "Open a note in the workspace it belongs to: switches to the most-recently-used workspace containing it (no switch if the current one has it; opens in place and reports if none do), then focuses the note. The response lists alternative workspaces when the note lives in several. Paths are VAULT-ROOT-relative (include any sub-vault prefix); partial paths and bare note names are resolved when unambiguous, and the response reports the resolvedPath.",
         inputSchema: {
             type: "object",
             properties: { path: { type: "string", description: "Vault-relative note path, e.g. 'Projects/Foo.md'" } },
