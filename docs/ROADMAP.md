@@ -68,6 +68,12 @@ The separate "Manage Workspaces" editor modal is **slated for removal** (see Pla
 
 ### Future
 - [ ] **Per-workspace theming hook** — set a `data-workspace-name` (and, later, `data-space`) attribute on `<body>` so the whole UI can be tinted per workspace/client via CSS. Parked for later, alongside Scoped Spaces.
+- [ ] **File pinned to a workspace ("this file always opens in workspace XYZ")** — a per-file binding so opening a bound note switches to its designated workspace first. Added 2026-08-27; challenges foreseen and deliberately deferred until pickup, sketched here so the thinking isn't lost:
+  - *Interception point*: Obsidian has no "before file open" hook; the realistic option is reacting on `file-open` (switch after the fact, then re-reveal the note in the target workspace), which must not loop: the reveal-triggered open of the same file has to be recognized and ignored.
+  - *When it should NOT fire*: quick-peek flows (hover preview, search result glance, backlink click?) would make an always-switch aggressive. Likely needs a bypass (modifier-click or a per-binding "only via quick switcher / explorer" scope), or an opt-in prompt-once behavior.
+  - *Binding storage and UX*: per-file map in plugin data (`path -> workspace`), set via file context menu ("Always open in workspace..."), cleared the same way; rename/move tracking via the vault rename event.
+  - *Interaction with reveal_note / MRU*: a binding should outrank MRU in the reveal policy; the API response should say the binding decided.
+  - *Relation to Scoped Spaces*: a binding is a per-file version of what Spaces does per-subtree; if Spaces lands, bindings may become derived defaults rather than a separate map.
 
 ---
 
