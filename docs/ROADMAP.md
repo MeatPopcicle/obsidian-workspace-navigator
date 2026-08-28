@@ -80,7 +80,7 @@ The separate "Manage Workspaces" editor modal is **slated for removal** (see Pla
 
 ## Parked / Future
 
-- **Scoped Spaces** — the big evolution: multiple clients in a single vault, with the file explorer **and** the workspace list scoped to one client's subtree at a time (optionally with a per-space accent). A foundation exists on the `feature/scoped-spaces-v2` branch, but it predates the v2.13–2.16 restructure — when revisited, it should be **re-founded cleanly on current `main`**, not rebased from that branch.
+- **Scoped Spaces** — the big evolution: multiple clients in a single vault, with the file explorer **and** the workspace list scoped to one client's subtree at a time (optionally with a per-space accent). Deep-dive assessment written 2026-08-28: see `docs/spaces-assessment.md` (inventory of the two branches — note the tip is `bugfix/space-improvements`, not the feature branch — the superset architecture, the do-not-fork recommendation with a `spacesEnabled` gate instead, the re-founding plan, and which roadmap items become Spaces-aware). Re-found cleanly on current `main`; the branches are reference only.
 
 ---
 
